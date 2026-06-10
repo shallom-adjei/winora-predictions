@@ -1,11 +1,26 @@
-// Pure TypeScript engine – no API calls
-export function computePrediction(match: any) {
+// Winora Prediction Engine v2
+// Starts from neutral 50, adjusts based on supplied statistics
+
+export interface PredictionScores {
+  "Home Win": number;
+  "Draw": number;
+  "Away Win": number;
+  "Over 1.5 Goals": number;
+  "Over 2.5 Goals": number;
+  "Under 2.5 Goals": number;
+  "Both Teams to Score": number;
+  "BTTS No": number;
+  "1X": number;     // Home or Draw
+  "X2": number;     // Away or Draw
+}
+
+export function computePrediction(match: any): PredictionScores {
   const formA = Number(match.form_points_a) || 0;
   const formB = Number(match.form_points_b) || 0;
-  const goalsA = Number(match.home_goals_scored) || 0;
-  const goalsB = Number(match.away_goals_scored) || 0;
-  const concededA = Number(match.home_goals_conceded) || 0;
-  const concededB = Number(match.away_goals_conceded) || 0;
+  const homeGoalsScored = Number(match.home_goals_scored) || 0;
+  const homeGoalsConceded = Number(match.home_goals_conceded) || 0;
+  const awayGoalsScored = Number(match.away_goals_scored) || 0;
+  const awayGoalsConceded = Number(match.away_goals_conceded) || 0;
   const over25A = Number(match.over25_last5_pct_a) || 0;
   const over25B = Number(match.over25_last5_pct_b) || 0;
   const bttsA = Number(match.btts_last5_pct_a) || 0;
@@ -17,71 +32,91 @@ export function computePrediction(match: any) {
   const failA = Number(match.failed_to_score_last5_a) || 0;
   const failB = Number(match.failed_to_score_last5_b) || 0;
 
+  // ----- Neutral baselines -----
+  let homeWin = 50;
+  let draw = 50;
+  let awayWin = 50;
+  let over25 = 50;
+  let btts = 50;
+  let under25 = 50;
+  let over15 = 50;
+  let bttsNo = 50;
+
+  // ----- Form difference (weighted momentum would go here) -----
   const formDiff = formA - formB;
-  const posGap = (Number(match.league_position_b) || 99) - (Number(match.league_position_a) || 99);
 
-  let homeWin = 0;
-  let draw = 0;
-  let awayWin = 0;
-  let over25 = 0;
-  let btts = 0;
+  if (formDiff > 3) { homeWin += 8; awayWin -= 5; }
+  else if (formDiff > 1) { homeWin += 4; awayWin -= 3; }
+  else if (formDiff < -3) { awayWin += 8; homeWin -= 5; }
+  else if (formDiff < -1) { awayWin += 4; homeWin -= 3; }
+  else { draw += 4; }
 
-  // Home Win
-  if (formDiff > 2) homeWin += 10;
-  if (formDiff > 4) homeWin += 5;
-  if (posGap > 4) homeWin += 8;
-  if (goalsA - concededA > 0.5) homeWin += 6;
-  if (concededB - goalsB > 0.5) homeWin += 6;
-  if (cleanA >= 2 && failB >= 2) homeWin += 5;
+  // ----- Home/Away strength -----
+  const homeStrength = homeGoalsScored - homeGoalsConceded;
+  const awayStrength = awayGoalsScored - awayGoalsConceded;
 
-  // Away Win
-  if (formDiff < -2) awayWin += 10;
-  if (formDiff < -4) awayWin += 5;
-  if (posGap < -4) awayWin += 8;
-  if (goalsB - concededB > 0.5) awayWin += 6;
-  if (concededA - goalsA > 0.5) awayWin += 6;
-  if (cleanB >= 2 && failA >= 2) awayWin += 5;
+  if (homeStrength > 1) { homeWin += 8; awayWin -= 4; }
+  if (awayStrength > 1) { awayWin += 8; homeWin -= 4; }
+  if (Math.abs(homeStrength - awayStrength) < 0.5) draw += 5;
 
-  // Draw
-  if (Math.abs(formDiff) <= 2) draw += 8;
-  if (Math.abs(posGap) <= 3) draw += 7;
-  if (cleanA >= 2 && cleanB >= 2) draw += 6;
-  if (failA <= 1 && failB <= 1 && over25A < 50 && over25B < 50) draw += 5;
+  // ----- Goal trends -----
+  if (over25A > 70) over25 += 10;
+  if (over25A > 55) over25 += 5;
+  if (over25B > 70) over25 += 10;
+  if (over25B > 55) over25 += 5;
+  if (h2hOver25 > 70) over25 += 8;
 
-  // Over 2.5 Goals
-  if (over25A > 60) over25 += 10;
-  if (over25A > 80) over25 += 5;
-  if (over25B > 60) over25 += 10;
-  if (over25B > 80) over25 += 5;
-  if (h2hOver25 > 60) over25 += 8;
-  if (bttsA > 60 && bttsB > 60) over25 += 5;
+  if (bttsA > 70) btts += 8;
+  if (bttsA > 55) btts += 4;
+  if (bttsB > 70) btts += 8;
+  if (bttsB > 55) btts += 4;
+  if (h2hBtts > 70) btts += 8;
 
-  // Both Teams to Score
-  if (bttsA > 60) btts += 10;
-  if (bttsA > 80) btts += 5;
-  if (bttsB > 60) btts += 10;
-  if (bttsB > 80) btts += 5;
-  if (h2hBtts > 60) btts += 8;
-  if (failA < 2 && failB < 2) btts += 5;
-  if (cleanA >= 3 && cleanB >= 3) btts -= 8;
-  if (failA >= 3 || failB >= 3) btts -= 5;
+  // ----- Under 2.5 (independent) -----
+  if (over25A < 40) under25 += 8;
+  if (over25B < 40) under25 += 8;
+  if (h2hOver25 < 40) under25 += 8;
+  if (cleanA >= 3) under25 += 6;
+  if (cleanB >= 3) under25 += 6;
+  if (failA >= 2) under25 += 5;
+  if (failB >= 2) under25 += 5;
 
+  // ----- Over 1.5 (very likely if either team scores often) -----
+  if (over25A > 50 || over25B > 50) over15 += 10;
+  if (bttsA > 50 || bttsB > 50) over15 += 8;
+  if (cleanA <= 1 && cleanB <= 1) over15 += 5;
+
+  // ----- BTTS No (opposite) -----
+  bttsNo = 95 - btts; // simple mirror; can be refined later
+
+  // ----- Double Chance (1X, X2) -----
+  const homeWinDX = homeWin + draw * 0.6;
+  const awayWinDX = awayWin + draw * 0.6;
+  // Normalize to 15-95 range
   const clamp = (v: number) => Math.min(Math.max(Math.round(v), 15), 95);
+
   return {
     "Home Win": clamp(homeWin),
     "Draw": clamp(draw),
     "Away Win": clamp(awayWin),
+    "Over 1.5 Goals": clamp(over15),
     "Over 2.5 Goals": clamp(over25),
+    "Under 2.5 Goals": clamp(under25),
     "Both Teams to Score": clamp(btts),
-    "Under 2.5 Goals": clamp(95 - over25),
+    "BTTS No": clamp(bttsNo),
+    "1X": clamp(Math.round(homeWinDX)),
+    "X2": clamp(Math.round(awayWinDX)),
   };
 }
 
-export function calculateConfidence(scores: Record<string, number>, dataQuality: number) {
+export function calculateConfidence(scores: PredictionScores, dataQuality: number, formDiff?: number) {
   const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
   const topScore = sorted[0]?.[1] || 50;
   const secondScore = sorted[1]?.[1] || 50;
   const edge = topScore - secondScore;
-  const rawConf = Math.round(topScore * (dataQuality / 100));
-  return Math.min(rawConf, 90);
+
+  // Confidence formula with edge and data quality
+  let confidence = topScore + (edge * 0.7) + (dataQuality * 0.2);
+  confidence = Math.min(Math.max(Math.round(confidence), 55), 90);
+  return confidence;
 }

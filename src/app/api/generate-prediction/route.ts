@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { computePrediction, calculateConfidence } from "@/lib/predictionEngine";
 
-// Data quality score (same as before)
+// ----- Data quality (same as before) -----
 function calculateDataQuality(match: any) {
   let quality = 0;
   if (match.form_points_a != null && match.form_points_b != null) quality += 15;
@@ -16,70 +16,82 @@ function calculateDataQuality(match: any) {
   return Math.min(quality, 100);
 }
 
+// ----- Build a bullet‑list of evidence strings -----
+function buildReasons(match: any, scores: any) {
+  const reasons: string[] = [];
+  if (match.btts_last5_pct_a > 60) reasons.push(`Home team BTTS rate: ${match.btts_last5_pct_a}%`);
+  if (match.btts_last5_pct_b > 60) reasons.push(`Away team BTTS rate: ${match.btts_last5_pct_b}%`);
+  if (match.h2h_btts_pct > 60) reasons.push(`H2H BTTS: ${match.h2h_btts_pct}%`);
+  if (match.over25_last5_pct_a > 60) reasons.push(`Home team Over 2.5 rate: ${match.over25_last5_pct_a}%`);
+  if (match.over25_last5_pct_b > 60) reasons.push(`Away team Over 2.5 rate: ${match.over25_last5_pct_b}%`);
+  if (match.h2h_over25_pct > 60) reasons.push(`H2H Over 2.5: ${match.h2h_over25_pct}%`);
+  if (match.clean_sheets_last5_a >= 2) reasons.push(`Home clean sheets: ${match.clean_sheets_last5_a}`);
+  if (match.clean_sheets_last5_b >= 2) reasons.push(`Away clean sheets: ${match.clean_sheets_last5_b}`);
+  if (match.failed_to_score_last5_a >= 2) reasons.push(`Home failed to score in ${match.failed_to_score_last5_a} of last 5`);
+  if (match.failed_to_score_last5_b >= 2) reasons.push(`Away failed to score in ${match.failed_to_score_last5_b} of last 5`);
+  if (match.form_points_a && match.form_points_b) {
+    const diff = Number(match.form_points_a) - Number(match.form_points_b);
+    if (Math.abs(diff) >= 3) reasons.push(`Form advantage: ${diff > 0 ? match.team_a : match.team_b} (+${Math.abs(diff)})`);
+  }
+  if (match.league_position_a && match.league_position_b) {
+    const gap = Number(match.league_position_b) - Number(match.league_position_a);
+    if (gap > 4) reasons.push(`League position advantage: ${match.team_a} (${gap} places higher)`);
+    else if (gap < -4) reasons.push(`League position advantage: ${match.team_b} (${-gap} places higher)`);
+  }
+  return reasons;
+}
+
 export async function POST(req: NextRequest) {
   const { match } = await req.json();
 
   const dataQuality = calculateDataQuality(match);
-  console.log(`Data quality for ${match.team_a} vs ${match.team_b}: ${dataQuality}%`);
+  if (dataQuality < 30) {
+    return NextResponse.json({
+      prediction: "No recommendation",
+      confidence: 0,
+      analysis: "Insufficient analytical data available for this match.",
+      fullReport: null,
+    });
+  }
 
-  // 1. Calculate engine scores
+  // 1. Compute all market scores
   const scores = computePrediction(match);
   const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
   const mainPrediction = sorted[0]?.[0] || "Home Win";
   const alternativePrediction = sorted[1]?.[0] || "Draw";
-  const confidence = calculateConfidence(scores, dataQuality);
   const topScore = sorted[0]?.[1] || 50;
   const secondScore = sorted[1]?.[1] || 50;
   const edge = topScore - secondScore;
-  const riskLevel = edge > 15 && dataQuality > 80 ? "Low" : edge > 10 && dataQuality > 70 ? "Medium" : "High";
-  const recommendedStake = confidence > 75 ? "3/5" : confidence > 65 ? "2/5" : "1/5";
 
-  // 2. Build the prompt for the AI writer
-  const hasData = dataQuality > 30; // if we have some stats, use them
-  const dataSection = hasData
-    ? `Match Data:
-${match.team_a} (Home) vs ${match.team_b} (Away)
-Form points (last 5): ${match.form_points_a} vs ${match.form_points_b}
-Home goals scored/conceded per game: ${match.home_goals_scored || "?"} / ${match.home_goals_conceded || "?"}
-Away goals scored/conceded per game: ${match.away_goals_scored || "?"} / ${match.away_goals_conceded || "?"}
-Clean sheets (last 5): ${match.clean_sheets_last5_a || 0} vs ${match.clean_sheets_last5_b || 0}
-Failed to score (last 5): ${match.failed_to_score_last5_a || 0} vs ${match.failed_to_score_last5_b || 0}
-Over 2.5 % (last 5): ${match.over25_last5_pct_a || 0}% vs ${match.over25_last5_pct_b || 0}%
-BTTS % (last 5): ${match.btts_last5_pct_a || 0}% vs ${match.btts_last5_pct_b || 0}%
-H2H last 5: ${match.h2h_last5 || "N/A"} (Over 2.5: ${match.h2h_over25_pct || 0}%, BTTS: ${match.h2h_btts_pct || 0}%)`
-    : "No detailed statistics are available for this match.";
+  // 2. Confidence
+  const confidence = calculateConfidence(scores, dataQuality, Number(match.form_points_a) - Number(match.form_points_b));
 
-  const prompt = `You are Winora's senior football analyst. Write a detailed, professional match analysis based on the supplied information. 
+  // 3. Risk
+  const riskLevel = edge < 5 ? "High" : edge < 12 ? "Medium" : "Low";
+
+  // 4. Stake (conservative)
+  const stake = confidence >= 85 ? "2/5" : confidence >= 75 ? "1.5/5" : "1/5";
+
+  // 5. Build evidence reasons
+  const reasons = buildReasons(match, scores);
+  const reasonsText = reasons.length
+    ? reasons.map(r => `- ${r}`).join("\n")
+    : "No specific statistical data points were available.";
+
+  // 6. AI prompt – purely from evidence
+  const prompt = `You are Winora's senior football analyst. Write a concise, professional, 3‑sentence analysis for the following match. Use ONLY the supporting evidence provided; do not invent any statistics, form, injuries, or historical events.
 
 Match: ${match.team_a} vs ${match.team_b}
-Sport: ${match.sport || "Football"}
-League: ${match.league || "International Friendly"}
-Time: ${match.time || "TBD"}
-
-${hasData ? `Supplied Data:
-Form points (last 5): ${match.form_points_a} vs ${match.form_points_b}
-Home goals scored/conceded per game: ${match.home_goals_scored || "?"} / ${match.home_goals_conceded || "?"}
-Away goals scored/conceded per game: ${match.away_goals_scored || "?"} / ${match.away_goals_conceded || "?"}
-Clean sheets (last 5): ${match.clean_sheets_last5_a || 0} vs ${match.clean_sheets_last5_b || 0}
-Failed to score (last 5): ${match.failed_to_score_last5_a || 0} vs ${match.failed_to_score_last5_b || 0}
-Over 2.5 % (last 5): ${match.over25_last5_pct_a || 0}% vs ${match.over25_last5_pct_b || 0}%
-BTTS % (last 5): ${match.btts_last5_pct_a || 0}% vs ${match.btts_last5_pct_b || 0}%
-H2H last 5: ${match.h2h_last5 || "N/A"} (Over 2.5: ${match.h2h_over25_pct || 0}%, BTTS: ${match.h2h_btts_pct || 0}%)` 
-: "No detailed statistics are available for this match."}
-
-The prediction engine has calculated the following scores (higher = stronger):
-${sorted.map(([pred, score]) => `- ${pred}: ${score}`).join("\n")}
-
-Main prediction: ${mainPrediction} (confidence ${confidence})
-Alternative: ${alternativePrediction}
+League: ${match.league || "International"}
+Main prediction: ${mainPrediction}
+Confidence: ${confidence}
 Risk level: ${riskLevel}
-Recommended stake: ${recommendedStake}
+Stake recommendation: ${stake}
 
-Write a JSON report containing:
-- "analysis": a 3-4 sentence analysis that explains why ${mainPrediction} is the best pick. You must mention ${match.team_a} and ${match.team_b} by name at least twice each. Use specific, football‑relevant language (e.g., home advantage, recent friendly form, attacking styles, defensive records). Never say "both teams are equal" or "tightly contested" in a generic way. If no data is available, use your general knowledge of the teams to provide a reasoned, engaging analysis.
-- "final_verdict": a one‑line summary.
+Supporting evidence:
+${reasonsText}
 
-Be engaging and sound like a human expert. Return ONLY valid JSON.`;
+Return ONLY a JSON object with the key "analysis".`;
 
   try {
     const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -90,35 +102,40 @@ Be engaging and sound like a human expert. Return ONLY valid JSON.`;
       },
       body: JSON.stringify({
         model: "llama-3.3-70b-versatile",
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.4,
-        max_tokens: 700,
+        messages: [
+          { role: "system", content: "You are a professional football analyst. Write concisely and use only the provided evidence. Return only valid JSON." },
+          { role: "user", content: prompt },
+        ],
+        temperature: 0.2,
+        max_tokens: 500,
         response_format: { type: "json_object" },
       }),
     });
 
     const data = await res.json();
     const content = data.choices?.[0]?.message?.content || "{}";
-    let report = { analysis: "", final_verdict: "" };
+    let analysis = "";
     try {
       const parsed = JSON.parse(content);
-      report = { analysis: parsed.analysis || "", final_verdict: parsed.final_verdict || "" };
+      analysis = parsed.analysis || "";
     } catch {}
 
-    const fullAnalysis = report.analysis || `Based on the calculated model, ${mainPrediction} is the most likely outcome with ${confidence}% confidence.`;
+    if (!analysis) {
+      analysis = `${mainPrediction} is the statistically favoured outcome based on the available data. Confidence: ${confidence}%.`;
+    }
 
     return NextResponse.json({
       prediction: mainPrediction,
       confidence,
-      analysis: fullAnalysis,
+      analysis,
       fullReport: {
         main_prediction: mainPrediction,
         alternative_prediction: alternativePrediction,
         risk_level: riskLevel,
         confidence_score: confidence,
-        recommended_stake: recommendedStake,
-        analysis: fullAnalysis,
-        final_verdict: report.final_verdict || `${mainPrediction} is the recommended pick.`,
+        recommended_stake: stake,
+        analysis,
+        evidence: reasons,
       },
     });
   } catch (err) {
@@ -126,7 +143,7 @@ Be engaging and sound like a human expert. Return ONLY valid JSON.`;
     return NextResponse.json({
       prediction: mainPrediction,
       confidence,
-      analysis: `${mainPrediction} is the calculated best pick with ${confidence}% confidence based on available data.`,
+      analysis: `${mainPrediction} is the recommended pick based on available data.`,
       fullReport: null,
     });
   }
