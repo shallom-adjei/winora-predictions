@@ -156,6 +156,7 @@ export default function AdminDashboard() {
   const [editingPrediction, setEditingPrediction] = useState<any>(null);
   const [editValues, setEditValues] = useState<any>({ match_name: "", prediction: "", confidence: "" });
   const [generatingId, setGeneratingId] = useState<string | null>(null);
+  const [enriching, setEnriching] = useState(false);
 
   // ---- REAL ANALYTICS STATE ----
   const [realPieData, setRealPieData] = useState(pieDataFallback);
@@ -383,6 +384,25 @@ setWaitlistEntries(waitlistData || []);
     fetchAnalytics();
   };
 
+  const handleEnrich = async () => {
+  setEnriching(true);
+  try {
+    const res = await fetch("/api/enrich-stats", { method: "POST" });
+    const data = await res.json();
+    if (data.success) {
+      toast.success(`Enriched ${data.enriched} matches (${data.failed} failed)`);
+      fetchDashboardData();
+      fetchAnalytics();
+    } else {
+      toast.error(data.error || "Enrichment failed");
+    }
+  } catch {
+    toast.error("Network error");
+  } finally {
+    setEnriching(false);
+  }
+};
+
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this prediction?")) return;
     const { error } = await supabase.from("predictions").delete().eq("id", id);
@@ -555,6 +575,9 @@ setWaitlistEntries(waitlistData || []);
           <Button onClick={handleUpdateMatches} disabled={updating} variant="outline" className="text-sm">
             {updating ? "Updating..." : "Update Matches & Stats"}
           </Button>
+          <Button onClick={handleEnrich} disabled={enriching} variant="outline" className="text-sm">
+  {enriching ? "Enriching..." : "Enrich Stats"}
+</Button>
           <Button onClick={handleGenerateAll} disabled={generatingId !== null} className="text-sm">
   {generatingId ? "Generating..." : "Generate All Predictions"}
 </Button>
