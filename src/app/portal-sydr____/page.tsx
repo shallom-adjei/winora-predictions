@@ -385,14 +385,17 @@ const { data: waitlistData } = await supabase
 setWaitlistEntries(waitlistData || []);
   };
 
-  useEffect(() => {
-    const hour = new Date().getHours();
-    if (hour < 12) setGreeting("Good morning");
-    else if (hour < 18) setGreeting("Good afternoon");
-    else setGreeting("Good evening");
-    fetchDashboardData();
+useEffect(() => {
+  const hour = new Date().getHours();
+  if (hour < 12) setGreeting("Good morning");
+  else if (hour < 18) setGreeting("Good afternoon");
+  else setGreeting("Good evening");
+  fetchDashboardData();
+  // Delay analytics to keep the UI responsive
+  setTimeout(() => {
     fetchAnalytics();
-  }, []);
+  }, 500);
+}, []);
 
   // ----- Handlers -----
   const handleAddPick = async (e: React.FormEvent) => {
@@ -572,9 +575,11 @@ setWaitlistEntries(waitlistData || []);
     }
   };
 
-  const handleLogout = () => {
-  document.cookie = "admin_token=; path=/; max-age=0";
-  window.location.href = "/portal‑sydr____/login";
+ const handleLogout = () => {
+  document.cookie = "admin_token=; path=/; max-age=0; secure; samesite=lax";
+  setTimeout(() => {
+    window.location.href = "/portal‑sydr____/login";
+  }, 100);
 };
 
 const handleChangePassword = async (e: React.FormEvent) => {

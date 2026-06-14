@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
-  // Allow login page and login API
+  // Always allow access to the login page, the login API, and the change‑password API
   if (
     request.nextUrl.pathname === "/portal‑sydr____/login" ||
     request.nextUrl.pathname === "/api/admin-login" ||
@@ -18,7 +18,6 @@ export async function middleware(request: NextRequest) {
   }
 
   try {
-    // Decode token and compare to database password
     const decoded = Buffer.from(token, "base64").toString("utf-8");
 
     const { supabase } = await import("@/lib/supabase");
