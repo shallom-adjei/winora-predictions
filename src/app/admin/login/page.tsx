@@ -22,14 +22,27 @@ export default function AdminLogin() {
         body: JSON.stringify({ password }),
       });
 
-      if (res.ok) {
-        router.push("/admin");          // redirect to dashboard
-      } else {
-        const data = await res.json();
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
         setError(data.error || "Invalid password");
+        return;
       }
-    } catch {
-      setError("Network error. Please try again.");
+
+      // Login successful – redirect using multiple methods
+      const data = await res.json().catch(() => ({}));
+      console.log("Login success, redirecting...");
+
+      // 1) Try Next.js router (works if middleware allows)
+      router.push("/admin");
+
+      // 2) Fallback: after a short delay, force a full page navigation
+      setTimeout(() => {
+        window.location.href = "/admin";
+      }, 1500);
+
+    } catch (err) {
+      setError("Network error. Please check your connection.");
+      console.error("Login error:", err);
     } finally {
       setLoading(false);
     }

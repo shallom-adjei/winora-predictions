@@ -73,7 +73,6 @@ function Sidebar() {
   { title: "Dashboard", icon: BarChart3, href: "/admin" },
   { title: "Predictions", icon: TrendingUp, href: "/admin/predictions" },
   { title: "Upcoming Matches", icon: Activity, href: "/admin/matches" },
-  { title: "Bulk Add", icon: Activity, href: "/admin/bulk" },       // <-- new
   { title: "Results", icon: TrendingUp, href: "/admin/results" },
   { title: "Blog", icon: BarChart3, href: "/admin/blog" },
   { title: "Settings", icon: Settings, href: "/admin/settings" },
@@ -171,8 +170,6 @@ export default function AdminDashboard() {
 
   const [updating, setUpdating] = useState(false);
   const [waitlistEntries, setWaitlistEntries] = useState<any[]>([]);
-  const [fixtures, setFixtures] = useState("");
-const [generatingFixtures, setGeneratingFixtures] = useState(false);
 
   // ---------- DATA FETCHING ----------
   const fetchDashboardData = async () => {
@@ -570,56 +567,20 @@ setWaitlistEntries(waitlistData || []);
   <div />
 </div>
 
-        {/* Buttons row */}
-        <div className="flex justify-end gap-2">
-          <Button onClick={handleUpdateMatches} disabled={updating} variant="outline" className="text-sm">
-            {updating ? "Updating..." : "Update Matches & Stats"}
-          </Button>
-          <Button onClick={handleEnrich} disabled={enriching} variant="outline" className="text-sm">
-  {enriching ? "Enriching..." : "Enrich Stats"}
-</Button>
-          <Button onClick={handleGenerateAll} disabled={generatingId !== null} className="text-sm">
-  {generatingId ? "Generating..." : "Generate All Predictions"}
-</Button>
-          <Button onClick={() => setShowForm(!showForm)} className="bg-gold-400 text-black">
-            {showForm ? "Cancel" : "Add New Prediction"}
-          </Button>
-          <Button
-  onClick={async () => {
-    setGeneratingFixtures(true);
-    try {
-      const res = await fetch("/api/generate-fixtures", { method: "POST" });
-      const data = await res.json();
-      if (data.fixtures) {
-        setFixtures(data.fixtures);
-        toast.success("Fixtures generated. Copy them to Bulk Add.");
-      } else {
-        toast.error("Could not generate fixtures");
-      }
-    } catch {
-      toast.error("Network error");
-    } finally {
-      setGeneratingFixtures(false);
-    }
-  }}
-  disabled={generatingFixtures}
-  variant="outline"
-  className="text-sm"
->
-  {generatingFixtures ? "Generating..." : "Generate Fixtures"}
-</Button>
-        </div>
-
-        {fixtures && (
-  <div className="mt-4">
-    <p className="text-sm text-gray-400 mb-2">Copy these matches and paste them into the <Link href="/admin/bulk" className="text-gold-400 underline">Bulk Add</Link> page.</p>
-    <textarea
-      readOnly
-      value={fixtures}
-      className="w-full h-32 bg-[#0D0D0D] border border-white/10 rounded-xl p-3 text-white text-sm"
-    />
-  </div>
-)}
+       <div className="flex justify-end gap-2">
+  <Button onClick={handleUpdateMatches} disabled={updating} variant="outline" className="text-sm">
+    {updating ? "Updating..." : "Update Matches & Stats"}
+  </Button>
+  <Button onClick={handleEnrich} disabled={enriching} variant="outline" className="text-sm">
+    {enriching ? "Enriching..." : "Enrich Stats"}
+  </Button>
+  <Button onClick={handleGenerateAll} disabled={generatingId !== null} className="text-sm">
+    {generatingId ? "Generating..." : "Generate All Predictions"}
+  </Button>
+  <Button onClick={() => setShowForm(!showForm)} className="bg-gold-400 text-black">
+    {showForm ? "Cancel" : "Add New Prediction"}
+  </Button>
+</div>
 
         {showForm && (
           <motion.div

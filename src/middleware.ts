@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { getIronSession } from "iron-session";
-import { sessionOptions, SessionData } from "@/lib/session";
+import { createHmac } from "crypto";
 
-export async function middleware(request: NextRequest) {
-  // Allow login page and login API
+const SECRET = "winora‑admin‑protection‑2026";   // must match the API route
+
+export function middleware(request: NextRequest) {
+  // Allow access to login page and login API
   if (
     request.nextUrl.pathname === "/admin/login" ||
     request.nextUrl.pathname === "/api/admin-login"
@@ -12,16 +13,34 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Read the session
-  const res = NextResponse.next();
-  const session = await getIronSession<SessionData>(request, res, sessionOptions);
+  const token = request.cookies.get("admin_token")?.value;
 
-  if (!session.isLoggedIn) {
-    // Not logged in → redirect to login
+  if (!token) {
     return NextResponse.redirect(new URL("/admin/login", request.url));
   }
 
-  return res;
+  try {
+    const [expiryStr, signature] = token.split(":");
+    const expiry = parseInt(expiryStr);
+
+    if (Date.now() > expiry) {
+      throw new Error("Expired");
+    }
+
+    // Re‑compute signature and compare
+    const expectedSig = createHmac("sha256", SECRET).update(expiryStr).digest("hex");
+
+    if (signature !== expectedSig) {
+      throw new Error("Invalid signature");
+    }
+
+    return NextResponse.next();
+  } catch {
+    // Invalid token – clear cookie and redirect to login
+    const response = NextResponse.redirect(new URL("/admin/login", request.url));
+    response.cookies.delete("admin_token");
+    return response;
+  }
 }
 
 export const config = {
