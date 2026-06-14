@@ -70,13 +70,13 @@ function Sidebar() {
   const [active, setActive] = useState("dashboard");
 
   const menuItems = [
-  { title: "Dashboard", icon: BarChart3, href: "/admin" },
-  { title: "Predictions", icon: TrendingUp, href: "/admin/predictions" },
-  { title: "Upcoming Matches", icon: Activity, href: "/admin/matches" },
-  { title: "Results", icon: TrendingUp, href: "/admin/results" },
-  { title: "Blog", icon: BarChart3, href: "/admin/blog" },
-  { title: "Settings", icon: Settings, href: "/admin/settings" },
-  { title: "Profile", icon: Users, href: "/admin/profile" },
+  { title: "Dashboard", icon: BarChart3, href: "/portal‑sydr____" },
+  { title: "Predictions", icon: TrendingUp, href: "/portal‑sydr____/predictions" },
+  { title: "Upcoming Matches", icon: Activity, href: "/portal‑sydr____/matches" },
+  { title: "Results", icon: TrendingUp, href: "/portal‑sydr____/results" },
+  { title: "Blog", icon: BarChart3, href: "/portal‑sydr____/blog" },
+  { title: "Settings", icon: Settings, href: "/portal‑sydr____/settings" },
+  { title: "Profile", icon: Users, href: "/portal‑sydr____/profile" },
 ];
 
   return (
@@ -686,7 +686,7 @@ setWaitlistEntries(waitlistData || []);
             <div className="rounded-[20px] bg-[#0D0D0D] border border-white/5 p-6">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold">Upcoming Matches</h3>
-                <Link href="/admin/matches">
+                <Link href="/portal‑sydr____/matches">
                   <Button variant="ghost" className="text-gold-400 text-xs hover:bg-white/5">
                     View All Matches <ArrowUpRight className="ml-1 h-3 w-3" />
                   </Button>

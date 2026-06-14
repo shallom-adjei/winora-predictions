@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Lock } from "lucide-react";
 
@@ -7,6 +8,7 @@ export default function AdminLogin() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -14,7 +16,7 @@ export default function AdminLogin() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/admin-login", {
+      const res = await fetch("/api/portal‑sydr____-login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password }),
@@ -26,10 +28,21 @@ export default function AdminLogin() {
         return;
       }
 
-      // Hard redirect – always works
-      window.location.href = "/admin";
-    } catch {
-      setError("Network error. Please try again.");
+      // Login successful – redirect using multiple methods
+      const data = await res.json().catch(() => ({}));
+      console.log("Login success, redirecting...");
+
+      // 1) Try Next.js router (works if middleware allows)
+      router.push("/portal‑sydr____");
+
+      // 2) Fallback: after a short delay, force a full page navigation
+      setTimeout(() => {
+        window.location.href = "/portal‑sydr____";
+      }, 1500);
+
+    } catch (err) {
+      setError("Network error. Please check your connection.");
+      console.error("Login error:", err);
     } finally {
       setLoading(false);
     }
