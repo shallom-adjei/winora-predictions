@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
+  // Allow login page and login API
   if (
     request.nextUrl.pathname === "/portal‑sydr____/login" ||
-    request.nextUrl.pathname === "/api/admin-login"
+    request.nextUrl.pathname === "/api/admin-login" ||
+    request.nextUrl.pathname === "/api/admin-change-password"
   ) {
     return NextResponse.next();
   }
@@ -16,10 +18,17 @@ export function middleware(request: NextRequest) {
   }
 
   try {
+    // Decode token and compare to database password
     const decoded = Buffer.from(token, "base64").toString("utf-8");
-    const adminPassword = process.env.ADMIN_PASSWORD;
 
-    if (!adminPassword || decoded !== adminPassword) {
+    const { supabase } = await import("@/lib/supabase");
+    const { data } = await supabase
+      .from("admin_settings")
+      .select("value")
+      .eq("key", "admin_password")
+      .single();
+
+    if (!data || decoded !== data.value) {
       throw new Error("Invalid token");
     }
 

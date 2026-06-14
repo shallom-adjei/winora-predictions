@@ -66,7 +66,12 @@ const revenueData = [
 ];
 
 // ---------- SIDEBAR ----------
-function Sidebar() {
+function Sidebar({ profileOpen, setProfileOpen, handleLogout, setChangePasswordOpen }: {
+  profileOpen: boolean;
+  setProfileOpen: (v: boolean) => void;
+  handleLogout: () => void;
+  setChangePasswordOpen: (v: boolean) => void;
+}) {
   const [active, setActive] = useState("dashboard");
 
   const menuItems = [
@@ -114,23 +119,38 @@ function Sidebar() {
         })}
       </nav>
 
-      {/* Profile card at bottom (unchanged) */}
-      <div className="p-4 border-t border-white/5">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-full bg-gray-700 flex items-center justify-center text-sm font-bold">A</div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-white truncate">Admin Shallom</p>
-            <p className="text-xs text-gray-500 truncate">admin@winora.com</p>
-          </div>
-          <div className="h-2 w-2 rounded-full bg-green-500" />
-        </div>
-        <button
-          onClick={() => toast.success("Logged out (simulated)")}
-          className="text-xs text-gray-500 hover:text-white mt-2 w-full text-left"
-        >
-          Logout
-        </button>
-      </div>
+      {/* Profile card with dropdown */}
+<div className="p-4 border-t border-white/5 relative">
+  <button
+    onClick={() => setProfileOpen(!profileOpen)}
+    className="flex items-center gap-3 w-full"
+  >
+    <div className="h-10 w-10 rounded-full bg-gray-700 flex items-center justify-center text-sm font-bold">A</div>
+    <div className="flex-1 min-w-0 text-left">
+      <p className="text-sm font-medium text-white truncate">Admin Shallom</p>
+      <p className="text-xs text-gray-500 truncate">admin@winora.com</p>
+    </div>
+    <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${profileOpen ? "rotate-180" : ""}`} />
+  </button>
+
+  {/* Dropdown menu */}
+  {profileOpen && (
+    <div className="absolute bottom-full left-0 right-0 mb-2 bg-[#0D0D0D] border border-white/10 rounded-xl shadow-lg z-50">
+      <button
+        onClick={handleLogout}
+        className="w-full text-left px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded-t-xl"
+      >
+        Logout
+      </button>
+      <button
+        onClick={() => setChangePasswordOpen(true)}
+        className="w-full text-left px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded-b-xl"
+      >
+        Change Password
+      </button>
+    </div>
+  )}
+</div>
     </aside>
   );
 }
@@ -170,6 +190,14 @@ export default function AdminDashboard() {
 
   const [updating, setUpdating] = useState(false);
   const [waitlistEntries, setWaitlistEntries] = useState<any[]>([]);
+
+const [profileOpen, setProfileOpen] = useState(false);
+const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+const [passwordForm, setPasswordForm] = useState({ current: "", new: "" });
+const [passwordError, setPasswordError] = useState("");
+const [changingPassword, setChangingPassword] = useState(false);
+ 
+
 
   // ---------- DATA FETCHING ----------
   const fetchDashboardData = async () => {
@@ -544,6 +572,39 @@ setWaitlistEntries(waitlistData || []);
     }
   };
 
+  const handleLogout = () => {
+  document.cookie = "admin_token=; path=/; max-age=0";
+  window.location.href = "/portal‑sydr____/login";
+};
+
+const handleChangePassword = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setPasswordError("");
+  setChangingPassword(true);
+  try {
+    const res = await fetch("/api/admin-change-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        currentPassword: passwordForm.current,
+        newPassword: passwordForm.new,
+      }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setPasswordError(data.error || "Failed to change password");
+      return;
+    }
+    toast.success("Password changed successfully");
+    setChangePasswordOpen(false);
+    setPasswordForm({ current: "", new: "" });
+  } catch {
+    setPasswordError("Network error");
+  } finally {
+    setChangingPassword(false);
+  }
+};
+
   if (loading) {
     return (
       <div className="flex min-h-screen bg-[#050505] text-white items-center justify-center">
@@ -554,7 +615,7 @@ setWaitlistEntries(waitlistData || []);
 
   return (
     <div className="flex min-h-screen bg-[#050505] text-white">
-      <Sidebar />
+      <Sidebar profileOpen={profileOpen} setProfileOpen={setProfileOpen} handleLogout={handleLogout} setChangePasswordOpen={setChangePasswordOpen} />
 
       <main className="flex-1 ml-[240px] p-6 space-y-6">
         {/* Header */}
@@ -864,6 +925,43 @@ setWaitlistEntries(waitlistData || []);
           </motion.div>
         </div>
       )}
+
+{/* Change Password Modal */}
+{changePasswordOpen && (
+  <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-[#0D0D0D] border border-white/10 rounded-2xl p-6 w-full max-w-md">
+      <h3 className="text-lg font-semibold text-white mb-4">Change Password</h3>
+      <form onSubmit={handleChangePassword} className="space-y-3">
+        <input
+          type="password"
+          placeholder="Current password"
+          value={passwordForm.current}
+          onChange={(e) => setPasswordForm({ ...passwordForm, current: e.target.value })}
+          className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white"
+          required
+        />
+        <input
+          type="password"
+          placeholder="New password"
+          value={passwordForm.new}
+          onChange={(e) => setPasswordForm({ ...passwordForm, new: e.target.value })}
+          className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white"
+          required
+        />
+        {passwordError && <p className="text-red-400 text-sm">{passwordError}</p>}
+        <div className="flex justify-end gap-3 mt-4">
+          <Button variant="ghost" onClick={() => { setChangePasswordOpen(false); setPasswordError(""); }}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={changingPassword} className="bg-gold-400 text-black">
+            {changingPassword ? "Updating..." : "Change Password"}
+          </Button>
+        </div>
+      </form>
+    </motion.div>
+  </div>
+)}
+
     </div>
   );
 }
