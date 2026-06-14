@@ -1,6 +1,5 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Lock } from "lucide-react";
 
@@ -8,7 +7,6 @@ export default function AdminLogin() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,21 +26,10 @@ export default function AdminLogin() {
         return;
       }
 
-      // Login successful – redirect using multiple methods
-      const data = await res.json().catch(() => ({}));
-      console.log("Login success, redirecting...");
-
-      // 1) Try Next.js router (works if middleware allows)
-      router.push("/admin");
-
-      // 2) Fallback: after a short delay, force a full page navigation
-      setTimeout(() => {
-        window.location.href = "/admin";
-      }, 1500);
-
-    } catch (err) {
-      setError("Network error. Please check your connection.");
-      console.error("Login error:", err);
+      // Hard redirect – always works
+      window.location.href = "/admin";
+    } catch {
+      setError("Network error. Please try again.");
     } finally {
       setLoading(false);
     }
