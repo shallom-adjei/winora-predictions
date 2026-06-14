@@ -22,14 +22,16 @@ export default function AdminLogin() {
         body: JSON.stringify({ password }),
       });
 
-      if (res.ok) {
-        router.push("/admin");          // redirect to dashboard
-      } else {
-        const data = await res.json();
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
         setError(data.error || "Invalid password");
+        return;
       }
-    } catch {
-      setError("Network error. Please try again.");
+
+      // Login succeeded – redirect to admin dashboard
+      router.push("/admin");
+    } catch (err) {
+      setError("Network error. Please check your connection.");
     } finally {
       setLoading(false);
     }
