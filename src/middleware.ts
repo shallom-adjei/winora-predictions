@@ -1,11 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { createHmac } from "crypto";
-
-const SECRET = "winora‑admin‑protection‑2026";   // must match the API route
 
 export function middleware(request: NextRequest) {
-  // Allow access to login page and login API
   if (
     request.nextUrl.pathname === "/admin/login" ||
     request.nextUrl.pathname === "/api/admin-login"
@@ -20,23 +16,15 @@ export function middleware(request: NextRequest) {
   }
 
   try {
-    const [expiryStr, signature] = token.split(":");
-    const expiry = parseInt(expiryStr);
+    const decoded = Buffer.from(token, "base64").toString("utf-8");
+    const adminPassword = process.env.ADMIN_PASSWORD;
 
-    if (Date.now() > expiry) {
-      throw new Error("Expired");
-    }
-
-    // Re‑compute signature and compare
-    const expectedSig = createHmac("sha256", SECRET).update(expiryStr).digest("hex");
-
-    if (signature !== expectedSig) {
-      throw new Error("Invalid signature");
+    if (!adminPassword || decoded !== adminPassword) {
+      throw new Error("Invalid token");
     }
 
     return NextResponse.next();
   } catch {
-    // Invalid token – clear cookie and redirect to login
     const response = NextResponse.redirect(new URL("/admin/login", request.url));
     response.cookies.delete("admin_token");
     return response;
