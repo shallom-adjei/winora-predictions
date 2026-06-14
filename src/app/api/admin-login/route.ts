@@ -13,8 +13,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid password" }, { status: 401 });
   }
 
-  // Create a simple signed token (valid for 7 days)
-  const secret = process.env.SUPABASE_ANON_KEY || "fallback-secret";   // use any stable secret
+  const secret = "winora-admin-protection-2026";
   const expiry = Date.now() + 7 * 24 * 60 * 60 * 1000;
   const payload = `${adminPassword}:${expiry}`;
   const signature = createHmac("sha256", secret).update(payload).digest("hex");
@@ -23,10 +22,10 @@ export async function POST(req: NextRequest) {
   const response = NextResponse.json({ success: true });
   response.cookies.set("admin_token", token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: true,
     sameSite: "lax",
     path: "/",
-    maxAge: 7 * 24 * 60 * 60,   // 7 days
+    maxAge: 7 * 24 * 60 * 60,
   });
 
   return response;
