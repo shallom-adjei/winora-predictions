@@ -16,7 +16,7 @@ export default function AdminLogin() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/portal‑sydr____-login", {
+      const res = await fetch("/api/portal‑sydr-login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password }),
@@ -33,11 +33,11 @@ export default function AdminLogin() {
       console.log("Login success, redirecting...");
 
       // 1) Try Next.js router (works if middleware allows)
-      router.push("/portal‑sydr____");
+      router.push("/portal‑sydr");
 
       // 2) Fallback: after a short delay, force a full page navigation
       setTimeout(() => {
-        window.location.href = "/portal‑sydr____";
+        window.location.href = "/portal‑sydr";
       }, 1500);
 
     } catch (err) {

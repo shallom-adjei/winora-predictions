@@ -75,13 +75,13 @@ function Sidebar({ profileOpen, setProfileOpen, handleLogout, setChangePasswordO
   const [active, setActive] = useState("dashboard");
 
   const menuItems = [
-  { title: "Dashboard", icon: BarChart3, href: "/portal‑sydr____" },
-  { title: "Predictions", icon: TrendingUp, href: "/portal‑sydr____/predictions" },
-  { title: "Upcoming Matches", icon: Activity, href: "/portal‑sydr____/matches" },
-  { title: "Results", icon: TrendingUp, href: "/portal‑sydr____/results" },
-  { title: "Blog", icon: BarChart3, href: "/portal‑sydr____/blog" },
-  { title: "Settings", icon: Settings, href: "/portal‑sydr____/settings" },
-  { title: "Profile", icon: Users, href: "/portal‑sydr____/profile" },
+  { title: "Dashboard", icon: BarChart3, href: "/portal‑sydr" },
+  { title: "Predictions", icon: TrendingUp, href: "/portal‑sydr/predictions" },
+  { title: "Upcoming Matches", icon: Activity, href: "/portal‑sydr/matches" },
+  { title: "Results", icon: TrendingUp, href: "/portal‑sydr/results" },
+  { title: "Blog", icon: BarChart3, href: "/portal‑sydr/blog" },
+  { title: "Settings", icon: Settings, href: "/portal‑sydr/settings" },
+  { title: "Profile", icon: Users, href: "/portal‑sydr/profile" },
 ];
 
   return (
@@ -578,7 +578,7 @@ useEffect(() => {
  const handleLogout = () => {
   document.cookie = "admin_token=; path=/; max-age=0; secure; samesite=lax";
   setTimeout(() => {
-    window.location.href = "/portal‑sydr____/login";
+    window.location.href = "/portal‑sydr/login";
   }, 100);
 };
 
@@ -752,7 +752,7 @@ const handleChangePassword = async (e: React.FormEvent) => {
             <div className="rounded-[20px] bg-[#0D0D0D] border border-white/5 p-6">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold">Upcoming Matches</h3>
-                <Link href="/portal‑sydr____/matches">
+                <Link href="/portal‑sydr/matches">
                   <Button variant="ghost" className="text-gold-400 text-xs hover:bg-white/5">
                     View All Matches <ArrowUpRight className="ml-1 h-3 w-3" />
                   </Button>

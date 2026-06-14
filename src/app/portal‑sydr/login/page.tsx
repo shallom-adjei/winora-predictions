@@ -14,7 +14,7 @@ export default function AdminLogin() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/portal‑sydr____-login", {
+      const res = await fetch("/api/portal‑sydr-login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password }),
@@ -27,7 +27,7 @@ export default function AdminLogin() {
       }
 
       // Hard redirect – always works
-      window.location.href = "/portal‑sydr____";
+      window.location.href = "/portal‑sydr";
     } catch {
       setError("Network error. Please try again.");
     } finally {
