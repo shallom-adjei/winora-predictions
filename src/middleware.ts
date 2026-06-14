@@ -3,9 +3,17 @@ import type { NextRequest } from "next/server";
 import { createHmac } from "crypto";
 
 export function middleware(request: NextRequest) {
+  // Allow access to the login page and login API
+  if (
+    request.nextUrl.pathname === "/admin/login" ||
+    request.nextUrl.pathname === "/api/admin-login"
+  ) {
+    return NextResponse.next();
+  }
+
   const token = request.cookies.get("admin_token")?.value;
 
-  // If no token, redirect to login
+  // No token → redirect to login
   if (!token) {
     return NextResponse.redirect(new URL("/admin/login", request.url));
   }
@@ -29,14 +37,14 @@ export function middleware(request: NextRequest) {
 
     return NextResponse.next();
   } catch {
-    // Invalid token – clear cookie and redirect
+    // Clear the invalid cookie and redirect to login
     const response = NextResponse.redirect(new URL("/admin/login", request.url));
     response.cookies.delete("admin_token");
     return response;
   }
 }
 
-// Apply to all /admin routes, except the login page itself
+// Protect all /admin routes except /admin/login and /api/admin-login
 export const config = {
   matcher: ["/admin", "/admin/:path*"],
 };
