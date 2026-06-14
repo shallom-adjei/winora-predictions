@@ -18,25 +18,29 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/admin/login", request.url));
   }
 
-  // Verify the token
-  try {
-    const secret = process.env.SUPABASE_ANON_KEY || "fallback-secret";
-    const [password, expiryStr, signature] = token.split(":");
-    const expiry = parseInt(expiryStr);
+  
+  // ... inside middleware function
+try {
+  const secret = process.env.SUPABASE_ANON_KEY || "fallback-secret";
+  const [passwordPart, expiryStr, signature] = token.split(":");
+  const expiry = parseInt(expiryStr);
 
-    if (Date.now() > expiry) {
-      throw new Error("Expired");
-    }
+  if (Date.now() > expiry) {
+    throw new Error("Expired");
+  }
 
-    const payload = `${password}:${expiryStr}`;
-    const expectedSig = createHmac("sha256", secret).update(payload).digest("hex");
+  // Decode percent‑encoded characters (e.g., %40 → @)
+  const decodedPassword = decodeURIComponent(passwordPart);
 
-    if (signature !== expectedSig || password !== process.env.ADMIN_PASSWORD) {
-      throw new Error("Invalid token");
-    }
+  const payload = `${decodedPassword}:${expiryStr}`;
+  const expectedSig = createHmac("sha256", secret).update(payload).digest("hex");
 
-    return NextResponse.next();
-  } catch {
+  if (signature !== expectedSig || decodedPassword !== process.env.ADMIN_PASSWORD) {
+    throw new Error("Invalid token");
+  }
+
+  return NextResponse.next();
+} catch {
     // Clear the invalid cookie and redirect to login
     const response = NextResponse.redirect(new URL("/admin/login", request.url));
     response.cookies.delete("admin_token");
