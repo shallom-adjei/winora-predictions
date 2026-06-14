@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createHmac } from "crypto";
+import { getIronSession } from "iron-session";
+import { sessionOptions, SessionData } from "@/lib/session";
 
 export async function POST(req: NextRequest) {
   const { password } = await req.json();
@@ -13,21 +14,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid password" }, { status: 401 });
   }
 
-  // Create a simple signed token (valid for 7 days)
-  const secret = process.env.SUPABASE_ANON_KEY || "fallback-secret";   // use any stable secret
-  const expiry = Date.now() + 7 * 24 * 60 * 60 * 1000;
-  const payload = `${adminPassword}:${expiry}`;
-  const signature = createHmac("sha256", secret).update(payload).digest("hex");
-  const token = `${payload}:${signature}`;
-
-  const response = NextResponse.json({ success: true });
-  response.cookies.set("admin_token", token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 7 * 24 * 60 * 60,   // 7 days
+  // Get or create the session
+  const res = new Response(JSON.stringify({ success: true }), {
+    headers: { "Content-Type": "application/json" },
   });
+  const session = await getIronSession<SessionData>(req, res, sessionOptions);
 
-  return response;
+  session.isLoggedIn = true;
+  await session.save();
+
+  return res;
 }
