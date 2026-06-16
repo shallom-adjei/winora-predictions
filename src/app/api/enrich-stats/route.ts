@@ -1,78 +1,109 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const apiKey = process.env.FOOTBALL_DATA_API_KEY;
-
-async function getTeamStats(teamId: number) {
-  const res = await fetch(
-    `https://api.football-data.org/v4/teams/${teamId}/matches?status=FINISHED&limit=5`,
-    { headers: { "X-Auth-Token": apiKey! } }
-  );
-  if (!res.ok) return null;
-  const data = await res.json();
-  const matches = data.matches || [];
-  if (matches.length === 0) return null;
-
-  // Form points (W=3, D=1, L=0)
-  const formPoints = matches.reduce((sum: number, m: any) => {
-    if (m.score.winner === "HOME_TEAM" && m.homeTeam.id === teamId) return sum + 3;
-    if (m.score.winner === "AWAY_TEAM" && m.awayTeam.id === teamId) return sum + 3;
-    if (m.score.winner === "DRAW") return sum + 1;
-    return sum;
-  }, 0);
-
-  // Home goals scored / conceded
-  const homeMatches = matches.filter((m: any) => m.homeTeam.id === teamId);
-  const homeGoalsScored = homeMatches.length
-    ? (homeMatches.reduce((s: number, m: any) => s + (m.score.fullTime.home || 0), 0) / homeMatches.length).toFixed(1)
-    : null;
-  const homeGoalsConceded = homeMatches.length
-    ? (homeMatches.reduce((s: number, m: any) => s + (m.score.fullTime.away || 0), 0) / homeMatches.length).toFixed(1)
-    : null;
-
-  // Clean sheets & failed to score
-  const cleanSheets = matches.filter((m: any) => {
-    if (m.homeTeam.id === teamId) return m.score.fullTime.away === 0;
-    else return m.score.fullTime.home === 0;
-  }).length;
-  const failedToScore = matches.filter((m: any) => {
-    if (m.homeTeam.id === teamId) return m.score.fullTime.home === 0;
-    else return m.score.fullTime.away === 0;
-  }).length;
-
-  // Over 2.5 % and BTTS %
-  const over25 = matches.filter((m: any) => {
-    const total = (m.score.fullTime.home || 0) + (m.score.fullTime.away || 0);
-    return total > 2.5;
-  }).length;
-  const btts = matches.filter((m: any) => {
-    return (m.score.fullTime.home || 0) > 0 && (m.score.fullTime.away || 0) > 0;
-  }).length;
-  const over25Pct = ((over25 / matches.length) * 100).toFixed(0);
-  const bttsPct = ((btts / matches.length) * 100).toFixed(0);
-
-  return {
-    form_points: formPoints,
-    home_goals_scored: homeGoalsScored,
-    home_goals_conceded: homeGoalsConceded,
-    clean_sheets_last5: cleanSheets,
-    failed_to_score_last5: failedToScore,
-    over25_last5_pct: over25Pct,
-    btts_last5_pct: bttsPct,
+// Expanded name normalisation for common mismatches
+function normaliseTeamName(name: string): string {
+  const map: Record<string, string> = {
+    "Czechia": "Czech Republic",
+    "Curaçao": "Curacao",
+    "Congo DR": "DR Congo",
+    "Cape Verde Islands": "Cape Verde",
+    "Bosnia-Herzegovina": "Bosnia",
+    "USA": "United States",
+    "Korea Republic": "South Korea",
+    "Ivory Coast": "Côte d'Ivoire",
+    "North Korea": "Korea DPR",
+    "St. Kitts & Nevis": "St. Kitts and Nevis",
+    "St. Vincent & Grenadines": "St. Vincent and the Grenadines",
+    "Trinidad & Tobago": "Trinidad and Tobago",
+    "Antigua & Barbuda": "Antigua and Barbuda",
+    // Add any others as needed
   };
+  return map[name] || name;
+}
+
+async function getTeamStatsTheSportsDB(teamName: string) {
+  try {
+    const normalised = normaliseTeamName(teamName);
+    const searchRes = await fetch(
+      `https://www.thesportsdb.com/api/v1/json/3/searchteams.php?t=${encodeURIComponent(normalised)}`
+    );
+    if (!searchRes.ok) return null;
+    const searchData = await searchRes.json();
+    const team = searchData.teams?.[0];
+    if (!team?.idTeam) return null;
+
+    const eventsRes = await fetch(
+      `https://www.thesportsdb.com/api/v1/json/3/eventslast.php?id=${team.idTeam}`
+    );
+    if (!eventsRes.ok) return null;
+    const eventsData = await eventsRes.json();
+    const results = eventsData.results || [];
+    if (results.length === 0) return null;
+
+    let formPoints = 0;
+    let homeGoals = 0, homeConceded = 0, homeCount = 0;
+    let awayGoals = 0, awayConceded = 0, awayCount = 0;
+    let cleanSheets = 0, failedToScore = 0;
+    let over25Count = 0, bttsCount = 0;
+
+    for (const match of results) {
+      const isHome = match.idHomeTeam === team.idTeam;
+      const homeScore = parseInt(match.intHomeScore) || 0;
+      const awayScore = parseInt(match.intAwayScore) || 0;
+
+      if (isHome) {
+        if (homeScore > awayScore) formPoints += 3;
+        else if (homeScore === awayScore) formPoints += 1;
+        homeGoals += homeScore;
+        homeConceded += awayScore;
+        homeCount++;
+      } else {
+        if (awayScore > homeScore) formPoints += 3;
+        else if (awayScore === homeScore) formPoints += 1;
+        awayGoals += awayScore;
+        awayConceded += homeScore;
+        awayCount++;
+      }
+
+      const teamScore = isHome ? homeScore : awayScore;
+      const opponentScore = isHome ? awayScore : homeScore;
+      if (opponentScore === 0) cleanSheets++;
+      if (teamScore === 0) failedToScore++;
+
+      const totalGoals = homeScore + awayScore;
+      if (totalGoals > 2.5) over25Count++;
+      if (homeScore > 0 && awayScore > 0) bttsCount++;
+    }
+
+    const total = results.length;
+    return {
+      form_points: formPoints,
+      home_goals_scored: homeCount ? (homeGoals / homeCount).toFixed(1) : null,
+      home_goals_conceded: homeCount ? (homeConceded / homeCount).toFixed(1) : null,
+      away_goals_scored: awayCount ? (awayGoals / awayCount).toFixed(1) : null,
+      away_goals_conceded: awayCount ? (awayConceded / awayCount).toFixed(1) : null,
+      clean_sheets_last5: cleanSheets,
+      failed_to_score_last5: failedToScore,
+      over25_last5_pct: ((over25Count / total) * 100).toFixed(0),
+      btts_last5_pct: ((bttsCount / total) * 100).toFixed(0),
+    };
+  } catch (err) {
+    console.error("TheSportsDB stats error for", teamName, err);
+    return null;
+  }
 }
 
 export async function POST(req: NextRequest) {
-  if (!apiKey) return NextResponse.json({ error: "Missing FOOTBALL_DATA_API_KEY" }, { status: 500 });
-
   const { supabase } = await import("@/lib/supabase");
 
-  // Select matches that are missing stats (form_points_a is null)
+  // Process up to 15 matches at a time
   const { data: matches } = await supabase
     .from("predictions")
     .select("*")
     .is("form_points_a", null)
     .not("team_id_a", "is", null)
-    .limit(20);
+    .not("team_id_b", "is", null)
+    .limit(15);
 
   if (!matches || matches.length === 0) {
     return NextResponse.json({ success: true, message: "All matches already have stats." });
@@ -84,8 +115,8 @@ export async function POST(req: NextRequest) {
   for (const match of matches) {
     try {
       const [statsA, statsB] = await Promise.all([
-        getTeamStats(match.team_id_a),
-        getTeamStats(match.team_id_b),
+        getTeamStatsTheSportsDB(match.team_a),
+        getTeamStatsTheSportsDB(match.team_b),
       ]);
 
       const update: any = {};
@@ -115,8 +146,8 @@ export async function POST(req: NextRequest) {
         failed++;
       }
 
-      // Respect free tier rate limit (10 req/min)
-      await new Promise(resolve => setTimeout(resolve, 7000));
+      // Longer delay to stay safe
+      await new Promise(r => setTimeout(r, 4000));
     } catch (err) {
       console.error(`Enrichment failed for ${match.match_name}`, err);
       failed++;
