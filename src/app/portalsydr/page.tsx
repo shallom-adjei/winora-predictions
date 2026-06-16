@@ -528,18 +528,30 @@ export default function AdminDashboard() {
   };
 
   const handleEnrich = async () => {
-    setEnriching(true);
-    try {
-      const res = await fetch("/api/enrich-stats", { method: "POST" });
-      const data = await res.json();
-      if (data.success) {
+  setEnriching(true);
+  try {
+    const res = await fetch("/api/enrich-stats", { method: "POST" });
+    const data = await res.json();
+
+    if (data.success) {
+      if (data.enriched !== undefined && data.failed !== undefined) {
         toast.success(`Enriched ${data.enriched} matches (${data.failed} failed)`);
-        fetchDashboardData();
-        fetchAnalytics();
-      } else { toast.error(data.error || "Enrichment failed"); }
-    } catch { toast.error("Network error"); }
-    finally { setEnriching(false); }
-  };
+      } else if (data.message) {
+        toast.success(data.message);
+      } else {
+        toast.success("Enrichment complete");
+      }
+      fetchDashboardData();
+      fetchAnalytics();
+    } else {
+      toast.error(data.error || "Enrichment failed");
+    }
+  } catch (err) {
+    toast.error("Network error. Please try again.");
+  } finally {
+    setEnriching(false);
+  }
+};
 
   const handleUpdateMatches = async () => {
     setUpdating(true);
