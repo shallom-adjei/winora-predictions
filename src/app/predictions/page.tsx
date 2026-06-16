@@ -25,9 +25,15 @@ export default function PredictionsPage() {
   }, []);
 
   const handleOpenAnalysis = (match: any) => {
-    setSelectedAnalysis(match);
-    setAnalysisModalOpen(true);
-  };
+  setSelectedAnalysis({
+    home: match.team_a || match.match?.split(" vs ")[0],
+    away: match.team_b || match.match?.split(" vs ")[1],
+    prediction: match.prediction,
+    analysis: match.analysis,
+    fullReport: match.fullReport,
+  });
+  setAnalysisModalOpen(true);
+};
 
   const handleCloseAnalysis = () => {
     setAnalysisModalOpen(false);
