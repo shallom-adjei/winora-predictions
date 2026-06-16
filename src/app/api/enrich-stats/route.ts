@@ -193,19 +193,15 @@ function calculateStatsFromFD(matches: any[], teamId: number) {
 export async function POST(req: NextRequest) {
   const { supabase } = await import("@/lib/supabase");
 
-  // Only enrich matches that:
-  // 1. Have no stats yet (form_points_a is null)
-  // 2. Are upcoming (kickoff time in the future, or status is SCHEDULED)
-  const now = new Date().toISOString();
+  // Only process matches that are missing stats (form_points_a is null)
   const { data: matches } = await supabase
     .from("predictions")
     .select("*")
     .is("form_points_a", null)
-    .or(`kickoff_time.gt.${now},status.eq.SCHEDULED`)
-    .limit(10);
+    .limit(10);   // process 10 at a time
 
   if (!matches || matches.length === 0) {
-    return NextResponse.json({ success: true, message: "All upcoming matches already have stats." });
+    return NextResponse.json({ success: true, message: "All matches already have stats." });
   }
 
   let enriched = 0;
@@ -215,17 +211,13 @@ export async function POST(req: NextRequest) {
     try {
       let statsA = null, statsB = null;
 
-      // Try TheSportsDB first (no key needed, great for national teams)
+      // Try TheSportsDB first
       statsA = await getStatsFromTheSportsDB(match.team_a);
       statsB = await getStatsFromTheSportsDB(match.team_b);
 
-      // If TheSportsDB failed and we have team_id, try football-data.org
-      if (!statsA && match.team_id_a) {
-        statsA = await getStatsFromFootballData(match.team_id_a);
-      }
-      if (!statsB && match.team_id_b) {
-        statsB = await getStatsFromFootballData(match.team_id_b);
-      }
+      // Fallback to football-data.org if team_id exists
+      if (!statsA && match.team_id_a) statsA = await getStatsFromFootballData(match.team_id_a);
+      if (!statsB && match.team_id_b) statsB = await getStatsFromFootballData(match.team_id_b);
 
       const update: any = {};
       if (statsA) {
@@ -254,7 +246,7 @@ export async function POST(req: NextRequest) {
         failed++;
       }
 
-      // Be gentle with free API limits
+      // Gentle delay
       await new Promise(r => setTimeout(r, 7000));
     } catch (err) {
       console.error(`Enrichment failed for ${match.match_name}`, err);
