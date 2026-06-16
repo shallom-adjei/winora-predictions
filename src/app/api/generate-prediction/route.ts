@@ -24,24 +24,26 @@ export async function POST(req: NextRequest) {
 
   let mainPrediction = "No recommendation";
   let confidence = 0;
-  let scores: Record<string, number> = {};
+  let scores: any = {};
   let engineUsed = false;
 
   // If we have real stats, run the engine
   if (hasRealData) {
-    scores  = computePrediction(match);
-    const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+    scores = computePrediction(match);
+    const sorted = Object.entries(scores).sort(
+      (a, b) => (b[1] as number) - (a[1] as number)
+    );
     mainPrediction = sorted[0]?.[0] || "Home Win";
-   confidence = calculateConfidence(scores as any, dataQuality);
+    confidence = calculateConfidence(scores as any, dataQuality);
     engineUsed = true;
   }
 
   // Build the prompt – always includes match info and asks for detailed analysis
-const prompt = `You are Winora's senior football analyst. You are given an upcoming World Cup 2026 match. ${
-  hasRealData
-    ? "Use ONLY the supplied statistics below. Never invent stats."
-    : "No detailed statistics are available. Use your extensive general knowledge of the teams' playing styles, recent World Cup qualifier performances, star players, and tactical setups to provide a reasoned, engaging analysis. Clearly mention that this preview is based on general knowledge."
-}
+  const prompt = `You are Winora's senior football analyst. You are given an upcoming World Cup 2026 match. ${
+    hasRealData
+      ? "Use ONLY the supplied statistics below. Never invent stats."
+      : "No detailed statistics are available. Use your extensive general knowledge of the teams' playing styles, recent World Cup qualifier performances, star players, and tactical setups to provide a reasoned, engaging analysis. Clearly mention that this preview is based on general knowledge."
+  }
 
 Match: ${match.team_a} vs ${match.team_b}
 Sport: Football
@@ -49,8 +51,8 @@ League: FIFA World Cup 2026
 Time: ${match.time || "TBD"}
 
 ${
-  hasRealData
-    ? `Supplied Data:
+    hasRealData
+      ? `Supplied Data:
 Form points (last 5): ${match.form_points_a} vs ${match.form_points_b}
 Home goals scored/conceded per game: ${match.home_goals_scored || "?"} / ${match.home_goals_conceded || "?"}
 Away goals scored/conceded per game: ${match.away_goals_scored || "?"} / ${match.away_goals_conceded || "?"}
@@ -59,17 +61,19 @@ Failed to score (last 5): ${match.failed_to_score_last5_a || 0} vs ${match.faile
 Over 2.5 % (last 5): ${match.over25_last5_pct_a || 0}% vs ${match.over25_last5_pct_b || 0}%
 BTTS % (last 5): ${match.btts_last5_pct_a || 0}% vs ${match.btts_last5_pct_b || 0}%
 H2H last 5: ${match.h2h_last5 || "N/A"} (Over 2.5: ${match.h2h_over25_pct || 0}%, BTTS: ${match.h2h_btts_pct || 0}%)`
-    : ""
-}
+      : ""
+  }
 
 ${
-  engineUsed
-    ? `The prediction engine has calculated the following market strengths (higher = stronger):
-${Object.entries(scores).map(([k, v]) => `- ${k}: ${v}`).join("\n")}
+    engineUsed
+      ? `The prediction engine has calculated the following market strengths (higher = stronger):
+${Object.entries(scores)
+  .map(([k, v]) => `- ${k}: ${v}`)
+  .join("\n")}
 
 Main prediction: ${mainPrediction} (confidence ${confidence})`
-    : `The engine cannot compute a prediction due to lack of data. You must decide the main prediction based on your general knowledge.`
-}
+      : `The engine cannot compute a prediction due to lack of data. You must decide the main prediction based on your general knowledge.`
+  }
 
 Write a JSON report containing:
 - "main_prediction": your best prediction (e.g., "Over 2.5 Goals", "Home Win", "Both Teams to Score").
@@ -98,7 +102,8 @@ Return ONLY valid JSON.`;
         messages: [
           {
             role: "system",
-            content: "You are Winora's senior football analyst. Write professionally, use football terminology, and be concise. Return only valid JSON.",
+            content:
+              "You are Winora's senior football analyst. Write professionally, use football terminology, and be concise. Return only valid JSON.",
           },
           { role: "user", content: prompt },
         ],
