@@ -6,7 +6,7 @@ export default function AdminSettingsPage() {
   return (
     <div className="p-6 text-white max-w-7xl mx-auto">
       <div className="flex items-center gap-4 mb-6">
-        <Link href="/portal‑sydr">
+        <Link href="/portalsydr">
           <Button variant="ghost" className="text-gray-400 hover:text-white">
             <ArrowLeft className="h-4 w-4 mr-1" /> Dashboard
           </Button>
