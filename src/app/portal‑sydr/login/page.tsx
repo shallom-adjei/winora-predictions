@@ -26,7 +26,7 @@ export default function AdminLogin() {
         return;
       }
 
-      window.location.href = "/portal‑sydr";
+      window.location.href = "/portal‑sydr/login";
     } catch {
       setError("Network error. Please try again.");
     } finally {
