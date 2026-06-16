@@ -4,7 +4,7 @@ import type { NextRequest } from "next/server";
 export async function middleware(request: NextRequest) {
   // Always allow access to the login page, the login API, and the change‑password API
   if (
-    request.nextUrl.pathname === "/portal‑sydr/login" ||
+    request.nextUrl.pathname === "/portal/login" ||
     request.nextUrl.pathname === "/api/admin-login" ||
     request.nextUrl.pathname === "/api/admin-change-password"
   ) {
@@ -14,7 +14,7 @@ export async function middleware(request: NextRequest) {
   const token = request.cookies.get("admin_token")?.value;
 
   if (!token) {
-    return NextResponse.redirect(new URL("/portal‑sydr/login", request.url));
+    return NextResponse.redirect(new URL("/portal/login", request.url));
   }
 
   try {
@@ -33,12 +33,12 @@ export async function middleware(request: NextRequest) {
 
     return NextResponse.next();
   } catch {
-    const response = NextResponse.redirect(new URL("/portal‑sydr/login", request.url));
+    const response = NextResponse.redirect(new URL("/portal/login", request.url));
     response.cookies.delete("admin_token");
     return response;
   }
 }
 
 export const config = {
-  matcher: ["/portal‑sydr", "/portal‑sydr/:path*"],
+  matcher: ["/portal", "/portal/:path*"],
 };
