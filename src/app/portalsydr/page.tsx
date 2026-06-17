@@ -750,46 +750,67 @@ const handleGenerateAll = async () => {
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
                   <thead>
-                    <tr className="text-xs text-gray-400 border-b border-white/5">
-                      <th className="pb-3 font-medium">Match</th>
-                      <th className="pb-3 font-medium">League</th>
-                      <th className="pb-3 font-medium">Time</th>
-                      <th className="pb-3 font-medium">Prediction</th>
-                      <th className="pb-3 font-medium">Confidence</th>
-                      <th className="pb-3 font-medium">Status</th>
-                      <th className="pb-3 font-medium">Actions</th>
-                    </tr>
-                  </thead>
+  <tr className="text-xs text-gray-400 border-b border-white/5">
+    <th className="pb-3 font-medium">Match</th>
+    <th className="pb-3 font-medium">League</th>
+    <th className="pb-3 font-medium">Time</th>
+    <th className="pb-3 font-medium">Stats</th>
+    <th className="pb-3 font-medium">Prediction</th>
+    <th className="pb-3 font-medium">Confidence</th>
+    <th className="pb-3 font-medium">Status</th>
+    <th className="pb-3 font-medium">Actions</th>
+  </tr>
+</thead>
                   <tbody>
                     {upcomingMatches.length > 0 ? (
                       upcomingMatches.map((match, i) => (
                         <tr key={i} className="border-b border-white/5 hover:bg-white/5">
-                          <td className="py-4 text-sm">{match.match}</td>
-                          <td className="py-4 text-xs text-gray-400">{match.league}</td>
-                          <td className="py-4 text-sm">{match.time}</td>
-                          <td className="py-4 text-sm">{match.prediction}</td>
-                          <td className="py-4 text-sm text-green-500">{match.confidence}%</td>
-                          <td className="py-4">
-                            <select value={match.status} onChange={(e) => handleUpdateResult(match.id, e.target.value)} className="bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-gray-300">
-                              <option value="Pending">Pending</option>
-                              <option value="Win">Win</option>
-                              <option value="Loss">Loss</option>
-                            </select>
-                          </td>
-                          <td className="py-4">
-                            <div className="flex gap-2">
-                              <button onClick={() => openEditModal(match)} className="text-xs text-gold-400 hover:underline">Edit</button>
-                              <button onClick={() => handleDelete(match.id)} className="text-xs text-red-400 hover:underline">Delete</button>
-                              <button onClick={() => handleGenerateAI(match)} disabled={generatingId === match.id} className="text-xs text-blue-400 hover:underline ml-1">
-                                {generatingId === match.id ? "Generating..." : "AI Predict"}
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
+  <td className="py-4 text-sm">{match.match}</td>
+  <td className="py-4 text-xs text-gray-400">{match.league}</td>
+  <td className="py-4 text-sm">{match.time}</td>
+  {/* ---------- NEW STATS CELL ---------- */}
+  <td className="py-4">
+    {match.form_points_a != null || match.form_points_b != null ? (
+      <span
+        className="text-xs text-green-400 cursor-help underline decoration-dotted"
+        title={
+          `Form pts: ${match.form_points_a ?? "?"} (H) / ${match.form_points_b ?? "?"} (A)\n` +
+          `Goals scored: ${match.home_goals_scored ?? "?"} (H) / ${match.away_goals_scored ?? "?"} (A)\n` +
+          `Clean sheets: ${match.clean_sheets_last5_a ?? "?"} (H) / ${match.clean_sheets_last5_b ?? "?"} (A)\n` +
+          `Over 2.5: ${match.over25_last5_pct_a ?? "?"}% (H) / ${match.over25_last5_pct_b ?? "?"}% (A)\n` +
+          `BTTS: ${match.btts_last5_pct_a ?? "?"}% (H) / ${match.btts_last5_pct_b ?? "?"}% (A)`
+        }
+      >
+        ✅ Stats loaded
+      </span>
+    ) : (
+      <span className="text-xs text-red-400">⛔ No stats</span>
+    )}
+  </td>
+  {/* ---------- END STATS CELL ---------- */}
+  <td className="py-4 text-sm">{match.prediction || "—"}</td>
+  <td className="py-4 text-sm text-green-500">{match.confidence ?? "—"}%</td>
+  <td className="py-4">
+    <select value={match.status} onChange={(e) => handleUpdateResult(match.id, e.target.value)} className="bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-gray-300">
+      <option value="Pending">Pending</option>
+      <option value="Win">Win</option>
+      <option value="Loss">Loss</option>
+    </select>
+  </td>
+  <td className="py-4">
+    <div className="flex gap-2">
+      <button onClick={() => openEditModal(match)} className="text-xs text-gold-400 hover:underline">Edit</button>
+      <button onClick={() => handleDelete(match.id)} className="text-xs text-red-400 hover:underline">Delete</button>
+      <button onClick={() => handleGenerateAI(match)} disabled={generatingId === match.id} className="text-xs text-blue-400 hover:underline ml-1">
+        {generatingId === match.id ? "Generating..." : "AI Predict"}
+      </button>
+    </div>
+  </td>
+</tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={7} className="py-4 text-center text-gray-500">No upcoming matches</td>
+                        <td colSpan={8} className="py-4 text-center text-gray-500">No upcoming matches</td>
                       </tr>
                     )}
                   </tbody>
@@ -803,16 +824,17 @@ const handleGenerateAll = async () => {
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
                   <thead>
-                    <tr className="text-xs text-gray-400 border-b border-white/5">
-                      <th className="pb-3 font-medium">Date</th>
-                      <th className="pb-3 font-medium">Match</th>
-                      <th className="pb-3 font-medium">Prediction</th>
-                      <th className="pb-3 font-medium">Odd</th>
-                      <th className="pb-3 font-medium">Stake</th>
-                      <th className="pb-3 font-medium">Result</th>
-                      <th className="pb-3 font-medium">Profit/Loss</th>
-                    </tr>
-                  </thead>
+  <tr className="text-xs text-gray-400 border-b border-white/5">
+    <th className="pb-3 font-medium">Match</th>
+    <th className="pb-3 font-medium">League</th>
+    <th className="pb-3 font-medium">Time</th>
+    <th className="pb-3 font-medium">Stats</th>
+    <th className="pb-3 font-medium">Prediction</th>
+    <th className="pb-3 font-medium">Confidence</th>
+    <th className="pb-3 font-medium">Status</th>
+    <th className="pb-3 font-medium">Actions</th>
+  </tr>
+</thead>
                   <tbody>
                     {recentPredictions.length > 0 ? (
                       recentPredictions.map((pred, i) => (
