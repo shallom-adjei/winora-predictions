@@ -6,11 +6,11 @@ export async function POST(req: NextRequest) {
 
   try {
     const today = new Date();
-    const future = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const future = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);   // 7‑day window for free plan
     const dateFrom = today.toISOString().split("T")[0];
     const dateTo = future.toISOString().split("T")[0];
 
-    // Fetch all relevant statuses – World Cup uses TIMED, IN_PLAY, SCHEDULED, POSTPONED
+    // Fetch all relevant statuses
     const [scheduled, postponed, timed, inplay] = await Promise.all([
       fetch(
         `https://api.football-data.org/v4/matches?dateFrom=${dateFrom}&dateTo=${dateTo}&status=SCHEDULED`,
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     allMatches.forEach(m => unique.set(m.id, m));
     const matches = Array.from(unique.values());
 
-    // Keep only truly upcoming matches (kick-off in the future)
+    // Keep only truly upcoming matches (kick‑off in the future)
     const upcoming = matches.filter((m: any) => {
       const kickoff = new Date(m.utcDate);
       return kickoff > new Date();
