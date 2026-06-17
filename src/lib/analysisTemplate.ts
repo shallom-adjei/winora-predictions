@@ -35,130 +35,139 @@ export function generateAnalysis(
   const hasStats = homeForm > 0 || awayForm > 0;
   const expectedScore = `${scores.expectedHomeGoals}-${scores.expectedAwayGoals}`;
 
-  // ---------- BUILD SENTENCES FROM REAL DATA ----------
+  // Determine the predicted total goals and BTTS flag from the picks
+  const goalsPick = match.goals_pick || "";
+  const bttsPick = match.btts_pick || "";
+  const isOver25 = goalsPick === "Over 2.5 Goals";
+  const isBTTSYes = bttsPick === "Both Teams to Score";
+
+  // ---------- BUILD OBSERVATIONS FROM REAL DATA ----------
   const observations: string[] = [];
 
-  // Form comparison
+  // --- 1. Form comparison (fixed thresholds) ---
   if (homeForm > 0 && awayForm > 0) {
-    if (homeForm > awayForm + 2) {
+    const diff = Math.abs(homeForm - awayForm);
+    if (diff <= 1) {
       observations.push(
-        `${home} arrive in far stronger shape, having collected ${homeForm} points from their last 5 outings compared to just ${awayForm} for ${away}.`
+        `${home} and ${away} arrive in nearly identical form, with ${homeForm} and ${awayForm} points from their last five outings respectively.`
       );
-    } else if (awayForm > homeForm + 2) {
+    } else if (homeForm > awayForm) {
       observations.push(
-        `${away} hold a clear form edge heading into this clash — ${awayForm} points from 5 matches versus ${homeForm} for the hosts.`
+        `${home} hold a clear form advantage, collecting ${homeForm} points from their last 5 matches compared to just ${awayForm} for ${away}.`
       );
     } else {
       observations.push(
-        `Both sides are closely matched on recent form, with ${home} and ${away} posting ${homeForm} and ${awayForm} points respectively over their last 5.`
+        `${away} are the sharper side on recent evidence, having banked ${awayForm} points from five games versus ${homeForm} for the hosts.`
       );
     }
   } else if (homeForm > 0) {
-    observations.push(`${home} have put together a run of ${homeForm} points from their last 5 fixtures.`);
+    observations.push(`${home} have gathered ${homeForm} points from their last 5 fixtures.`);
   } else if (awayForm > 0) {
-    observations.push(`${away} enter this fixture with ${awayForm} points banked across their last 5 matches.`);
+    observations.push(`${away} bring ${awayForm} points from their previous 5 matches.`);
   }
 
-  // Attacking strength
-  if (homeGoals >= 2 && homeGoals < 8) {
+  // --- 2. Attacking strength (capped at 3.0) ---
+  if (homeGoals >= 2 && homeGoals <= 3) {
     observations.push(
       `${home} carry genuine attacking threat, averaging ${homeGoals} goals per game in front of their own supporters.`
     );
-  } else if (homeGoals >= 8) {
-    // Unrealistic stat – skip or soften
-    observations.push(`${home} have shown they can find the net consistently at home.`);
+  } else if (homeGoals > 3) {
+    observations.push(`${home} have been consistently dangerous in attack, especially at home.`);
   }
 
-  if (awayGoals >= 2 && awayGoals < 8) {
+  if (awayGoals >= 2 && awayGoals <= 3) {
     observations.push(
-      `${away} are no slouches going forward either, posting an average of ${awayGoals} goals per away match.`
+      `${away} are equally capable going forward, posting an average of ${awayGoals} goals per away match.`
     );
+  } else if (awayGoals > 3) {
+    observations.push(`${away} have shown they can score freely on the road.`);
   }
 
-  // Defensive solidity
+  // --- 3. Defensive solidity ---
   if (homeClean >= 3) {
     observations.push(
-      `${home}'s backline has been resolute, recording ${homeClean} clean sheets in their last 5 matches.`
+      `${home}'s defence has been resolute, recording ${homeClean} clean sheets in their last 5 matches.`
     );
   }
   if (awayClean >= 3) {
     observations.push(
-      `${away} have matched that defensive steel with ${awayClean} shutouts of their own across the same period.`
+      `${away} have matched that defensive strength with ${awayClean} shutouts of their own.`
     );
   }
 
-  // Goal trends (Over 2.5)
-  if (homeOver25 >= 60 && awayOver25 >= 60) {
-    observations.push(
-      `Goal-heavy encounters are the norm for both — Over 2.5 has landed in ${homeOver25}% of ${home}'s recent games and ${awayOver25}% of ${away}'s.`
-    );
-  } else if (homeOver25 >= 60) {
+  // --- 4. Goal trends (only if they align with the predicted pick) ---
+  if (homeOver25 >= 60 && isOver25) {
     observations.push(
       `${home} have seen Over 2.5 goals in ${homeOver25}% of their recent fixtures.`
     );
-  } else if (awayOver25 >= 60) {
+  }
+  if (awayOver25 >= 60 && isOver25) {
     observations.push(
       `${away}'s matches have trended toward high scores, with Over 2.5 hitting in ${awayOver25}% of cases.`
     );
   }
+  // If both high but picks say Under, we skip the stat to avoid contradiction.
 
-  // BTTS trends
-  if (homeBtts >= 60 && awayBtts >= 60) {
-    observations.push(
-      `Both teams have found the net in ${homeBtts}% of ${home}'s matches and ${awayBtts}% of ${away}'s — expect action at both ends.`
-    );
-  } else if (homeBtts >= 60) {
+  // --- 5. BTTS trends (only if they align with the predicted pick) ---
+  if (homeBtts >= 60 && isBTTSYes) {
     observations.push(`BTTS has landed in ${homeBtts}% of ${home}'s recent contests.`);
-  } else if (awayBtts >= 60) {
+  }
+  if (awayBtts >= 60 && isBTTSYes) {
     observations.push(`BTTS has paid out in ${awayBtts}% of ${away}'s latest outings.`);
   }
 
-  // Weakness flags
+  // --- 6. Weakness flags ---
   if (homeFailed >= 3) {
     observations.push(`${home} have blanked in ${homeFailed} of their last 5 — a concern in the final third.`);
   }
   if (awayFailed >= 3) {
-    observations.push(`${away} have fired blanks in ${awayFailed} of their last 5, struggling to convert chances.`);
+    observations.push(`${away} have failed to score in ${awayFailed} of their last 5, struggling to convert chances.`);
   }
 
-  // H2H insights
-const h2hHomeWins = safeNum(match.h2h_home_wins);
-const h2hAwayWins = safeNum(match.h2h_away_wins);
-const h2hDraws = safeNum(match.h2h_draws);
-const totalH2H = h2hHomeWins + h2hAwayWins + h2hDraws;
-if (totalH2H >= 3) {
-  if (h2hHomeWins > h2hAwayWins) {
-    observations.push(`Historically, ${home} have had the upper hand in this fixture, winning ${h2hHomeWins} of the last ${totalH2H} meetings.`);
-  } else if (h2hAwayWins > h2hHomeWins) {
-    observations.push(`${away} have dominated recent head‑to‑head encounters, claiming victory in ${h2hAwayWins} of the last ${totalH2H} matchups.`);
-  } else {
-    observations.push(`The recent head‑to‑head record is evenly split with ${h2hHomeWins} wins apiece and ${h2hDraws} draws in the last ${totalH2H} meetings.`);
+  // --- 7. H2H insights (only if data exists) ---
+  const h2hHomeWins = safeNum(match.h2h_home_wins);
+  const h2hAwayWins = safeNum(match.h2h_away_wins);
+  const h2hDraws = safeNum(match.h2h_draws);
+  const totalH2H = h2hHomeWins + h2hAwayWins + h2hDraws;
+  if (totalH2H >= 3) {
+    if (h2hHomeWins > h2hAwayWins + 1) {
+      observations.push(
+        `Historically, ${home} have dominated this fixture, winning ${h2hHomeWins} of the last ${totalH2H} meetings.`
+      );
+    } else if (h2hAwayWins > h2hHomeWins + 1) {
+      observations.push(
+        `${away} have had the better of recent head‑to‑heads, claiming victory in ${h2hAwayWins} of the last ${totalH2H} encounters.`
+      );
+    } else {
+      observations.push(
+        `The last ${totalH2H} meetings between these sides have been evenly split (${h2hHomeWins} wins each, ${h2hDraws} draws).`
+      );
+    }
   }
-}
 
-// League position
-const posA = safeNum(match.league_position_a);
-const posB = safeNum(match.league_position_b);
-if (posA > 0 && posB > 0) {
-  if (posA < posB) {
-    observations.push(`${home} sit higher in the standings (${posA} vs ${posB}) and will look to press that advantage.`);
-  } else if (posB < posA) {
-    observations.push(`${away} hold the superior league position (${posB} to ${posA}), which could give them an edge.`);
-  } else {
-    observations.push(`Both sides are level in the table, making this a true six‑pointer.`);
+  // --- 8. League position ---
+  const posA = safeNum(match.league_position_a);
+  const posB = safeNum(match.league_position_b);
+  if (posA > 0 && posB > 0) {
+    if (posA < posB) {
+      observations.push(`${home} sit higher in the standings (${posA} vs ${posB}), which may give them a psychological edge.`);
+    } else if (posB < posA) {
+      observations.push(`${away} enjoy a superior league position (${posB} to ${posA}) heading into this clash.`);
+    } else {
+      observations.push(`Both sides are level in the table, making this a crucial encounter.`);
+    }
   }
-}
 
   // ---------- CONCLUSION (varied by risk & confidence) ----------
   const engineProb = scores[prediction];
   const riskLower = risk.toLowerCase();
   const conclusionsLowRisk = [
-    `Our model projects a final score of ${expectedScore} and sees ${prediction} as the most logical outcome with a ${confidence}% confidence rating. A ${stake} stake is recommended for this ${riskLower}‑risk opportunity.`,
-    `The expected scoreline of ${expectedScore} aligns with ${prediction} at a ${confidence}% confidence tier. Given the low‑risk profile, a ${stake} allocation offers sensible exposure.`,
+    `Our model projects a final score of ${expectedScore} and sees ${prediction} as the most logical outcome with a ${confidence}% confidence rating. A ${stake} stake is recommended for this low‑risk opportunity.`,
+    `The expected scoreline of ${expectedScore} aligns perfectly with ${prediction} at a ${confidence}% confidence tier. Given the low‑risk profile, a ${stake} allocation offers sensible exposure.`,
   ];
   const conclusionsMedRisk = [
     `With an expected final score of ${expectedScore}, ${prediction} stands out at a ${confidence}% confidence level. The moderate risk warrants a controlled ${stake} stake.`,
-    `The numbers point to a ${expectedScore} finish, supporting ${prediction}. At ${confidence}% confidence and ${riskLower} risk, we suggest a ${stake} unit allocation.`,
+    `The numbers point to a ${expectedScore} finish, supporting ${prediction}. At ${confidence}% confidence and medium risk, we suggest a ${stake} unit allocation.`,
   ];
   const conclusionsHighRisk = [
     `This is a riskier call — the underlying metrics flag ${prediction} as a value angle despite a projected ${expectedScore} scoreline. Confidence sits at ${confidence}%; keep stakes tight at ${stake}.`,
@@ -179,7 +188,7 @@ if (posA > 0 && posB > 0) {
     return pick(fallbacks);
   }
 
-  // ---------- ASSEMBLE ----------
-  const selectedObservations = observations.slice(0, 3); // keep it concise
+  // ---------- ASSEMBLE (limit to 3 strongest observations) ----------
+  const selectedObservations = observations.slice(0, 3);
   return selectedObservations.join(" ") + " " + conclusion;
 }
