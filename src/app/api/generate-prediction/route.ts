@@ -28,12 +28,18 @@ export async function POST(req: NextRequest) {
   const marketsBTTS: (keyof PredictionScores)[] = ["Both Teams to Score", "BTTS No"];
   const marketsSafe: (keyof PredictionScores)[] = ["1X", "X2"];
 
-  const best = (marketList: (keyof PredictionScores)[]) =>
+ const best = (marketList: (keyof PredictionScores)[]) =>
     marketList.reduce((prev, curr) =>
       (scores[curr] as number) > (scores[prev] as number) ? curr : prev
     );
 
-  const mainPick = best(markets1X2);       // always a 1X2
+// Main pick is based on expected score to match the predicted score
+const mainPick =
+  scores.expectedHomeGoals > scores.expectedAwayGoals
+    ? "Home Win"
+    : scores.expectedAwayGoals > scores.expectedHomeGoals
+    ? "Away Win"
+    : "Draw";
   const goalsPick = best(marketsGoals);    // over/under
   const bttsPick = best(marketsBTTS);
   const safePick = best(marketsSafe);

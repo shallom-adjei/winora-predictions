@@ -11,7 +11,7 @@ export function useLivePredictions() {
     const { data } = await supabase
       .from("predictions")
       .select("*")
-      .order("created_at", { ascending: false });
+      .order("kickoff_time", { ascending: true })
 
     if (data) setPredictions(data);
     setLoading(false);
