@@ -320,9 +320,37 @@ const topPicks = livePredictions
                         <p className="text-sm font-medium">{match.home}</p>
                       </div>
                       <div className="text-center px-2">
-                        <p className="text-xs font-bold text-gray-500">{match.time}</p>
-                        <p className="text-xs text-gray-600">VS</p>
-                      </div>
+  {match.match_status === "LIVE" ? (
+    <div className="flex flex-col items-center gap-1">
+      <span className="relative flex items-center gap-1.5">
+        <span className="relative flex h-2 w-2">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75"></span>
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500"></span>
+        </span>
+        <span className="text-xs font-bold text-red-400">LIVE</span>
+      </span>
+      {match.actual_home_score != null && match.actual_away_score != null && (
+        <span className="text-sm font-bold text-white tabular-nums">
+          {match.actual_home_score} - {match.actual_away_score}
+        </span>
+      )}
+    </div>
+  ) : match.match_status === "FINISHED" ? (
+    <div className="flex flex-col items-center gap-1">
+      <span className="text-xs font-bold text-gray-400">FT</span>
+      {match.actual_home_score != null && match.actual_away_score != null && (
+        <span className="text-sm font-bold text-white tabular-nums">
+          {match.actual_home_score} - {match.actual_away_score}
+        </span>
+      )}
+    </div>
+  ) : (
+    <>
+      <p className="text-xs font-bold text-gray-500">{match.time}</p>
+      <p className="text-xs text-gray-600">VS</p>
+    </>
+  )}
+</div>
                       <div className="text-center flex-1">
                         {match.crest_b ? (
                           <img src={match.crest_b} alt={match.away} className="h-12 w-12 object-contain mx-auto mb-2" />
@@ -382,35 +410,6 @@ const topPicks = livePredictions
       View Full Analysis
     </button>
   </>
-)}
-{/* Live / Finished badge and score */}
-{match.match_status === "LIVE" && (
-  <div className="mt-3 flex items-center gap-2 text-xs">
-    <span className="relative flex h-2 w-2">
-      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75"></span>
-      <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500"></span>
-    </span>
-    <span className="text-red-400 font-bold">LIVE</span>
-    {match.actual_home_score != null && match.actual_away_score != null && (
-      <span className="text-white font-semibold">
-        {match.actual_home_score} - {match.actual_away_score}
-      </span>
-    )}
-  </div>
-)}
-
-{match.match_status === "FINISHED" && match.actual_home_score != null && (
-  <div className="mt-3 text-xs space-y-1">
-    <p className="text-gray-400">
-      FT: {match.actual_home_score} - {match.actual_away_score}
-    </p>
-    <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
-      <div>Main: <ResultBadge result={evaluatePick(match.mainPick, match.actual_home_score, match.actual_away_score)} /></div>
-      <div>Safe: <ResultBadge result={evaluatePick(match.safePick, match.actual_home_score, match.actual_away_score)} /></div>
-      <div>Goals: <ResultBadge result={evaluatePick(match.goalsPick, match.actual_home_score, match.actual_away_score)} /></div>
-      <div>BTTS: <ResultBadge result={evaluatePick(match.bttsPick, match.actual_home_score, match.actual_away_score)} /></div>
-    </div>
-  </div>
 )}
                   </div>
                 </motion.div>

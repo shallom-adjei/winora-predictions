@@ -767,7 +767,29 @@ const handleGenerateAll = async () => {
                         <tr key={i} className="border-b border-white/5 hover:bg-white/5">
   <td className="py-4 text-sm">{match.match}</td>
   <td className="py-4 text-xs text-gray-400">{match.league}</td>
-  <td className="py-4 text-sm">{match.time}</td>
+  <td className="py-4 text-sm">
+  {match.status === "LIVE" || match.match_status === "LIVE" ? (
+    <div className="flex items-center gap-1.5">
+      <span className="relative flex h-2 w-2">
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75"></span>
+        <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500"></span>
+      </span>
+      <span className="text-xs font-bold text-red-400">LIVE</span>
+      {match.actual_home_score != null && match.actual_away_score != null && (
+        <span className="text-xs font-bold text-white ml-1">{match.actual_home_score} - {match.actual_away_score}</span>
+      )}
+    </div>
+  ) : match.status === "FINISHED" || match.match_status === "FINISHED" ? (
+    <div className="flex items-center gap-1.5">
+      <span className="text-xs font-bold text-gray-400">FT</span>
+      {match.actual_home_score != null && match.actual_away_score != null && (
+        <span className="text-xs font-bold text-white">{match.actual_home_score} - {match.actual_away_score}</span>
+      )}
+    </div>
+  ) : (
+    match.time
+  )}
+</td>
   {/* ---------- NEW STATS CELL ---------- */}
   <td className="py-4">
     {match.form_points_a != null || match.form_points_b != null ? (
