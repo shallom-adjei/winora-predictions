@@ -32,6 +32,7 @@ import {
   Cell,
 } from "recharts";
 import { supabase } from "@/lib/supabase";
+import { evaluatePick } from "@/lib/utils";
 import toast from "react-hot-toast";
 
 // ---------- MOCK DATA (fallback) ----------
@@ -291,17 +292,23 @@ export default function AdminDashboard() {
       .limit(10);
     if (recent) {
       setRecentPredictions(
-        recent.map((p) => ({
-          id: p.id,
-          date: new Date(p.created_at).toLocaleDateString(),
-          match: p.match_name,
-          prediction: p.prediction,
-          odd: "—",
-          stake: "—",
-          result: p.result || "Pending",
-          profit: "—",
-        }))
-      );
+  recent.map((p) => ({
+    id: p.id,
+    date: new Date(p.created_at).toLocaleDateString(),
+    match: p.match_name,
+    prediction: p.main_pick || p.prediction,
+    odd: "—",
+    stake: "—",
+    result: p.result || "Pending",
+    profit: "—",
+    actual_home_score: p.actual_home_score,
+    actual_away_score: p.actual_away_score,
+    main_pick: p.main_pick,
+    safe_pick: p.safe_pick,
+    goals_pick: p.goals_pick,
+    btts_pick: p.btts_pick,
+  }))
+);
     }
     setLoading(false);
   };
@@ -850,17 +857,101 @@ const handleGenerateAll = async () => {
               <h3 className="text-lg font-semibold mb-6">Recent Predictions</h3>
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
-                  <thead>
+                 <thead>
   <tr className="text-xs text-gray-400 border-b border-white/5">
     <th className="pb-3 font-medium">Date</th>
     <th className="pb-3 font-medium">Match</th>
     <th className="pb-3 font-medium">Prediction</th>
-    <th className="pb-3 font-medium">Odd</th>
-    <th className="pb-3 font-medium">Stake</th>
+    <th className="pb-3 font-medium">Score</th>
     <th className="pb-3 font-medium">Result</th>
-    <th className="pb-3 font-medium">Profit/Loss</th>
+    <th className="pb-3 font-medium">Picks</th>
   </tr>
 </thead>
+<tbody>
+  {recentPredictions.length > 0 ? (
+    recentPredictions.map((pred, i) => (
+      <tr key={i} className="border-b border-white/5 hover:bg-white/5">
+        <td className="py-4 text-sm">{pred.date}</td>
+        <td className="py-4 text-sm">{pred.match}</td>
+        <td className="py-4 text-sm">{pred.prediction}</td>
+        <td className="py-4 text-sm font-semibold tabular-nums">
+          {pred.actual_home_score != null && pred.actual_away_score != null ? (
+            <span>{pred.actual_home_score} - {pred.actual_away_score}</span>
+          ) : (
+            "—"
+          )}
+        </td>
+        <td className="py-4">
+          <span
+            className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${
+              pred.result === "Win"
+                ? "bg-green-500/10 text-green-500"
+                : pred.result === "Loss"
+                ? "bg-red-500/10 text-red-500"
+                : "bg-yellow-500/10 text-yellow-500"
+            }`}
+          >
+            {pred.result}
+          </span>
+        </td>
+        <td className="py-4">
+          <div className="flex gap-2 text-xs font-medium">
+            {pred.main_pick && (
+              <span
+                className={
+                  evaluatePick(pred.main_pick, pred.actual_home_score, pred.actual_away_score) === "Win"
+                    ? "text-green-400"
+                    : "text-red-400"
+                }
+              >
+                M
+              </span>
+            )}
+            {pred.safe_pick && (
+              <span
+                className={
+                  evaluatePick(pred.safe_pick, pred.actual_home_score, pred.actual_away_score) === "Win"
+                    ? "text-green-400"
+                    : "text-red-400"
+                }
+              >
+                S
+              </span>
+            )}
+            {pred.goals_pick && (
+              <span
+                className={
+                  evaluatePick(pred.goals_pick, pred.actual_home_score, pred.actual_away_score) === "Win"
+                    ? "text-green-400"
+                    : "text-red-400"
+                }
+              >
+                G
+              </span>
+            )}
+            {pred.btts_pick && (
+              <span
+                className={
+                  evaluatePick(pred.btts_pick, pred.actual_home_score, pred.actual_away_score) === "Win"
+                    ? "text-green-400"
+                    : "text-red-400"
+                }
+              >
+                B
+              </span>
+            )}
+          </div>
+        </td>
+      </tr>
+    ))
+  ) : (
+    <tr>
+      <td colSpan={6} className="py-4 text-center text-gray-500">
+        No recent predictions
+      </td>
+    </tr>
+  )}
+</tbody>
                   <tbody>
                     {recentPredictions.length > 0 ? (
                       recentPredictions.map((pred, i) => (
