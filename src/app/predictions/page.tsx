@@ -20,33 +20,27 @@ export default function PredictionsPage() {
       .select("*")
       .order("created_at", { ascending: false })
       .then(({ data }) => {
-  if (data) {
-    setPredictions(
-      data.map((p) => ({
-        ...p,
-        expectedScore: p.expected_score,
-        mainPick: p.main_pick,
-        safePick: p.safe_pick,
-        goalsPick: p.goals_pick,
-        bttsPick: p.btts_pick,
-        riskLevel: p.risk_level,
-        stake: p.recommended_stake,
-      }))
-    );
-  }
-});
+        if (data) {
+          setPredictions(
+            data.map((p) => ({
+              ...p,
+              expectedScore: p.expected_score,
+              mainPick: p.main_pick,
+              safePick: p.safe_pick,
+              goalsPick: p.goals_pick,
+              bttsPick: p.btts_pick,
+              riskLevel: p.risk_level,
+              stake: p.recommended_stake,
+            }))
+          );
+        }
+      });
   }, []);
 
   const handleOpenAnalysis = (match: any) => {
-  setSelectedAnalysis({
-    home: match.team_a || match.match?.split(" vs ")[0],
-    away: match.team_b || match.match?.split(" vs ")[1],
-    prediction: match.prediction,
-    analysis: match.analysis,
-    fullReport: match.fullReport,
-  });
-  setAnalysisModalOpen(true);
-};
+    setSelectedAnalysis(match);
+    setAnalysisModalOpen(true);
+  };
 
   const handleCloseAnalysis = () => {
     setAnalysisModalOpen(false);
@@ -68,6 +62,7 @@ export default function PredictionsPage() {
                 whileHover={{ y: -5 }}
                 className="rounded-[18px] bg-surface-card border border-white/5 p-4 sm:p-5"
               >
+                {/* League + Time */}
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-xs text-gray-400 uppercase flex items-center gap-1">
                     <Activity className="h-3 w-3 text-gold-400" />
@@ -75,6 +70,8 @@ export default function PredictionsPage() {
                   </span>
                   <Badge variant="outline" className="border-gold-400/30 text-gold-400 text-xs">{p.time}</Badge>
                 </div>
+
+                {/* Teams */}
                 <div className="flex items-center justify-between mb-4">
                   <div className="text-center flex-1">
                     {p.crest_a ? (
@@ -94,13 +91,50 @@ export default function PredictionsPage() {
                     <p className="text-xs font-medium">{p.team_b}</p>
                   </div>
                 </div>
-                <p className="text-sm font-semibold">{p.prediction}</p>
+
+                {/* Main Prediction + Confidence */}
+                <p className="text-sm font-semibold">{p.mainPick || p.prediction}</p>
                 <div className="mt-2 flex items-center gap-2">
                   <div className="h-1.5 flex-1 rounded-full bg-gray-800">
                     <div className="h-full rounded-full bg-positive" style={{ width: `${p.confidence}%` }} />
                   </div>
                   <span className="text-xs font-bold text-positive">{p.confidence}%</span>
                 </div>
+
+                {/* Expected Score */}
+                {p.expectedScore && (
+                  <p className="mt-2 text-xs text-gold-400 font-semibold">
+                    Predicted Score: {p.expectedScore}
+                  </p>
+                )}
+
+                {/* Picks Grid */}
+                <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                  <div>
+                    <span className="text-gray-500">Main:</span>{" "}
+                    <span className="text-white font-medium">{p.mainPick || "—"}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Safe:</span>{" "}
+                    <span className="text-white font-medium">{p.safePick || "—"}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Goals:</span>{" "}
+                    <span className="text-white font-medium">{p.goalsPick || "—"}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">BTTS:</span>{" "}
+                    <span className="text-white font-medium">{p.bttsPick || "—"}</span>
+                  </div>
+                </div>
+
+                {/* Risk & Stake */}
+                <div className="mt-2 flex items-center gap-3 text-xs text-gray-500">
+                  <span>Risk: {p.riskLevel || "—"}</span>
+                  <span>Stake: {p.stake || "—"}</span>
+                </div>
+
+                {/* Analysis Preview */}
                 {p.analysis && (
                   <>
                     <p className="mt-2 text-xs text-gray-400 italic line-clamp-2 leading-relaxed">

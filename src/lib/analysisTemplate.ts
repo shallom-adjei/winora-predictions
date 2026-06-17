@@ -14,9 +14,14 @@ export function generateAnalysis(
 ): string {
   const hasData = match.form_points_a != null || match.form_points_b != null;
 
-  if (!hasData) {
-    return `${match.team_a} square off against ${match.team_b} in what promises to be a competitive tactical matchup. With minimal recent historical data on hand, our engine heavily relies on raw squad parameters and baseline performance metrics. Based on these configurations, backing ${prediction} presents the most logical path forward. Confidence is calculated at ${confidence}%, with an assessed ${risk.toLowerCase()} risk profile. Recommended stake: ${stake}.`;
-  }
+ if (!hasData) {
+  const fallbacks = [
+    `${match.team_a} and ${match.team_b} meet in a fixture where recent form data is scarce. Our engine evaluates squad depth, tactical profiles, and simulated outcomes to arrive at the best recommendation. ${prediction} stands out as the optimal play with a ${confidence}% confidence reading. This selection carries a ${risk.toLowerCase()} risk profile – stake ${stake}.`,
+    `With limited historical data available for this matchup, we lean on underlying performance metrics and market inefficiencies. The algorithm flags ${prediction} as the most probable outcome, backed by a ${confidence}% confidence score and a ${risk.toLowerCase()} risk assessment. Allocate ${stake} for controlled exposure.`,
+    `This clash lacks robust recent data, so our model defaults to baseline projections and squad analysis. The numbers point toward ${prediction}, earning a ${confidence}% confidence level and a ${risk.toLowerCase()} risk tag. We recommend a ${stake} stake for this position.`,
+  ];
+  return pick(fallbacks);
+}
 
   const formSentences: string[] = [];
   const tacticalSentences: string[] = [];

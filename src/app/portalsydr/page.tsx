@@ -518,31 +518,48 @@ const handleGenerateAI = async (match: any) => {
   }
 };
 
-  const handleGenerateAll = async () => {
-    const { data: allMatches } = await supabase
-      .from("predictions")
-      .select("*")
-      .or("result.is.null,result.eq.Pending");
-    if (!allMatches?.length) { toast.success("No matches to predict."); return; }
+const handleGenerateAll = async () => {
+  const { data: allMatches } = await supabase
+    .from("predictions")
+    .select("*")
+    .or("result.is.null,result.eq.Pending");
+  if (!allMatches?.length) { toast.success("No matches to predict."); return; }
 
-    toast.loading(`Generating predictions for ${allMatches.length} matches...`);
-    for (const match of allMatches) {
-      setGeneratingId(match.id);
-      try {
-        const res = await fetch("/api/generate-prediction", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ match }) });
-        const aiData = await res.json();
-        if (!aiData.prediction) throw new Error("No prediction");
-        await supabase
-          .from("predictions")
-          .update({ prediction: aiData.prediction, confidence: aiData.confidence, analysis: aiData.analysis })
-          .eq("id", match.id);
-      } catch { console.error("Failed for", match.match_name); }
-      finally { setGeneratingId(null); }
-    }
-    toast.success("All predictions generated!");
-    fetchDashboardData();
-    fetchAnalytics();
-  };
+  toast.loading(`Generating predictions for ${allMatches.length} matches...`);
+  for (const match of allMatches) {
+    setGeneratingId(match.id);
+    try {
+      const res = await fetch("/api/generate-prediction", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ match }),
+      });
+      const aiData = await res.json();
+      if (!aiData.prediction) throw new Error("No prediction");
+
+      await supabase
+        .from("predictions")
+        .update({
+          prediction: aiData.prediction,
+          confidence: aiData.confidence,
+          analysis: aiData.analysis,
+          // --- the new enriched fields (same as handleGenerateAI) ---
+          expected_score: aiData.expectedScore,
+          main_pick: aiData.mainPick,
+          safe_pick: aiData.safePick,
+          goals_pick: aiData.goalsPick,
+          btts_pick: aiData.bttsPick,
+          risk_level: aiData.riskLevel,
+          recommended_stake: aiData.stake,
+        })
+        .eq("id", match.id);
+    } catch { console.error("Failed for", match.match_name); }
+    finally { setGeneratingId(null); }
+  }
+  toast.success("All predictions generated!");
+  fetchDashboardData();
+  fetchAnalytics();
+};
 
   const handleEnrich = async () => {
   setEnriching(true);
@@ -614,6 +631,15 @@ const handleGenerateAI = async (match: any) => {
           <Button onClick={handleEnrich} disabled={enriching} variant="outline" className="text-sm">
             {enriching ? "Enriching..." : "Enrich Stats"}
           </Button>
+          <Button onClick={async () => {
+  try {
+    const res = await fetch("/api/update-crests", { method: "POST" });
+    const data = await res.json();
+    toast.success(data.message || "Crests updated");
+  } catch { toast.error("Crest update failed"); }
+}} variant="outline" className="text-sm">
+  Update Crests
+</Button>
           <Button onClick={handleGenerateAll} disabled={generatingId !== null} className="text-sm">
             {generatingId ? "Generating..." : "Generate All Predictions"}
           </Button>
