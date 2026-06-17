@@ -416,8 +416,7 @@ const topPicks = livePredictions
               ))}
             </div>
 
-           {/* Mobile cards – same layout as All Predictions */}
-
+{/* Mobile cards – same layout as desktop, with live score between crests */}
 <div className="lg:hidden space-y-4">
   {topPicks.map((match, idx) => (
     <motion.div
@@ -425,15 +424,13 @@ const topPicks = livePredictions
       whileTap={{ scale: 0.98 }}
       className="rounded-[18px] bg-[#0D0D0D] border border-white/5 p-4"
     >
-      {/* League + Time */}
-     <div className="flex items-center mb-3">
-  <span className="text-xs text-gray-400 uppercase flex items-center gap-1">
-    <Activity className="h-3 w-3 text-gold-400" />
-    {match.league}
-  </span>
-</div>
+      {/* League */}
+      <div className="flex items-center gap-2 text-xs text-gray-400 uppercase mb-3">
+        <Activity className="h-3 w-3 text-gold-400" />
+        {match.league}
+      </div>
 
-      {/* Teams side by side */}
+      {/* Teams and LIVE/FT/Time in the middle */}
       <div className="flex items-center justify-between mb-4">
         <div className="text-center flex-1">
           {match.crest_a ? (
@@ -443,7 +440,42 @@ const topPicks = livePredictions
           )}
           <p className="text-xs font-medium">{match.home}</p>
         </div>
-        <span className="text-xs font-bold text-gray-500 px-2">VS</span>
+
+        {/* ---- MIDDLE SECTION (same as desktop) ---- */}
+        <div className="text-center px-2">
+          {match.match_status === "LIVE" ? (
+            <div className="flex flex-col items-center gap-1">
+              <span className="relative flex items-center gap-1.5">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75"></span>
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500"></span>
+                </span>
+                <span className="text-xs font-bold text-red-400">LIVE</span>
+              </span>
+              {match.actual_home_score != null && match.actual_away_score != null && (
+                <span className="text-sm font-bold text-white tabular-nums">
+                  {match.actual_home_score} - {match.actual_away_score}
+                </span>
+              )}
+            </div>
+          ) : match.match_status === "FINISHED" ? (
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-xs font-bold text-gray-400">FT</span>
+              {match.actual_home_score != null && match.actual_away_score != null && (
+                <span className="text-sm font-bold text-white tabular-nums">
+                  {match.actual_home_score} - {match.actual_away_score}
+                </span>
+              )}
+            </div>
+          ) : (
+            <>
+              <p className="text-xs font-bold text-gray-500">{match.time}</p>
+              <p className="text-xs text-gray-600">VS</p>
+            </>
+          )}
+        </div>
+        {/* ------------------------------------ */}
+
         <div className="text-center flex-1">
           {match.crest_b ? (
             <img src={match.crest_b} alt={match.away} className="h-10 w-10 object-contain mx-auto mb-1" />
@@ -479,33 +511,7 @@ const topPicks = livePredictions
       {/* Risk & Stake */}
       <div className="mt-2 text-xs text-gray-500">Risk: {match.riskLevel} | Stake: {match.stake}</div>
 
-      {/* Live / Finished badge and score */}
-      {match.match_status === "LIVE" && (
-        <div className="mt-3 flex items-center gap-2 text-xs">
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75"></span>
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500"></span>
-          </span>
-          <span className="text-red-400 font-bold">LIVE</span>
-          {match.actual_home_score != null && match.actual_away_score != null && (
-            <span className="text-white font-semibold">{match.actual_home_score} - {match.actual_away_score}</span>
-          )}
-        </div>
-      )}
-
-      {match.match_status === "FINISHED" && match.actual_home_score != null && (
-        <div className="mt-3 text-xs space-y-1">
-          <p className="text-gray-400">FT: {match.actual_home_score} - {match.actual_away_score}</p>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
-            <div>Main: <ResultBadge result={evaluatePick(match.mainPick, match.actual_home_score, match.actual_away_score)} /></div>
-            <div>Safe: <ResultBadge result={evaluatePick(match.safePick, match.actual_home_score, match.actual_away_score)} /></div>
-            <div>Goals: <ResultBadge result={evaluatePick(match.goalsPick, match.actual_home_score, match.actual_away_score)} /></div>
-            <div>BTTS: <ResultBadge result={evaluatePick(match.bttsPick, match.actual_home_score, match.actual_away_score)} /></div>
-          </div>
-        </div>
-      )}
-
-      {/* Full Analysis button */}
+      {/* Analysis */}
       {match.analysis && (
         <button
           onClick={() => handleOpenAnalysis(match)}
