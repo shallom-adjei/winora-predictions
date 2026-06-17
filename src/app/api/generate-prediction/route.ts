@@ -22,26 +22,31 @@ export async function POST(req: NextRequest) {
   const dataQuality = calculateDataQuality(match);
   const scores = computePrediction(match);
 
-  // ----- Market selection (smart, not just "highest") -----
-   const markets1X2: (keyof PredictionScores)[] = ["Home Win", "Draw", "Away Win"];
-  const marketsGoals: (keyof PredictionScores)[] = ["Over 2.5 Goals", "Under 2.5 Goals"];
-  const marketsBTTS: (keyof PredictionScores)[] = ["Both Teams to Score", "BTTS No"];
+  // ----- Market selection (consistent with expected score) -----
   const marketsSafe: (keyof PredictionScores)[] = ["1X", "X2"];
 
- const best = (marketList: (keyof PredictionScores)[]) =>
+  const best = (marketList: (keyof PredictionScores)[]) =>
     marketList.reduce((prev, curr) =>
       (scores[curr] as number) > (scores[prev] as number) ? curr : prev
     );
 
-// Main pick is based on expected score to match the predicted score
-const mainPick =
-  scores.expectedHomeGoals > scores.expectedAwayGoals
-    ? "Home Win"
-    : scores.expectedAwayGoals > scores.expectedHomeGoals
-    ? "Away Win"
-    : "Draw";
-  const goalsPick = best(marketsGoals);    // over/under
-  const bttsPick = best(marketsBTTS);
+  // Main pick – based on expected score (matches predicted score)
+  const mainPick =
+    scores.expectedHomeGoals > scores.expectedAwayGoals
+      ? "Home Win"
+      : scores.expectedAwayGoals > scores.expectedHomeGoals
+      ? "Away Win"
+      : "Draw";
+
+  // Goals pick – derived from predicted score total
+  const totalGoals = scores.expectedHomeGoals + scores.expectedAwayGoals;
+  const goalsPick = totalGoals > 2.5 ? "Over 2.5 Goals" : "Under 2.5 Goals";
+
+  // BTTS pick – derived from predicted score
+  const bttsPick = scores.expectedHomeGoals > 0 && scores.expectedAwayGoals > 0
+    ? "Both Teams to Score"
+    : "BTTS No";
+
   const safePick = best(marketsSafe);
 
   // Confidence for the main pick
@@ -49,7 +54,11 @@ const mainPick =
 
   // Risk – based on edge between main pick and next best 1X2
   const mainScore = scores[mainPick];
-  const secondScore = Math.max(...markets1X2.map(m => m === mainPick ? 0 : scores[m]));
+  const secondScore = Math.max(
+    ...(["Home Win", "Draw", "Away Win"] as (keyof PredictionScores)[])
+      .filter(m => m !== mainPick)
+      .map(m => scores[m])
+  );
   const edge = mainScore - secondScore;
   const risk =
     edge > 15 && dataQuality > 70 ? "Low" : edge > 8 ? "Medium" : "High";
@@ -57,11 +66,11 @@ const mainPick =
   const stake =
     confidence >= 88 ? "2/5" : confidence >= 78 ? "1.5/5" : "1/5";
 
-  const expectedScore = `${Math.round(scores.expectedHomeGoals)}-${Math.round(scores.expectedAwayGoals)}`;
+  const expectedScore = `${scores.expectedHomeGoals}-${scores.expectedAwayGoals}`;
 
   const analysis = generateAnalysis(
     match,
-    mainPick,             // the analysis template still uses the main pick
+    mainPick,
     scores,
     confidence,
     risk,
@@ -69,10 +78,9 @@ const mainPick =
   );
 
   return NextResponse.json({
-    prediction: mainPick,            // backward compatibility
+    prediction: mainPick,
     confidence,
     analysis,
-    // Extended info for the frontend
     expectedScore,
     mainPick,
     safePick,
