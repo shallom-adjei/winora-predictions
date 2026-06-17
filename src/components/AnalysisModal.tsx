@@ -6,8 +6,10 @@ interface AnalysisModalProps {
   isOpen: boolean;
   onClose: () => void;
   match: {
-    home: string;
-    away: string;
+    home?: string;
+    away?: string;
+    team_a?: string;
+    team_b?: string;
     prediction: string;
     analysis: string;
     fullReport?: any;
@@ -30,8 +32,10 @@ export function AnalysisModal({ isOpen, onClose, match }: AnalysisModalProps) {
           <h3 className="text-xl font-bold text-gold-400">Full Analysis</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-white"><X className="h-5 w-5" /></button>
         </div>
-        <p className="text-sm text-gray-400 mb-1">{match.home} vs {match.away}</p>
-        <p className="text-lg font-semibold text-white mb-4">Prediction: {match.prediction}</p>
+       <p className="text-sm text-gray-400 mb-1">
+  {match.home || match.team_a || "Home"} vs {match.away || match.team_b || "Away"}
+</p>
+<p className="text-lg font-semibold text-white mb-4">Prediction: {match.prediction}</p>
 
         {report ? (
   <div className="space-y-3 text-sm text-gray-300">
