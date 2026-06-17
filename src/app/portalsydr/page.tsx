@@ -825,14 +825,13 @@ const handleGenerateAll = async () => {
                 <table className="w-full text-left">
                   <thead>
   <tr className="text-xs text-gray-400 border-b border-white/5">
+    <th className="pb-3 font-medium">Date</th>
     <th className="pb-3 font-medium">Match</th>
-    <th className="pb-3 font-medium">League</th>
-    <th className="pb-3 font-medium">Time</th>
-    <th className="pb-3 font-medium">Stats</th>
     <th className="pb-3 font-medium">Prediction</th>
-    <th className="pb-3 font-medium">Confidence</th>
-    <th className="pb-3 font-medium">Status</th>
-    <th className="pb-3 font-medium">Actions</th>
+    <th className="pb-3 font-medium">Odd</th>
+    <th className="pb-3 font-medium">Stake</th>
+    <th className="pb-3 font-medium">Result</th>
+    <th className="pb-3 font-medium">Profit/Loss</th>
   </tr>
 </thead>
                   <tbody>
