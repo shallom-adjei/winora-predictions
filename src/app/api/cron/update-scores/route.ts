@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-export const dynamic = "force-dynamic"; // prevent caching
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   const FOOTBALL_DATA_KEY = process.env.FOOTBALL_DATA_API_KEY;
@@ -10,7 +10,6 @@ export async function GET() {
 
   const { supabase } = await import("@/lib/supabase");
 
-  // Fetch up to 10 matches that have a fixture_id and are not finished
   const { data: matches } = await supabase
     .from("predictions")
     .select("id, fixture_id, main_pick")
@@ -32,23 +31,25 @@ export async function GET() {
       if (!res.ok) continue;
       const fixture = await res.json();
 
-      const newStatus = fixture.status;          // SCHEDULED, LIVE, FINISHED
-      const homeScore = fixture.score?.fullTime?.home;
+      const rawStatus = fixture.status;                        // e.g. IN_PLAY, PAUSED, FINISHED
+      const homeScore = fixture.score?.fullTime?.home;        // current live score
       const awayScore = fixture.score?.fullTime?.away;
+
+      // Map football-data.org statuses to our simplified statuses
+      const liveStatuses = ["IN_PLAY", "PAUSED", "LIVE"];
+      const newStatus = rawStatus === "FINISHED" ? "FINISHED" : liveStatuses.includes(rawStatus) ? "LIVE" : rawStatus;
 
       const updateData: any = { match_status: newStatus };
 
-      // If the match has finished and scores are available, save them
-      if (newStatus === "FINISHED" && homeScore != null && awayScore != null) {
+      // Update scores if they exist (live matches have them)
+      if (homeScore != null && awayScore != null) {
         updateData.actual_home_score = homeScore;
         updateData.actual_away_score = awayScore;
+      }
 
-        // Compute legacy result based on main pick
-        const actualOutcome = homeScore > awayScore
-          ? "Home Win"
-          : homeScore === awayScore
-          ? "Draw"
-          : "Away Win";
+      // Compute legacy result only when match is finished
+      if (rawStatus === "FINISHED" && homeScore != null && awayScore != null) {
+        const actualOutcome = homeScore > awayScore ? "Home Win" : homeScore === awayScore ? "Draw" : "Away Win";
         updateData.result = match.main_pick === actualOutcome ? "Win" : "Loss";
       }
 
@@ -57,7 +58,6 @@ export async function GET() {
     } catch (err) {
       console.error("Failed to update fixture", match.fixture_id, err);
     }
-    // Small delay to respect football-data.org rate limits
     await new Promise(r => setTimeout(r, 1000));
   }
 
