@@ -5,6 +5,7 @@ import PublicHeader from "@/components/PublicHeader";
 import Footer from "@/components/Footer";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 
 function stripHtml(html: string) {
   const doc = new DOMParser().parseFromString(html, "text/html");
@@ -56,7 +57,7 @@ export default function BlogPage() {
   }
 
   return (
-    <div className="min-h-screen bg-surface-primary text-white flex flex-col">
+    <div className="min-h-screen bg-surface-primary text-white flex flex-col pb-24 lg:pb-0">
       <PublicHeader />
       <main className="flex-1 w-full px-4 sm:px-6 lg:px-8 py-12">
         {/* MOBILE ADJUSTMENT: smaller heading on mobile */}
@@ -198,6 +199,7 @@ export default function BlogPage() {
         )}
       </main>
       <Footer />
+      <MobileBottomNav />
     </div>
   );
 }

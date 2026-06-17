@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import PublicHeader from "@/components/PublicHeader";
 import Footer from "@/components/Footer";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 
 export default function ResultsPage() {
   const [results, setResults] = useState<any[]>([]);
@@ -20,7 +21,7 @@ export default function ResultsPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-surface-primary text-white flex flex-col">
+    <div className="min-h-screen bg-surface-primary text-white flex flex-col pb-24 lg:pb-0">
       <PublicHeader />
       <div className="flex-1 max-w-7xl mx-auto px-4 sm:px-8 py-8 sm:py-12 w-full">
         <h1 className="text-2xl sm:text-4xl font-bold mb-6 sm:mb-8">Match Results</h1>
@@ -60,6 +61,7 @@ export default function ResultsPage() {
         )}
       </div>
       <Footer />
+      <MobileBottomNav />
     </div>
   );
 }
