@@ -121,6 +121,34 @@ export function generateAnalysis(
     observations.push(`${away} have fired blanks in ${awayFailed} of their last 5, struggling to convert chances.`);
   }
 
+  // H2H insights
+const h2hHomeWins = safeNum(match.h2h_home_wins);
+const h2hAwayWins = safeNum(match.h2h_away_wins);
+const h2hDraws = safeNum(match.h2h_draws);
+const totalH2H = h2hHomeWins + h2hAwayWins + h2hDraws;
+if (totalH2H >= 3) {
+  if (h2hHomeWins > h2hAwayWins) {
+    observations.push(`Historically, ${home} have had the upper hand in this fixture, winning ${h2hHomeWins} of the last ${totalH2H} meetings.`);
+  } else if (h2hAwayWins > h2hHomeWins) {
+    observations.push(`${away} have dominated recent head‑to‑head encounters, claiming victory in ${h2hAwayWins} of the last ${totalH2H} matchups.`);
+  } else {
+    observations.push(`The recent head‑to‑head record is evenly split with ${h2hHomeWins} wins apiece and ${h2hDraws} draws in the last ${totalH2H} meetings.`);
+  }
+}
+
+// League position
+const posA = safeNum(match.league_position_a);
+const posB = safeNum(match.league_position_b);
+if (posA > 0 && posB > 0) {
+  if (posA < posB) {
+    observations.push(`${home} sit higher in the standings (${posA} vs ${posB}) and will look to press that advantage.`);
+  } else if (posB < posA) {
+    observations.push(`${away} hold the superior league position (${posB} to ${posA}), which could give them an edge.`);
+  } else {
+    observations.push(`Both sides are level in the table, making this a true six‑pointer.`);
+  }
+}
+
   // ---------- CONCLUSION (varied by risk & confidence) ----------
   const engineProb = scores[prediction];
   const riskLower = risk.toLowerCase();

@@ -27,29 +27,46 @@ export function computePrediction(match: any): PredictionScores {
   const awayScored = Number(match.away_goals_scored) || 0;
   const awayConceded = Number(match.away_goals_conceded) || 0;
 
-  // Heuristic expected goals (home advantage ~1.05 multiplier)
+  // Base expected goals
   let expectedHome = (homeScored * 0.6 + awayConceded * 0.4) * 1.05;
   let expectedAway = (awayScored * 0.4 + homeConceded * 0.6) * 0.95;
 
-  // Floor: if both would be near zero (no stats), give slight non-zero to avoid degenerate distributions
+  // ----- H2H modifier -----
+  if (match.h2h_home_wins != null && match.h2h_away_wins != null) {
+    const totalH2H = match.h2h_home_wins + match.h2h_draws + match.h2h_away_wins;
+    if (totalH2H > 0) {
+      const homeWinRatio = match.h2h_home_wins / totalH2H;
+      const awayWinRatio = match.h2h_away_wins / totalH2H;
+      // If one team dominates H2H, shift expected goals slightly
+      if (homeWinRatio > 0.6) expectedHome *= 1.1;
+      if (awayWinRatio > 0.6) expectedAway *= 1.1;
+    }
+  }
+
+  // ----- League position modifier -----
+  const posA = Number(match.league_position_a);
+  const posB = Number(match.league_position_b);
+  if (posA && posB) {
+    const diff = posB - posA; // positive means home team higher (lower number)
+    if (diff > 4) expectedHome *= 1.1;
+    else if (diff < -4) expectedAway *= 1.1;
+  }
+
+  // Floor
   const goalFloor = 0.5;
   if (expectedHome < goalFloor && expectedAway < goalFloor) {
     expectedHome = Math.max(expectedHome, 0.3);
     expectedAway = Math.max(expectedAway, 0.3);
   }
 
-  // Poisson probabilities for up to 6 goals
+  // Poisson
   const maxGoals = 6;
-  const probHomeGoals = Array.from({ length: maxGoals + 1 }, (_, k) =>
-    poissonProb(expectedHome, k)
-  );
-  const probAwayGoals = Array.from({ length: maxGoals + 1 }, (_, k) =>
-    poissonProb(expectedAway, k)
-  );
+  const probHomeGoals = Array.from({ length: maxGoals + 1 }, (_, k) => poissonProb(expectedHome, k));
+  const probAwayGoals = Array.from({ length: maxGoals + 1 }, (_, k) => poissonProb(expectedAway, k));
 
   let homeWin = 0, draw = 0, awayWin = 0;
   let over15 = 0, over25 = 0, under25 = 0;
-  let btts = 0; // raw probability
+  let btts = 0;
 
   for (let i = 0; i <= maxGoals; i++) {
     for (let j = 0; j <= maxGoals; j++) {
@@ -64,16 +81,15 @@ export function computePrediction(match: any): PredictionScores {
     }
   }
 
-  // Convert to percentages and cap at 95% (never 100%)
   const cap = (v: number) => Math.min(v, 95);
-  const rawBtts = btts; // save raw BTTS probability before converting
-  homeWin   = cap(Math.round(homeWin * 100));
-  draw      = cap(Math.round(draw * 100));
-  awayWin   = cap(Math.round(awayWin * 100));
-  over15    = cap(Math.round(over15 * 100));
-  over25    = cap(Math.round(over25 * 100));
-  under25   = cap(Math.round(under25 * 100));
-  btts      = cap(Math.round(rawBtts * 100));
+  const rawBtts = btts;
+  homeWin = cap(Math.round(homeWin * 100));
+  draw = cap(Math.round(draw * 100));
+  awayWin = cap(Math.round(awayWin * 100));
+  over15 = cap(Math.round(over15 * 100));
+  over25 = cap(Math.round(over25 * 100));
+  under25 = cap(Math.round(under25 * 100));
+  btts = cap(Math.round(rawBtts * 100));
   const bttsNo = cap(Math.round((1 - rawBtts) * 100));
 
   return {
@@ -87,12 +103,11 @@ export function computePrediction(match: any): PredictionScores {
     "Under 2.5 Goals": under25,
     "Both Teams to Score": btts,
     "BTTS No": bttsNo,
-    expectedHomeGoals: Math.round(expectedHome),   // whole numbers
+    expectedHomeGoals: Math.round(expectedHome),
     expectedAwayGoals: Math.round(expectedAway),
   };
 }
 
-// Confidence now combines data quality and probability gap
 export function calculateConfidence(
   scores: PredictionScores,
   targetMarket: keyof PredictionScores,

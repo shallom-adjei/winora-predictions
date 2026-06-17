@@ -22,7 +22,6 @@ function normaliseTeamName(name: string): string {
     "United Arab Emirates": "UAE",
     "Korea DPR": "North Korea",
     "São Tomé and Príncipe": "Sao Tome and Principe",
-    // Add more as you discover mismatches
   };
   return map[name] || name;
 }
@@ -31,7 +30,6 @@ function normaliseTeamName(name: string): string {
 async function getStatsFromTheSportsDB(teamName: string) {
   try {
     const normalised = normaliseTeamName(teamName);
-    // Attempt exact search
     let res = await fetch(
       `https://www.thesportsdb.com/api/v1/json/3/searchteams.php?t=${encodeURIComponent(normalised)}`
     );
@@ -39,9 +37,7 @@ async function getStatsFromTheSportsDB(teamName: string) {
     let data = await res.json();
     let team = data.teams?.[0];
 
-    // If exact search fails, try a fuzzy search (search by name fragment)
     if (!team) {
-      // Use the first word of the team name to broaden the search
       const firstWord = normalised.split(" ")[0];
       res = await fetch(
         `https://www.thesportsdb.com/api/v1/json/3/searchteams.php?t=${encodeURIComponent(firstWord)}`
@@ -189,70 +185,168 @@ function calculateStatsFromFD(matches: any[], teamId: number) {
   };
 }
 
+// ----- NEW: H2H from football-data.org -----
+async function getH2H(teamIdA: number, teamIdB: number) {
+  if (!FOOTBALL_DATA_KEY || !teamIdA || !teamIdB) return null;
+  try {
+    const res = await fetch(
+      `https://api.football-data.org/v4/matches?homeTeamId=${teamIdA}&awayTeamId=${teamIdB}&limit=5`,
+      { headers: { "X-Auth-Token": FOOTBALL_DATA_KEY } }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const matches = data.matches || [];
+    if (matches.length === 0) return null;
+
+    let homeWins = 0, draws = 0, awayWins = 0;
+    let over25 = 0, btts = 0;
+    for (const m of matches) {
+      const homeGoals = m.score.fullTime.home ?? 0;
+      const awayGoals = m.score.fullTime.away ?? 0;
+      if (homeGoals > awayGoals) homeWins++;
+      else if (homeGoals === awayGoals) draws++;
+      else awayWins++;
+      if (homeGoals + awayGoals > 2.5) over25++;
+      if (homeGoals > 0 && awayGoals > 0) btts++;
+    }
+    const total = matches.length;
+    return {
+      h2h_home_wins: homeWins,
+      h2h_draws: draws,
+      h2h_away_wins: awayWins,
+      h2h_over25_pct: Math.round((over25 / total) * 100),
+      h2h_btts_pct: Math.round((btts / total) * 100),
+    };
+  } catch {
+    return null;
+  }
+}
+
+// ----- NEW: Standings -----
+async function getStandings(competitionId: number) {
+  if (!FOOTBALL_DATA_KEY || !competitionId) return null;
+  try {
+    const res = await fetch(
+      `https://api.football-data.org/v4/competitions/${competitionId}/standings`,
+      { headers: { "X-Auth-Token": FOOTBALL_DATA_KEY } }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const standings = data.standings?.[0]?.table;
+    if (!standings) return null;
+    const posMap: Record<string, number> = {};
+    for (const entry of standings) {
+      posMap[entry.team.name] = entry.position;
+      if (entry.team.id) posMap[String(entry.team.id)] = entry.position;
+    }
+    return posMap;
+  } catch {
+    return null;
+  }
+}
+
 // ----- Main enrichment endpoint -----
 export async function POST(req: NextRequest) {
   const { supabase } = await import("@/lib/supabase");
 
-  // Only process matches that are missing stats (form_points_a is null)
+  // 1) Basic stats enrichment (form, goals, etc.)
   const { data: matches } = await supabase
     .from("predictions")
     .select("*")
     .is("form_points_a", null)
-    .limit(10);   // process 10 at a time
+    .limit(10);
 
-  if (!matches || matches.length === 0) {
-    return NextResponse.json({ success: true, message: "All matches already have stats." });
-  }
+  if (matches && matches.length > 0) {
+    let enriched = 0, failed = 0;
+    for (const match of matches) {
+      try {
+        let statsA = null, statsB = null;
+        statsA = await getStatsFromTheSportsDB(match.team_a);
+        statsB = await getStatsFromTheSportsDB(match.team_b);
+        if (!statsA && match.team_id_a) statsA = await getStatsFromFootballData(match.team_id_a);
+        if (!statsB && match.team_id_b) statsB = await getStatsFromFootballData(match.team_id_b);
 
-  let enriched = 0;
-  let failed = 0;
+        const update: any = {};
+        if (statsA) {
+          update.form_points_a = statsA.form_points;
+          update.home_goals_scored = statsA.home_goals_scored;
+          update.home_goals_conceded = statsA.home_goals_conceded;
+          update.clean_sheets_last5_a = statsA.clean_sheets_last5;
+          update.failed_to_score_last5_a = statsA.failed_to_score_last5;
+          update.over25_last5_pct_a = statsA.over25_last5_pct;
+          update.btts_last5_pct_a = statsA.btts_last5_pct;
+        }
+        if (statsB) {
+          update.form_points_b = statsB.form_points;
+          update.away_goals_scored = statsB.home_goals_scored;
+          update.away_goals_conceded = statsB.home_goals_conceded;
+          update.clean_sheets_last5_b = statsB.clean_sheets_last5;
+          update.failed_to_score_last5_b = statsB.failed_to_score_last5;
+          update.over25_last5_pct_b = statsB.over25_last5_pct;
+          update.btts_last5_pct_b = statsB.btts_last5_pct;
+        }
 
-  for (const match of matches) {
-    try {
-      let statsA = null, statsB = null;
-
-      // Try TheSportsDB first
-      statsA = await getStatsFromTheSportsDB(match.team_a);
-      statsB = await getStatsFromTheSportsDB(match.team_b);
-
-      // Fallback to football-data.org if team_id exists
-      if (!statsA && match.team_id_a) statsA = await getStatsFromFootballData(match.team_id_a);
-      if (!statsB && match.team_id_b) statsB = await getStatsFromFootballData(match.team_id_b);
-
-      const update: any = {};
-      if (statsA) {
-        update.form_points_a = statsA.form_points;
-        update.home_goals_scored = statsA.home_goals_scored;
-        update.home_goals_conceded = statsA.home_goals_conceded;
-        update.clean_sheets_last5_a = statsA.clean_sheets_last5;
-        update.failed_to_score_last5_a = statsA.failed_to_score_last5;
-        update.over25_last5_pct_a = statsA.over25_last5_pct;
-        update.btts_last5_pct_a = statsA.btts_last5_pct;
-      }
-      if (statsB) {
-        update.form_points_b = statsB.form_points;
-        update.away_goals_scored = statsB.home_goals_scored;
-        update.away_goals_conceded = statsB.home_goals_conceded;
-        update.clean_sheets_last5_b = statsB.clean_sheets_last5;
-        update.failed_to_score_last5_b = statsB.failed_to_score_last5;
-        update.over25_last5_pct_b = statsB.over25_last5_pct;
-        update.btts_last5_pct_b = statsB.btts_last5_pct;
-      }
-
-      if (Object.keys(update).length > 0) {
-        await supabase.from("predictions").update(update).eq("id", match.id);
-        enriched++;
-      } else {
+        if (Object.keys(update).length > 0) {
+          await supabase.from("predictions").update(update).eq("id", match.id);
+          enriched++;
+        } else {
+          failed++;
+        }
+        await new Promise(r => setTimeout(r, 7000));
+      } catch (err) {
+        console.error("Basic enrichment failed for", match.match_name, err);
         failed++;
       }
-
-      // Gentle delay
-      await new Promise(r => setTimeout(r, 7000));
-    } catch (err) {
-      console.error(`Enrichment failed for ${match.match_name}`, err);
-      failed++;
     }
+    return NextResponse.json({ success: true, processed: matches.length, enriched, failed });
   }
 
-  return NextResponse.json({ success: true, processed: matches.length, enriched, failed });
+  // 2) H2H and league position enrichment (only after basic stats exist)
+  const { data: matchesNeedH2H } = await supabase
+    .from("predictions")
+    .select("*")
+    .not("form_points_a", "is", null)
+    .is("h2h_home_wins", null)
+    .limit(10);
+
+  if (!matchesNeedH2H || matchesNeedH2H.length === 0) {
+    return NextResponse.json({ success: true, message: "All matches already have full stats." });
+  }
+
+  let updated = 0, skipped = 0;
+  for (const match of matchesNeedH2H) {
+    try {
+      const updates: any = {};
+      if (match.team_id_a && match.team_id_b) {
+        const h2h = await getH2H(match.team_id_a, match.team_id_b);
+        if (h2h) {
+          updates.h2h_home_wins = h2h.h2h_home_wins;
+          updates.h2h_draws = h2h.h2h_draws;
+          updates.h2h_away_wins = h2h.h2h_away_wins;
+          updates.h2h_over25_pct = h2h.h2h_over25_pct;
+          updates.h2h_btts_pct = h2h.h2h_btts_pct;
+        }
+      }
+      if (match.competition_id) {
+        const posMap = await getStandings(match.competition_id);
+        if (posMap) {
+          const posA = posMap[match.team_a] || posMap[String(match.team_id_a)];
+          const posB = posMap[match.team_b] || posMap[String(match.team_id_b)];
+          if (posA) updates.league_position_a = posA;
+          if (posB) updates.league_position_b = posB;
+        }
+      }
+      if (Object.keys(updates).length > 0) {
+        await supabase.from("predictions").update(updates).eq("id", match.id);
+        updated++;
+      } else {
+        skipped++;
+      }
+      await new Promise(r => setTimeout(r, 3000));
+    } catch (err) {
+      console.error("H2H/Position enrichment failed", err);
+      skipped++;
+    }
+  }
+  return NextResponse.json({ success: true, processed: matchesNeedH2H.length, enrichedH2H: updated, skipped });
 }

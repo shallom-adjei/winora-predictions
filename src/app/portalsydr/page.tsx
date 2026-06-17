@@ -774,12 +774,14 @@ const handleGenerateAll = async () => {
       <span
         className="text-xs text-green-400 cursor-help underline decoration-dotted"
         title={
-          `Form pts: ${match.form_points_a ?? "?"} (H) / ${match.form_points_b ?? "?"} (A)\n` +
-          `Goals scored: ${match.home_goals_scored ?? "?"} (H) / ${match.away_goals_scored ?? "?"} (A)\n` +
-          `Clean sheets: ${match.clean_sheets_last5_a ?? "?"} (H) / ${match.clean_sheets_last5_b ?? "?"} (A)\n` +
-          `Over 2.5: ${match.over25_last5_pct_a ?? "?"}% (H) / ${match.over25_last5_pct_b ?? "?"}% (A)\n` +
-          `BTTS: ${match.btts_last5_pct_a ?? "?"}% (H) / ${match.btts_last5_pct_b ?? "?"}% (A)`
-        }
+  `Form pts: ${match.form_points_a ?? "?"} (H) / ${match.form_points_b ?? "?"} (A)\n` +
+  `Goals scored: ${match.home_goals_scored ?? "?"} (H) / ${match.away_goals_scored ?? "?"} (A)\n` +
+  `Clean sheets: ${match.clean_sheets_last5_a ?? "?"} (H) / ${match.clean_sheets_last5_b ?? "?"} (A)\n` +
+  `Over 2.5: ${match.over25_last5_pct_a ?? "?"}% (H) / ${match.over25_last5_pct_b ?? "?"}% (A)\n` +
+  `BTTS: ${match.btts_last5_pct_a ?? "?"}% (H) / ${match.btts_last5_pct_b ?? "?"}% (A)\n` +
+  (match.h2h_home_wins != null ? `H2H: ${match.h2h_home_wins}W ${match.h2h_draws}D ${match.h2h_away_wins}W (last 5)\n` : "") +
+  (match.league_position_a != null ? `Position: ${match.league_position_a} (H) vs ${match.league_position_b} (A)` : "")
+}
       >
         ✅ Stats loaded
       </span>
