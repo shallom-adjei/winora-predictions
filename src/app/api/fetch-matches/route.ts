@@ -10,25 +10,34 @@ export async function POST(req: NextRequest) {
     const dateFrom = today.toISOString().split("T")[0];
     const dateTo = future.toISOString().split("T")[0];
 
-    // Fetch both SCHEDULED and POSTPONED (World Cup matches may be tagged as POSTPONED until closer)
-    const scheduled = await fetch(
-      `https://api.football-data.org/v4/matches?dateFrom=${dateFrom}&dateTo=${dateTo}&status=SCHEDULED`,
-      { headers: { "X-Auth-Token": apiKey } }
-    );
-    const postponed = await fetch(
-      `https://api.football-data.org/v4/matches?dateFrom=${dateFrom}&dateTo=${dateTo}&status=POSTPONED`,
-      { headers: { "X-Auth-Token": apiKey } }
-    );
+    // Fetch all relevant statuses – World Cup uses TIMED, IN_PLAY, SCHEDULED, POSTPONED
+    const [scheduled, postponed, timed, inplay] = await Promise.all([
+      fetch(
+        `https://api.football-data.org/v4/matches?dateFrom=${dateFrom}&dateTo=${dateTo}&status=SCHEDULED`,
+        { headers: { "X-Auth-Token": apiKey } }
+      ),
+      fetch(
+        `https://api.football-data.org/v4/matches?dateFrom=${dateFrom}&dateTo=${dateTo}&status=POSTPONED`,
+        { headers: { "X-Auth-Token": apiKey } }
+      ),
+      fetch(
+        `https://api.football-data.org/v4/matches?dateFrom=${dateFrom}&dateTo=${dateTo}&status=TIMED`,
+        { headers: { "X-Auth-Token": apiKey } }
+      ),
+      fetch(
+        `https://api.football-data.org/v4/matches?dateFrom=${dateFrom}&dateTo=${dateTo}&status=IN_PLAY`,
+        { headers: { "X-Auth-Token": apiKey } }
+      ),
+    ]);
 
     let allMatches: any[] = [];
 
-    if (scheduled.ok) {
-      const data = await scheduled.json();
-      if (data.matches) allMatches = allMatches.concat(data.matches);
-    }
-    if (postponed.ok) {
-      const data = await postponed.json();
-      if (data.matches) allMatches = allMatches.concat(data.matches);
+    const responses = [scheduled, postponed, timed, inplay];
+    for (const res of responses) {
+      if (res.ok) {
+        const data = await res.json();
+        if (data.matches) allMatches = allMatches.concat(data.matches);
+      }
     }
 
     // Remove duplicates by match ID
@@ -36,7 +45,7 @@ export async function POST(req: NextRequest) {
     allMatches.forEach(m => unique.set(m.id, m));
     const matches = Array.from(unique.values());
 
-    // Keep only truly upcoming matches
+    // Keep only truly upcoming matches (kick-off in the future)
     const upcoming = matches.filter((m: any) => {
       const kickoff = new Date(m.utcDate);
       return kickoff > new Date();
