@@ -67,7 +67,29 @@ export default function UpcomingMatchesPage() {
     <tr key={match.id} className="border-t border-white/5 hover:bg-white/5">
       <td className="p-3">{match.match_name}</td>
       <td className="p-3 text-xs text-gray-400">{match.sport}</td>
-      <td className="p-3">{match.time}</td>
+      <td className="p-3">
+  {match.match_status === "LIVE" ? (
+    <div className="flex items-center gap-1.5">
+      <span className="relative flex h-2 w-2">
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75"></span>
+        <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500"></span>
+      </span>
+      <span className="text-xs font-bold text-red-400">LIVE</span>
+      {match.actual_home_score != null && match.actual_away_score != null && (
+        <span className="text-xs font-bold text-white ml-1">{match.actual_home_score} - {match.actual_away_score}</span>
+      )}
+    </div>
+  ) : match.match_status === "FINISHED" ? (
+    <div className="flex items-center gap-1.5">
+      <span className="text-xs font-bold text-gray-400">FT</span>
+      {match.actual_home_score != null && match.actual_away_score != null && (
+        <span className="text-xs font-bold text-white">{match.actual_home_score} - {match.actual_away_score}</span>
+      )}
+    </div>
+  ) : (
+    match.time
+  )}
+</td>
       <td className="p-3">
         {match.form_points_a != null || match.form_points_b != null ? (
           <span
