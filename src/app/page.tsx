@@ -12,7 +12,6 @@ import { AnalysisModal } from "@/components/AnalysisModal";
 import { useLivePredictions } from "@/hooks/useLivePredictions";
 import { evaluatePick } from "@/lib/utils";
 import { ResultBadge } from "@/components/ResultBadge";
-import { WaitlistModal } from "@/components/WaitlistModal";
 
 export default function Home() {
   const [overview, setOverview] = useState({
@@ -25,7 +24,6 @@ export default function Home() {
   });
   const [analysisModalOpen, setAnalysisModalOpen] = useState(false);
   const [selectedAnalysis, setSelectedAnalysis] = useState<any>(null);
-  const [waitlistOpen, setWaitlistOpen] = useState(false);
 
   // ========== FETCH OVERVIEW (KPI + floating card) ==========
   useEffect(() => {
@@ -164,12 +162,11 @@ const topPicks = livePredictions
               Data-driven football predictions backed by expert analysis to help you make smarter betting decisions.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
-            <Button
-  onClick={() => setWaitlistOpen(true)}
-  className="h-[60px] w-[250px] rounded-xl bg-gold-400 text-base font-semibold text-black hover:bg-gold-500 gap-2"
->
-  <Crown className="h-5 w-5" /> Get Early Access <ArrowRight className="h-4 w-4" />
-</Button>
+            <Link href="/vip">
+  <Button className="h-[60px] w-[250px] rounded-xl bg-gold-400 text-base font-semibold text-black hover:bg-gold-500 gap-2">
+    <Crown className="h-5 w-5" /> Get Early Access <ArrowRight className="h-4 w-4" />
+  </Button>
+</Link>
               <Link href="/predictions">
                 <Button variant="outline" className="h-[60px] w-[250px] rounded-xl border-white/20 text-base font-semibold text-white hover:bg-white/5">
                   View Today's Picks
@@ -545,12 +542,11 @@ const topPicks = livePredictions
           <p className="text-xs text-gray-300 max-w-xs mb-5">
             Get daily premium predictions, expert analysis, and exclusive tools.
           </p>
-         <Button
-  onClick={() => setWaitlistOpen(true)}
-  className="h-[60px] w-[250px] rounded-xl bg-gold-400 text-base font-semibold text-black hover:bg-gold-500 gap-2"
->
-  <Crown className="h-5 w-5" /> Get Early Access <ArrowRight className="h-4 w-4" />
-</Button>
+         <Link href="/vip">
+  <Button className="h-[60px] w-[250px] rounded-xl bg-gold-400 text-base font-semibold text-black hover:bg-gold-500 gap-2">
+    <Crown className="h-5 w-5" /> Get Early Access <ArrowRight className="h-4 w-4" />
+  </Button>
+</Link>
         </motion.div>
       </section>
 
@@ -610,7 +606,6 @@ const topPicks = livePredictions
         onClose={handleCloseAnalysis}
         match={selectedAnalysis}
       />
-      <WaitlistModal isOpen={waitlistOpen} onClose={() => setWaitlistOpen(false)} />
     </div>
   );
 }
