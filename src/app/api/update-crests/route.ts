@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
   }
 
   const crestMap: Record<string, string> = {};
-  for (const team of teamSet) {
+  for (const team of [...teamSet]) {   // <-- fix is here: spread the Set into an array
     try {
       const res = await fetch(
         `https://www.thesportsdb.com/api/v1/json/3/searchteams.php?t=${encodeURIComponent(team)}`
