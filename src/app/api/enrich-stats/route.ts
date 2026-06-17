@@ -185,31 +185,37 @@ function calculateStatsFromFD(matches: any[], teamId: number) {
   };
 }
 
-// ----- NEW: H2H from football-data.org -----
-async function getH2H(teamIdA: number, teamIdB: number) {
-  if (!FOOTBALL_DATA_KEY || !teamIdA || !teamIdB) return null;
+async function getH2H(teamNameA: string, teamNameB: string) {
+  // TheSportsDB event search by team names
   try {
     const res = await fetch(
-      `https://api.football-data.org/v4/matches?homeTeamId=${teamIdA}&awayTeamId=${teamIdB}&limit=5`,
-      { headers: { "X-Auth-Token": FOOTBALL_DATA_KEY } }
+      `https://www.thesportsdb.com/api/v1/json/3/searchevents.php?e=${encodeURIComponent(teamNameA + " vs " + teamNameB)}`
     );
     if (!res.ok) return null;
     const data = await res.json();
-    const matches = data.matches || [];
-    if (matches.length === 0) return null;
+    const events = data.event || [];
+    if (events.length === 0) return null;
+
+    // Filter to only past finished matches (they have a score)
+    const finished = events.filter((e: any) => e.strStatus === "Match Finished" && e.intHomeScore != null);
+    if (finished.length === 0) return null;
 
     let homeWins = 0, draws = 0, awayWins = 0;
     let over25 = 0, btts = 0;
-    for (const m of matches) {
-      const homeGoals = m.score.fullTime.home ?? 0;
-      const awayGoals = m.score.fullTime.away ?? 0;
-      if (homeGoals > awayGoals) homeWins++;
-      else if (homeGoals === awayGoals) draws++;
+
+    for (const e of finished) {
+      const homeScore = parseInt(e.intHomeScore) || 0;
+      const awayScore = parseInt(e.intAwayScore) || 0;
+      if (homeScore > awayScore) homeWins++;
+      else if (homeScore === awayScore) draws++;
       else awayWins++;
-      if (homeGoals + awayGoals > 2.5) over25++;
-      if (homeGoals > 0 && awayGoals > 0) btts++;
+      if (homeScore + awayScore > 2.5) over25++;
+      if (homeScore > 0 && awayScore > 0) btts++;
     }
-    const total = matches.length;
+
+    const total = finished.length;
+    if (total < 2) return null; // need at least 2 matches for meaningful stats
+
     return {
       h2h_home_wins: homeWins,
       h2h_draws: draws,
