@@ -11,11 +11,12 @@ export async function GET() {
   const { supabase } = await import("@/lib/supabase");
 
   const { data: matches } = await supabase
-    .from("predictions")
-    .select("id, fixture_id, main_pick")
-    .not("fixture_id", "is", null)
-    .neq("match_status", "FINISHED")
-    .limit(10);
+  .from("predictions")
+  .select("id, fixture_id, main_pick")
+  .not("fixture_id", "is", null)
+  .neq("match_status", "FINISHED")
+  .order("kickoff_time", { ascending: true })    // soonest matches first
+  .limit(20);                                     // process more per run
 
   if (!matches?.length) {
     return NextResponse.json({ updated: 0, message: "No live/pending matches" });
