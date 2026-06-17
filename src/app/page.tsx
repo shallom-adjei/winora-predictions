@@ -9,9 +9,11 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { AnalysisModal } from "@/components/AnalysisModal";
+import { useLivePredictions } from "@/hooks/useLivePredictions";
+import { evaluatePick } from "@/lib/utils";
+import { ResultBadge } from "@/components/ResultBadge";
 
 export default function Home() {
-  const [topPicks, setTopPicks] = useState<any[]>([]);
   const [overview, setOverview] = useState({
     totalPredictions: 0,
     winRate: "0",
@@ -92,22 +94,13 @@ export default function Home() {
     fetchOverview();
   }, []);
 
-  // ========== FETCH TOP PICKS (the 3 most recent predictions) ==========
-  useEffect(() => {
-    supabase
-      .from("predictions")
-      .select("*")
-      .neq("prediction", "No recommendation")
-      .order("created_at", { ascending: false })
-      .limit(3)
-      .then(({ data, error }) => {
-        if (error) {
-          console.error("Top picks fetch error:", error.message);
-          return;
-        }
-        if (data) {
-          setTopPicks(
-  data.map((p) => ({
+// ---- LIVE DATA (replaces old topPicks state) ----
+const { predictions: livePredictions } = useLivePredictions();
+
+const topPicks = livePredictions
+  .filter((p: any) => p.prediction && p.prediction !== "No recommendation")
+  .slice(0, 3)
+  .map((p: any) => ({
     league: p.sport,
     home: p.team_a,
     away: p.team_b,
@@ -117,7 +110,6 @@ export default function Home() {
     analysis: p.analysis,
     crest_a: p.crest_a,
     crest_b: p.crest_b,
-    // --- new fields ---
     expectedScore: p.expected_score,
     mainPick: p.main_pick,
     safePick: p.safe_pick,
@@ -125,16 +117,16 @@ export default function Home() {
     bttsPick: p.btts_pick,
     riskLevel: p.risk_level,
     stake: p.recommended_stake,
-  }))
-);
-        }
-      })
-  }, []);
+    match_status: p.match_status,
+    actual_home_score: p.actual_home_score,
+    actual_away_score: p.actual_away_score,
+  }));
+  
 
-  const handleOpenAnalysis = (match: any) => {
+ const handleOpenAnalysis = (match: any) => {
   setSelectedAnalysis({
-    home: match.team_a || match.match?.split(" vs ")[0],
-    away: match.team_b || match.match?.split(" vs ")[1],
+    home: match.home || match.team_a || match.match?.split(" vs ")[0],
+    away: match.away || match.team_b || match.match?.split(" vs ")[1],
     prediction: match.prediction,
     analysis: match.analysis,
     fullReport: match.fullReport,
@@ -389,6 +381,35 @@ export default function Home() {
     </button>
   </>
 )}
+{/* Live / Finished badge and score */}
+{match.match_status === "LIVE" && (
+  <div className="mt-3 flex items-center gap-2 text-xs">
+    <span className="relative flex h-2 w-2">
+      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75"></span>
+      <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500"></span>
+    </span>
+    <span className="text-red-400 font-bold">LIVE</span>
+    {match.actual_home_score != null && match.actual_away_score != null && (
+      <span className="text-white font-semibold">
+        {match.actual_home_score} - {match.actual_away_score}
+      </span>
+    )}
+  </div>
+)}
+
+{match.match_status === "FINISHED" && match.actual_home_score != null && (
+  <div className="mt-3 text-xs space-y-1">
+    <p className="text-gray-400">
+      FT: {match.actual_home_score} - {match.actual_away_score}
+    </p>
+    <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+      <div>Main: <ResultBadge result={evaluatePick(match.mainPick, match.actual_home_score, match.actual_away_score)} /></div>
+      <div>Safe: <ResultBadge result={evaluatePick(match.safePick, match.actual_home_score, match.actual_away_score)} /></div>
+      <div>Goals: <ResultBadge result={evaluatePick(match.goalsPick, match.actual_home_score, match.actual_away_score)} /></div>
+      <div>BTTS: <ResultBadge result={evaluatePick(match.bttsPick, match.actual_home_score, match.actual_away_score)} /></div>
+    </div>
+  </div>
+)}
                   </div>
                 </motion.div>
               ))}
@@ -450,6 +471,35 @@ export default function Home() {
   <button onClick={() => handleOpenAnalysis(match)} className="text-xs text-gold-400 hover:underline mt-1">
     Full Analysis
   </button>
+)}
+{/* Live / Finished badge and score */}
+{match.match_status === "LIVE" && (
+  <div className="mt-3 flex items-center gap-2 text-xs">
+    <span className="relative flex h-2 w-2">
+      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75"></span>
+      <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500"></span>
+    </span>
+    <span className="text-red-400 font-bold">LIVE</span>
+    {match.actual_home_score != null && match.actual_away_score != null && (
+      <span className="text-white font-semibold">
+        {match.actual_home_score} - {match.actual_away_score}
+      </span>
+    )}
+  </div>
+)}
+
+{match.match_status === "FINISHED" && match.actual_home_score != null && (
+  <div className="mt-3 text-xs space-y-1">
+    <p className="text-gray-400">
+      FT: {match.actual_home_score} - {match.actual_away_score}
+    </p>
+    <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+      <div>Main: <ResultBadge result={evaluatePick(match.mainPick, match.actual_home_score, match.actual_away_score)} /></div>
+      <div>Safe: <ResultBadge result={evaluatePick(match.safePick, match.actual_home_score, match.actual_away_score)} /></div>
+      <div>Goals: <ResultBadge result={evaluatePick(match.goalsPick, match.actual_home_score, match.actual_away_score)} /></div>
+      <div>BTTS: <ResultBadge result={evaluatePick(match.bttsPick, match.actual_home_score, match.actual_away_score)} /></div>
+    </div>
+  </div>
 )}
                     </div>
                   </div>
