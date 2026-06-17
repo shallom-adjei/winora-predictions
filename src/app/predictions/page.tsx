@@ -45,13 +45,12 @@ export default function PredictionsPage() {
   className="rounded-[18px] bg-surface-card border border-white/5 p-4 sm:p-5"
 >
   {/* League + Time */}
-  <div className="flex items-center justify-between mb-3">
-    <span className="text-xs text-gray-400 uppercase flex items-center gap-1">
-      <Activity className="h-3 w-3 text-gold-400" />
-      {p.sport}
-    </span>
-    <Badge variant="outline" className="border-gold-400/30 text-gold-400 text-xs">{p.time}</Badge>
-  </div>
+ <div className="flex items-center mb-3">
+  <span className="text-xs text-gray-400 uppercase flex items-center gap-1">
+    <Activity className="h-3 w-3 text-gold-400" />
+    {p.sport}
+  </span>
+</div>
 
   {/* Teams */}
   <div className="flex items-center justify-between mb-4">

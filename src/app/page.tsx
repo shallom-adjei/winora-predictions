@@ -426,13 +426,12 @@ const topPicks = livePredictions
       className="rounded-[18px] bg-[#0D0D0D] border border-white/5 p-4"
     >
       {/* League + Time */}
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-xs text-gray-400 uppercase flex items-center gap-1">
-          <Activity className="h-3 w-3 text-gold-400" />
-          {match.league}
-        </span>
-        <span className="text-xs text-gray-500">{match.time}</span>
-      </div>
+     <div className="flex items-center mb-3">
+  <span className="text-xs text-gray-400 uppercase flex items-center gap-1">
+    <Activity className="h-3 w-3 text-gold-400" />
+    {match.league}
+  </span>
+</div>
 
       {/* Teams side by side */}
       <div className="flex items-center justify-between mb-4">
