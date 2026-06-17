@@ -71,6 +71,8 @@ export async function POST(req: NextRequest) {
         prediction: "",
         confidence: 70,
         is_premium: false,
+        fixture_id: m.id,
+        match_status: m.status,
       });
       if (!error) inserted++;
     }
