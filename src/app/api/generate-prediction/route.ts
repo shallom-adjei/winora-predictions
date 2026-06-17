@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { computePrediction, calculateConfidence } from "@/lib/predictionEngine";
+import type { PredictionScores } from "@/lib/predictionEngine";
 import { generateAnalysis } from "@/lib/analysisTemplate";
 
 function calculateDataQuality(match: any) {
@@ -20,32 +21,31 @@ export async function POST(req: NextRequest) {
   const { match } = await req.json();
 
   const dataQuality = calculateDataQuality(match);
-  const hasRealData = dataQuality >= 30;
 
-  let mainPrediction = "Home Win";
-  let confidence = 50;
-  let risk = "Medium";
-  let stake = "1/5";
+  // 1. Compute all market probabilities
+  const scores = computePrediction(match);
+  const sorted = (Object.entries(scores) as [keyof PredictionScores, number][]).sort(
+    (a, b) => b[1] - a[1]
+  );
 
-  if (hasRealData) {
-    const scores = computePrediction(match);
-    const sorted = Object.entries(scores).sort((a, b) => (b[1] as number) - (a[1] as number));
-    mainPrediction = sorted[0]?.[0] || "Home Win";
-    const topScore = sorted[0]?.[1] || 50;
-    confidence = calculateConfidence(scores as any, dataQuality);
-    const secondScore = sorted[1]?.[1] || 50;
-    const edge = topScore - secondScore;
-    risk = edge < 5 ? "High" : edge < 12 ? "Medium" : "Low";
-    stake = confidence >= 85 ? "2/5" : confidence >= 75 ? "1.5/5" : "1/5";
-  } else {
-    // No real stats – still provide a safe prediction using AI‑free template
-    mainPrediction = "Over 2.5 Goals";
-    confidence = 60;
-    risk = "High";
-    stake = "1/5";
-  }
+  // 2. Choose the best market (cast to the correct type)
+  const mainPrediction: keyof PredictionScores =
+    sorted[0]?.[0] || "Home Win";
 
-  const analysis = generateAnalysis(match, mainPrediction, confidence, risk, stake);
+  // 3. Confidence – market‑aware
+  const confidence = calculateConfidence(scores, mainPrediction, dataQuality);
+
+  // 4. Risk & stake
+  const topScore = sorted[0]?.[1] || 50;
+  const secondScore = sorted[1]?.[1] || 50;
+  const edge = topScore - secondScore;
+  const risk =
+    edge > 12 && dataQuality > 70 ? "Low" : edge > 6 ? "Medium" : "High";
+  const stake =
+    confidence >= 85 ? "2/5" : confidence >= 75 ? "1.5/5" : "1/5";
+
+  // 5. Generate the analysis (now receives the scores object)
+  const analysis = generateAnalysis(match, mainPrediction, scores, confidence, risk, stake);
 
   return NextResponse.json({
     prediction: mainPrediction,
@@ -53,12 +53,12 @@ export async function POST(req: NextRequest) {
     analysis,
     fullReport: {
       main_prediction: mainPrediction,
-      alternative_prediction: "N/A",
+      alternative_prediction: sorted[1]?.[0] || "N/A",
       risk_level: risk,
       confidence_score: confidence,
       recommended_stake: stake,
       analysis,
-      final_verdict: `${mainPrediction} is the recommended pick.`,
+      final_verdict: `${mainPrediction} is the strongest statistical angle for this fixture.`,
     },
   });
 }

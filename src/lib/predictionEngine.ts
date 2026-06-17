@@ -1,122 +1,93 @@
-// Winora Prediction Engine v2
-// Starts from neutral 50, adjusts based on supplied statistics
-
 export interface PredictionScores {
   "Home Win": number;
   "Draw": number;
   "Away Win": number;
+  "1X": number;      // Home or Draw
+  "X2": number;      // Away or Draw
   "Over 1.5 Goals": number;
   "Over 2.5 Goals": number;
   "Under 2.5 Goals": number;
   "Both Teams to Score": number;
   "BTTS No": number;
-  "1X": number;     // Home or Draw
-  "X2": number;     // Away or Draw
 }
 
 export function computePrediction(match: any): PredictionScores {
-  const formA = Number(match.form_points_a) || 0;
-  const formB = Number(match.form_points_b) || 0;
-  const homeGoalsScored = Number(match.home_goals_scored) || 0;
-  const homeGoalsConceded = Number(match.home_goals_conceded) || 0;
-  const awayGoalsScored = Number(match.away_goals_scored) || 0;
-  const awayGoalsConceded = Number(match.away_goals_conceded) || 0;
-  const over25A = Number(match.over25_last5_pct_a) || 0;
-  const over25B = Number(match.over25_last5_pct_b) || 0;
-  const bttsA = Number(match.btts_last5_pct_a) || 0;
-  const bttsB = Number(match.btts_last5_pct_b) || 0;
-  const h2hOver25 = Number(match.h2h_over25_pct) || 0;
-  const h2hBtts = Number(match.h2h_btts_pct) || 0;
-  const cleanA = Number(match.clean_sheets_last5_a) || 0;
-  const cleanB = Number(match.clean_sheets_last5_b) || 0;
-  const failA = Number(match.failed_to_score_last5_a) || 0;
-  const failB = Number(match.failed_to_score_last5_b) || 0;
+  // ----- 1. Normalized 1X2 Market (always sums to 100%) -----
+  let homeWeight = 38;
+  let drawWeight = 26;
+  let awayWeight = 36;
 
-  // ----- Neutral baselines -----
-  let homeWin = 50;
-  let draw = 50;
-  let awayWin = 50;
-  let over25 = 50;
-  let btts = 50;
-  let under25 = 50;
-  let over15 = 50;
-  let bttsNo = 50;
+  const formDiff = (Number(match.form_points_a) || 0) - (Number(match.form_points_b) || 0);
+  const goalDiffA = (Number(match.home_goals_scored) || 0) - (Number(match.home_goals_conceded) || 0);
+  const goalDiffB = (Number(match.away_goals_scored) || 0) - (Number(match.away_goals_conceded) || 0);
 
-  // ----- Form difference (weighted momentum would go here) -----
-  const formDiff = formA - formB;
+  homeWeight += (formDiff * 1.5) + (goalDiffA * 2.0);
+  awayWeight -= (formDiff * 1.5) - (goalDiffB * 2.0);
 
-  if (formDiff > 3) { homeWin += 8; awayWin -= 5; }
-  else if (formDiff > 1) { homeWin += 4; awayWin -= 3; }
-  else if (formDiff < -3) { awayWin += 8; homeWin -= 5; }
-  else if (formDiff < -1) { awayWin += 4; homeWin -= 3; }
-  else { draw += 4; }
+  if (Math.abs(goalDiffA - goalDiffB) < 0.5) drawWeight += 4;
+  if (formDiff === 0) drawWeight += 3;
 
-  // ----- Home/Away strength -----
-  const homeStrength = homeGoalsScored - homeGoalsConceded;
-  const awayStrength = awayGoalsScored - awayGoalsConceded;
+  const total1X2 = homeWeight + drawWeight + awayWeight;
+  const homeWinPct = Math.round((homeWeight / total1X2) * 100);
+  const drawPct = Math.round((drawWeight / total1X2) * 100);
+  const awayWinPct = 100 - (homeWinPct + drawPct);
 
-  if (homeStrength > 1) { homeWin += 8; awayWin -= 4; }
-  if (awayStrength > 1) { awayWin += 8; homeWin -= 4; }
-  if (Math.abs(homeStrength - awayStrength) < 0.5) draw += 5;
+  // Double Chance – derived directly from normalized values
+  const dc1XPct = homeWinPct + drawPct;
+  const dcX2Pct = awayWinPct + drawPct;
 
-  // ----- Goal trends -----
-  if (over25A > 70) over25 += 10;
-  if (over25A > 55) over25 += 5;
-  if (over25B > 70) over25 += 10;
-  if (over25B > 55) over25 += 5;
-  if (h2hOver25 > 70) over25 += 8;
+  // ----- 2. Over / Under 2.5 (perfect mirror) -----
+  let goalPropensity = 50;
+  goalPropensity += ((Number(match.over25_last5_pct_a) || 50) - 50) * 0.25;
+  goalPropensity += ((Number(match.over25_last5_pct_b) || 50) - 50) * 0.25;
+  goalPropensity -= ((Number(match.clean_sheets_last5_a) || 0) * 4) + ((Number(match.clean_sheets_last5_b) || 0) * 4);
+  goalPropensity += ((Number(match.home_goals_scored) || 0) + (Number(match.away_goals_scored) || 0)) * 3;
 
-  if (bttsA > 70) btts += 8;
-  if (bttsA > 55) btts += 4;
-  if (bttsB > 70) btts += 8;
-  if (bttsB > 55) btts += 4;
-  if (h2hBtts > 70) btts += 8;
+  const over25Pct = Math.min(Math.max(Math.round(goalPropensity), 10), 90);
+  const under25Pct = 100 - over25Pct;                // always exact complement
+  const over15Pct = Math.min(Math.round(over25Pct * 1.25), 95);
 
-  // ----- Under 2.5 (independent) -----
-  if (over25A < 40) under25 += 8;
-  if (over25B < 40) under25 += 8;
-  if (h2hOver25 < 40) under25 += 8;
-  if (cleanA >= 3) under25 += 6;
-  if (cleanB >= 3) under25 += 6;
-  if (failA >= 2) under25 += 5;
-  if (failB >= 2) under25 += 5;
+  // ----- 3. BTTS (perfect mirror) -----
+  let bttsPropensity = 51;
+  bttsPropensity += ((Number(match.btts_last5_pct_a) || 50) - 50) * 0.2;
+  bttsPropensity += ((Number(match.btts_last5_pct_b) || 50) - 50) * 0.2;
+  bttsPropensity -= ((Number(match.failed_to_score_last5_a) || 0) * 5) + ((Number(match.failed_to_score_last5_b) || 0) * 5);
 
-  // ----- Over 1.5 (very likely if either team scores often) -----
-  if (over25A > 50 || over25B > 50) over15 += 10;
-  if (bttsA > 50 || bttsB > 50) over15 += 8;
-  if (cleanA <= 1 && cleanB <= 1) over15 += 5;
-
-  // ----- BTTS No (opposite) -----
-  bttsNo = 95 - btts; // simple mirror; can be refined later
-
-  // ----- Double Chance (1X, X2) -----
-  const homeWinDX = homeWin + draw * 0.6;
-  const awayWinDX = awayWin + draw * 0.6;
-  // Normalize to 15-95 range
-  const clamp = (v: number) => Math.min(Math.max(Math.round(v), 15), 95);
+  const bttsPct = Math.min(Math.max(Math.round(bttsPropensity), 10), 90);
+  const bttsNoPct = 100 - bttsPct;
 
   return {
-    "Home Win": clamp(homeWin),
-    "Draw": clamp(draw),
-    "Away Win": clamp(awayWin),
-    "Over 1.5 Goals": clamp(over15),
-    "Over 2.5 Goals": clamp(over25),
-    "Under 2.5 Goals": clamp(under25),
-    "Both Teams to Score": clamp(btts),
-    "BTTS No": clamp(bttsNo),
-    "1X": clamp(Math.round(homeWinDX)),
-    "X2": clamp(Math.round(awayWinDX)),
+    "Home Win": homeWinPct,
+    "Draw": drawPct,
+    "Away Win": awayWinPct,
+    "1X": dc1XPct,
+    "X2": dcX2Pct,
+    "Over 1.5 Goals": over15Pct,
+    "Over 2.5 Goals": over25Pct,
+    "Under 2.5 Goals": under25Pct,
+    "Both Teams to Score": bttsPct,
+    "BTTS No": bttsNoPct,
   };
 }
 
-export function calculateConfidence(scores: PredictionScores, dataQuality: number, formDiff?: number) {
-  const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
-  const topScore = sorted[0]?.[1] || 50;
-  const secondScore = sorted[1]?.[1] || 50;
-  const edge = topScore - secondScore;
+// ----- Isolated confidence – now depends on the chosen market -----
+export function calculateConfidence(
+  scores: PredictionScores,
+  targetMarket: keyof PredictionScores,
+  dataQuality: number
+): number {
+  const score = scores[targetMarket];
+  let baseline = 33;
+  if (targetMarket === "1X" || targetMarket === "X2") baseline = 60;
+  if (
+    targetMarket === "Over 2.5 Goals" ||
+    targetMarket === "Under 2.5 Goals" ||
+    targetMarket === "Both Teams to Score" ||
+    targetMarket === "BTTS No"
+  ) baseline = 50;
+  if (targetMarket === "Over 1.5 Goals") baseline = 75;
 
-  // Confidence formula with edge and data quality
-  let confidence = topScore + (edge * 0.7) + (dataQuality * 0.2);
-  confidence = Math.min(Math.max(Math.round(confidence), 55), 90);
-  return confidence;
+  const edge = score - baseline;
+  let confidence = 60 + edge * 0.5 + dataQuality * 0.15;
+  return Math.min(Math.max(Math.round(confidence), 55), 95);
 }
