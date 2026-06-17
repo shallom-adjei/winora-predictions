@@ -82,6 +82,7 @@ export async function POST(req: NextRequest) {
         is_premium: false,
         fixture_id: m.id,
         match_status: m.status,
+        competition_id: m.competition?.id || null,
       });
       if (!error) inserted++;
     }
