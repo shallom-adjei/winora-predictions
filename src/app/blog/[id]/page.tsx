@@ -4,6 +4,7 @@ import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import PublicHeader from "@/components/PublicHeader";
 import Footer from "@/components/Footer";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 
 export default function BlogPostPage() {
   const { id } = useParams();
@@ -21,16 +22,17 @@ export default function BlogPostPage() {
 
   if (!post) {
     return (
-      <div className="min-h-screen bg-surface-primary text-white flex items-center justify-center">
+      <div className="min-h-screen bg-surface-primary text-white flex items-center justify-center pb-24 lg:pb-0">
         <PublicHeader />
         <p className="text-gray-400">Loading...</p>
         <Footer />
+        <MobileBottomNav />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-surface-primary text-white flex flex-col">
+    <div className="min-h-screen bg-surface-primary text-white flex flex-col pb-24 lg:pb-0">
       <PublicHeader />
       <main className="flex-1 w-full px-4 sm:px-6 lg:px-8 py-12">
         <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-8">
@@ -68,6 +70,7 @@ export default function BlogPostPage() {
         </div>
       </main>
       <Footer />
+      <MobileBottomNav />
     </div>
   );
 }
