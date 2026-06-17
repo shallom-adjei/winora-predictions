@@ -44,10 +44,16 @@ export function generateAnalysis(
   // ---------- BUILD OBSERVATIONS FROM REAL DATA ----------
   const observations: string[] = [];
 
-  // --- 1. Form comparison (fixed thresholds) ---
+  // --- 1. Form comparison (improved) ---
   if (homeForm > 0 && awayForm > 0) {
     const diff = Math.abs(homeForm - awayForm);
-    if (diff <= 1) {
+    const maxForm = Math.max(homeForm, awayForm);
+    if (maxForm <= 2) {
+      // Both teams are struggling
+      observations.push(
+        `${home} and ${away} have both struggled for consistency, managing just ${homeForm} and ${awayForm} points respectively from their last five matches.`
+      );
+    } else if (diff <= 1) {
       observations.push(
         `${home} and ${away} arrive in nearly identical form, with ${homeForm} and ${awayForm} points from their last five outings respectively.`
       );
@@ -110,10 +116,18 @@ export function generateAnalysis(
 
   // --- 5. BTTS trends (only if they align with the predicted pick) ---
   if (homeBtts >= 60 && isBTTSYes) {
-    observations.push(`BTTS has landed in ${homeBtts}% of ${home}'s recent contests.`);
+    if (homeBtts >= 100) {
+      observations.push(`Both teams have scored in all of ${home}'s recent fixtures.`);
+    } else {
+      observations.push(`BTTS has landed in ${homeBtts}% of ${home}'s recent contests.`);
+    }
   }
   if (awayBtts >= 60 && isBTTSYes) {
-    observations.push(`BTTS has paid out in ${awayBtts}% of ${away}'s latest outings.`);
+    if (awayBtts >= 100) {
+      observations.push(`${away} have also seen goals at both ends in every recent outing.`);
+    } else {
+      observations.push(`BTTS has paid out in ${awayBtts}% of ${away}'s latest outings.`);
+    }
   }
 
   // --- 6. Weakness flags ---
@@ -190,5 +204,9 @@ export function generateAnalysis(
 
   // ---------- ASSEMBLE (limit to 3 strongest observations) ----------
   const selectedObservations = observations.slice(0, 3);
+    // Ensure minimum substance
+  if (selectedObservations.length < 2) {
+    selectedObservations.push(`This is a tightly‑poised contest where small margins will likely decide the outcome.`);
+  }
   return selectedObservations.join(" ") + " " + conclusion;
 }
