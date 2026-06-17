@@ -480,26 +480,43 @@ export default function AdminDashboard() {
     fetchAnalytics();
   };
 
-  const handleGenerateAI = async (match: any) => {
-    setGeneratingId(match.id);
-    try {
-      const res = await fetch("/api/generate-prediction", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ match }),
-      });
-      const aiData = await res.json();
-      if (!aiData.prediction) throw new Error("No prediction");
-      await supabase
-        .from("predictions")
-        .update({ prediction: aiData.prediction, confidence: aiData.confidence, analysis: aiData.analysis })
-        .eq("id", match.id);
-      toast.success("AI prediction generated!");
-      fetchDashboardData();
-      fetchAnalytics();
-    } catch { toast.error("AI generation failed"); }
-    finally { setGeneratingId(null); }
-  };
+const handleGenerateAI = async (match: any) => {
+  setGeneratingId(match.id);
+  try {
+    const res = await fetch("/api/generate-prediction", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ match }),
+    });
+    const aiData = await res.json();
+    if (!aiData.prediction) throw new Error("No prediction");
+
+    await supabase
+      .from("predictions")
+      .update({
+        prediction: aiData.prediction,
+        confidence: aiData.confidence,
+        analysis: aiData.analysis,
+        // --- store the new enriched fields ---
+        expected_score: aiData.expectedScore,
+        main_pick: aiData.mainPick,
+        safe_pick: aiData.safePick,
+        goals_pick: aiData.goalsPick,
+        btts_pick: aiData.bttsPick,
+        risk_level: aiData.riskLevel,
+        recommended_stake: aiData.stake,
+      })
+      .eq("id", match.id);
+
+    toast.success("AI prediction generated!");
+    fetchDashboardData();
+    fetchAnalytics();
+  } catch (err) {
+    toast.error("AI generation failed");
+  } finally {
+    setGeneratingId(null);
+  }
+};
 
   const handleGenerateAll = async () => {
     const { data: allMatches } = await supabase

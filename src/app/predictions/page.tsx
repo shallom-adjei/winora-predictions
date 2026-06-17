@@ -20,8 +20,21 @@ export default function PredictionsPage() {
       .select("*")
       .order("created_at", { ascending: false })
       .then(({ data }) => {
-        if (data) setPredictions(data);
-      });
+  if (data) {
+    setPredictions(
+      data.map((p) => ({
+        ...p,
+        expectedScore: p.expected_score,
+        mainPick: p.main_pick,
+        safePick: p.safe_pick,
+        goalsPick: p.goals_pick,
+        bttsPick: p.btts_pick,
+        riskLevel: p.risk_level,
+        stake: p.recommended_stake,
+      }))
+    );
+  }
+});
   }, []);
 
   const handleOpenAnalysis = (match: any) => {

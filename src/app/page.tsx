@@ -107,18 +107,26 @@ export default function Home() {
         }
         if (data) {
           setTopPicks(
-            data.map((p) => ({
-              league: p.sport,
-              home: p.team_a,
-              away: p.team_b,
-              time: p.time,
-              prediction: p.prediction,
-              confidence: p.confidence,
-              analysis: p.analysis,
-              crest_a: p.crest_a,
-              crest_b: p.crest_b,
-            }))
-          );
+  data.map((p) => ({
+    league: p.sport,
+    home: p.team_a,
+    away: p.team_b,
+    time: p.time,
+    prediction: p.prediction,
+    confidence: p.confidence,
+    analysis: p.analysis,
+    crest_a: p.crest_a,
+    crest_b: p.crest_b,
+    // --- new fields ---
+    expectedScore: p.expected_score,
+    mainPick: p.main_pick,
+    safePick: p.safe_pick,
+    goalsPick: p.goals_pick,
+    bttsPick: p.btts_pick,
+    riskLevel: p.risk_level,
+    stake: p.recommended_stake,
+  }))
+);
         }
       })
   }, []);
@@ -338,18 +346,49 @@ export default function Home() {
                       <span className="text-xs font-bold text-green-500">{match.confidence}%</span>
                     </div>
                     {match.analysis && (
-                      <>
-                        <p className="mt-3 text-xs text-gray-400 italic line-clamp-2 leading-relaxed">
-                          💡 {match.analysis}
-                        </p>
-                        <button
-                          onClick={() => handleOpenAnalysis(match)}
-                          className="text-xs text-gold-400 hover:underline mt-1"
-                        >
-                          View Full Analysis
-                        </button>
-                      </>
-                    )}
+  <>
+    {/* Expected score display */}
+    {match.expectedScore && (
+      <p className="mt-3 text-xs text-gold-400 font-semibold">
+        Predicted Score: {match.expectedScore}
+      </p>
+    )}
+
+    {/* Picks grid */}
+    <div className="mt-2 grid grid-cols-2 gap-1 text-xs">
+      <div>
+        <span className="text-gray-500">Main:</span>{" "}
+        <span className="text-white font-medium">{match.mainPick}</span>
+      </div>
+      <div>
+        <span className="text-gray-500">Safe:</span>{" "}
+        <span className="text-white font-medium">{match.safePick}</span>
+      </div>
+      <div>
+        <span className="text-gray-500">Goals:</span>{" "}
+        <span className="text-white font-medium">{match.goalsPick}</span>
+      </div>
+      <div>
+        <span className="text-gray-500">BTTS:</span>{" "}
+        <span className="text-white font-medium">{match.bttsPick}</span>
+      </div>
+    </div>
+
+    {/* Risk & Stake */}
+    <div className="mt-2 flex items-center gap-2 text-xs">
+      <span className="text-gray-500">
+        Risk: {match.riskLevel} | Stake: {match.stake}
+      </span>
+    </div>
+
+    <button
+      onClick={() => handleOpenAnalysis(match)}
+      className="text-xs text-gold-400 hover:underline mt-1"
+    >
+      View Full Analysis
+    </button>
+  </>
+)}
                   </div>
                 </motion.div>
               ))}
@@ -375,6 +414,7 @@ export default function Home() {
                     </div>
                     <p className="text-xs text-gray-500">{match.time}</p>
                     <div className="flex items-center gap-2">
+                     
                       {match.crest_b ? (
                         <img src={match.crest_b} alt={match.away} className="h-8 w-8 object-contain" />
                       ) : (
@@ -392,14 +432,25 @@ export default function Home() {
                         </div>
                         <span className="text-xs font-bold text-green-500">{match.confidence}%</span>
                       </div>
-                      {match.analysis && (
-                        <button
-                          onClick={() => handleOpenAnalysis(match)}
-                          className="text-xs text-gold-400 hover:underline mt-1"
-                        >
-                          Full Analysis
-                        </button>
-                      )}
+                     {match.expectedScore && (
+  <p className="mt-1 text-xs text-gold-400 font-semibold">
+    Score: {match.expectedScore}
+  </p>
+)}
+<div className="grid grid-cols-2 gap-x-2 gap-y-0.5 mt-1 text-[10px]">
+  <div><span className="text-gray-500">Main:</span> <span className="text-white">{match.mainPick}</span></div>
+  <div><span className="text-gray-500">Safe:</span> <span className="text-white">{match.safePick}</span></div>
+  <div><span className="text-gray-500">Goals:</span> <span className="text-white">{match.goalsPick}</span></div>
+  <div><span className="text-gray-500">BTTS:</span> <span className="text-white">{match.bttsPick}</span></div>
+</div>
+<div className="text-[10px] text-gray-500 mt-1">
+  Risk: {match.riskLevel} | Stake: {match.stake}
+</div>
+{match.analysis && (
+  <button onClick={() => handleOpenAnalysis(match)} className="text-xs text-gold-400 hover:underline mt-1">
+    Full Analysis
+  </button>
+)}
                     </div>
                   </div>
                 </motion.div>

@@ -34,70 +34,55 @@ export function AnalysisModal({ isOpen, onClose, match }: AnalysisModalProps) {
         <p className="text-lg font-semibold text-white mb-4">Prediction: {match.prediction}</p>
 
         {report ? (
-          <div className="space-y-4 text-sm text-gray-300">
-            {report.confidence_score && (
-              <div className="flex gap-2">
-                <span className="text-gold-400 font-semibold">Confidence:</span>
-                <span>{report.confidence_score}</span>
-              </div>
-            )}
-            {report.risk_level && (
-              <div className="flex gap-2">
-                <span className="text-gold-400 font-semibold">Risk Level:</span>
-                <span>{report.risk_level}</span>
-              </div>
-            )}
-            {report.recommended_stake && (
-              <div className="flex gap-2">
-                <span className="text-gold-400 font-semibold">Stake:</span>
-                <span>{report.recommended_stake}</span>
-              </div>
-            )}
-            {report.alternative_prediction && (
-              <div className="flex gap-2">
-                <span className="text-gold-400 font-semibold">Alternative:</span>
-                <span>{report.alternative_prediction}</span>
-              </div>
-            )}
-
-            {report.key_factors?.length > 0 && (
-              <div>
-                <h4 className="text-gold-400 font-semibold mb-1">Key Factors</h4>
-                <ul className="list-disc list-inside space-y-1">
-                  {report.key_factors.map((f: string, i: number) => <li key={i}>{f}</li>)}
-                </ul>
-              </div>
-            )}
-            {report.strengths?.length > 0 && (
-              <div>
-                <h4 className="text-gold-400 font-semibold mb-1">Strengths</h4>
-                <ul className="list-disc list-inside space-y-1">
-                  {report.strengths.map((s: string, i: number) => <li key={i}>{s}</li>)}
-                </ul>
-              </div>
-            )}
-            {report.concerns?.length > 0 && (
-              <div>
-                <h4 className="text-gold-400 font-semibold mb-1">Concerns</h4>
-                <ul className="list-disc list-inside space-y-1">
-                  {report.concerns.map((c: string, i: number) => <li key={i}>{c}</li>)}
-                </ul>
-              </div>
-            )}
-            {report.analysis && (
-              <div className="mt-4 pt-4 border-t border-white/10">
-                <p className="text-gray-300 leading-relaxed">{report.analysis}</p>
-              </div>
-            )}
-            {report.final_verdict && (
-              <div className="mt-2">
-                <span className="text-gold-400 font-semibold">Verdict:</span> {report.final_verdict}
-              </div>
-            )}
-          </div>
-        ) : (
-          <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-line">{match.analysis}</p>
-        )}
+  <div className="space-y-3 text-sm text-gray-300">
+    {report.expected_score && (
+      <div className="flex gap-2">
+        <span className="text-gold-400 font-semibold">Predicted Score:</span>
+        <span>{report.expected_score}</span>
+      </div>
+    )}
+    <div className="grid grid-cols-2 gap-2">
+      <div>
+        <span className="text-gold-400 font-semibold">Main Pick:</span>
+        <br />
+        {report.main_pick}
+      </div>
+      <div>
+        <span className="text-gold-400 font-semibold">Safe Pick:</span>
+        <br />
+        {report.safe_pick}
+      </div>
+      <div>
+        <span className="text-gold-400 font-semibold">Goals Pick:</span>
+        <br />
+        {report.goals_pick}
+      </div>
+      <div>
+        <span className="text-gold-400 font-semibold">BTTS Pick:</span>
+        <br />
+        {report.btts_pick}
+      </div>
+    </div>
+    <div className="flex gap-4">
+      <div>
+        <span className="text-gold-400 font-semibold">Confidence:</span> {report.confidence_score}%
+      </div>
+      <div>
+        <span className="text-gold-400 font-semibold">Risk:</span> {report.risk_level}
+      </div>
+      <div>
+        <span className="text-gold-400 font-semibold">Stake:</span> {report.recommended_stake}
+      </div>
+    </div>
+    {report.analysis && (
+      <div className="mt-3 pt-3 border-t border-white/10">
+        <p className="text-white leading-relaxed">{report.analysis}</p>
+      </div>
+    )}
+  </div>
+) : (
+  <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-line">{match.analysis}</p>
+)}
       </motion.div>
     </div>
   );
