@@ -95,7 +95,7 @@ export default function Home() {
   }, []);
 
 // ---- LIVE DATA (replaces old topPicks state) ----
-const { predictions: livePredictions } = useLivePredictions();
+const { predictions: livePredictions } = useLivePredictions(false);  // exclude finished
 
 const topPicks = livePredictions
   .filter((p: any) => p.prediction && p.prediction !== "No recommendation")

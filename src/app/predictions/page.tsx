@@ -15,7 +15,7 @@ export default function PredictionsPage() {
   const [analysisModalOpen, setAnalysisModalOpen] = useState(false);
   const [selectedAnalysis, setSelectedAnalysis] = useState<any>(null);
 
-  const { predictions, loading } = useLivePredictions();
+ const { predictions, loading } = useLivePredictions(false);  // exclude finished
 
   const handleOpenAnalysis = (match: any) => {
     setSelectedAnalysis(match);
