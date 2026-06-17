@@ -19,46 +19,72 @@ function calculateDataQuality(match: any) {
 
 export async function POST(req: NextRequest) {
   const { match } = await req.json();
-
   const dataQuality = calculateDataQuality(match);
-
-  // 1. Compute all market probabilities
   const scores = computePrediction(match);
-  const sorted = (Object.entries(scores) as [keyof PredictionScores, number][]).sort(
-    (a, b) => b[1] - a[1]
+
+  // ----- Market selection (smart, not just "highest") -----
+   const markets1X2: (keyof PredictionScores)[] = ["Home Win", "Draw", "Away Win"];
+  const marketsGoals: (keyof PredictionScores)[] = ["Over 2.5 Goals", "Under 2.5 Goals"];
+  const marketsBTTS: (keyof PredictionScores)[] = ["Both Teams to Score", "BTTS No"];
+  const marketsSafe: (keyof PredictionScores)[] = ["1X", "X2"];
+
+  const best = (marketList: (keyof PredictionScores)[]) =>
+    marketList.reduce((prev, curr) =>
+      (scores[curr] as number) > (scores[prev] as number) ? curr : prev
+    );
+
+  const mainPick = best(markets1X2);       // always a 1X2
+  const goalsPick = best(marketsGoals);    // over/under
+  const bttsPick = best(marketsBTTS);
+  const safePick = best(marketsSafe);
+
+  // Confidence for the main pick
+  const confidence = calculateConfidence(scores, mainPick, dataQuality);
+
+  // Risk – based on edge between main pick and next best 1X2
+  const mainScore = scores[mainPick];
+  const secondScore = Math.max(...markets1X2.map(m => m === mainPick ? 0 : scores[m]));
+  const edge = mainScore - secondScore;
+  const risk =
+    edge > 15 && dataQuality > 70 ? "Low" : edge > 8 ? "Medium" : "High";
+
+  const stake =
+    confidence >= 88 ? "2/5" : confidence >= 78 ? "1.5/5" : "1/5";
+
+  const expectedScore = `${scores.expectedHomeGoals}-${scores.expectedAwayGoals}`;
+
+  const analysis = generateAnalysis(
+    match,
+    mainPick,             // the analysis template still uses the main pick
+    scores,
+    confidence,
+    risk,
+    stake
   );
 
-  // 2. Choose the best market (cast to the correct type)
-  const mainPrediction: keyof PredictionScores =
-    sorted[0]?.[0] || "Home Win";
-
-  // 3. Confidence – market‑aware
-  const confidence = calculateConfidence(scores, mainPrediction, dataQuality);
-
-  // 4. Risk & stake
-  const topScore = sorted[0]?.[1] || 50;
-  const secondScore = sorted[1]?.[1] || 50;
-  const edge = topScore - secondScore;
-  const risk =
-    edge > 12 && dataQuality > 70 ? "Low" : edge > 6 ? "Medium" : "High";
-  const stake =
-    confidence >= 85 ? "2/5" : confidence >= 75 ? "1.5/5" : "1/5";
-
-  // 5. Generate the analysis (now receives the scores object)
-  const analysis = generateAnalysis(match, mainPrediction, scores, confidence, risk, stake);
-
   return NextResponse.json({
-    prediction: mainPrediction,
+    prediction: mainPick,            // backward compatibility
     confidence,
     analysis,
+    // Extended info for the frontend
+    expectedScore,
+    mainPick,
+    safePick,
+    goalsPick,
+    bttsPick,
+    riskLevel: risk,
+    stake,
     fullReport: {
-      main_prediction: mainPrediction,
-      alternative_prediction: sorted[1]?.[0] || "N/A",
+      main_prediction: mainPick,
+      safe_pick: safePick,
+      goals_pick: goalsPick,
+      btts_pick: bttsPick,
+      expected_score: expectedScore,
       risk_level: risk,
       confidence_score: confidence,
       recommended_stake: stake,
       analysis,
-      final_verdict: `${mainPrediction} is the strongest statistical angle for this fixture.`,
+      final_verdict: `${mainPick} is the strongest statistical angle for this fixture.`,
     },
   });
 }
