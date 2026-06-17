@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
   const stake =
     confidence >= 88 ? "2/5" : confidence >= 78 ? "1.5/5" : "1/5";
 
-  const expectedScore = `${scores.expectedHomeGoals}-${scores.expectedAwayGoals}`;
+  const expectedScore = `${Math.round(scores.expectedHomeGoals)}-${Math.round(scores.expectedAwayGoals)}`;
 
   const analysis = generateAnalysis(
     match,

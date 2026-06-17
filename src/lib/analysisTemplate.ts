@@ -89,7 +89,7 @@ export function generateAnalysis(
   const engineProb = scores[prediction];
   let conclusion = "";
   if (risk.toLowerCase() === "low" || risk.toLowerCase() === "medium") {
-    conclusion = `Factoring in all data points, backing ${prediction} offers a solid risk-to-reward ratio here. Our system assigns this choice an internal probability of ${engineProb}% and a ${confidence}% overall confidence tier. We advise a disciplined ${stake} allocation.`;
+    conclusion = `Factoring in all data points, backing ${prediction} offers a solid risk-to-reward ratio here. Our system assigns this outcome an statistical probability of ${engineProb}% and a ${confidence}% confidence rating. We advise a disciplined ${stake} allocation.`;
   } else {
     conclusion = `While this carries a higher ${risk.toLowerCase()} risk profile, the numbers point toward a market mispricing. The engine flags ${prediction} as a value selection with an internal probability score of ${engineProb}% and a confidence rating of ${confidence}%. A precise stake of ${stake} is recommended.`;
   }

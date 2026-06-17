@@ -28,10 +28,17 @@ export function computePrediction(match: any): PredictionScores {
   const awayConceded = Number(match.away_goals_conceded) || 0;
 
   // Heuristic expected goals (home advantage ~1.05 multiplier)
-  const expectedHome = (homeScored * 0.6 + awayConceded * 0.4) * 1.05;
-  const expectedAway = (awayScored * 0.4 + homeConceded * 0.6) * 0.95;
+  let expectedHome = (homeScored * 0.6 + awayConceded * 0.4) * 1.05;
+  let expectedAway = (awayScored * 0.4 + homeConceded * 0.6) * 0.95;
 
-  // Poisson probabilities for up to 6 goals (enough for accuracy)
+  // Floor: if both would be near zero (no stats), give slight non-zero to avoid degenerate distributions
+  const goalFloor = 0.5;
+  if (expectedHome < goalFloor && expectedAway < goalFloor) {
+    expectedHome = Math.max(expectedHome, 0.3);
+    expectedAway = Math.max(expectedAway, 0.3);
+  }
+
+  // Poisson probabilities for up to 6 goals
   const maxGoals = 6;
   const probHomeGoals = Array.from({ length: maxGoals + 1 }, (_, k) =>
     poissonProb(expectedHome, k)
@@ -42,7 +49,7 @@ export function computePrediction(match: any): PredictionScores {
 
   let homeWin = 0, draw = 0, awayWin = 0;
   let over15 = 0, over25 = 0, under25 = 0;
-  let btts = 0;
+  let btts = 0; // raw probability
 
   for (let i = 0; i <= maxGoals; i++) {
     for (let j = 0; j <= maxGoals; j++) {
@@ -57,21 +64,31 @@ export function computePrediction(match: any): PredictionScores {
     }
   }
 
-  // Convert to percentages
-  const toPct = (v: number) => Math.round(v * 100);
+  // Convert to percentages and cap at 95% (never 100%)
+  const cap = (v: number) => Math.min(v, 95);
+  const rawBtts = btts; // save raw BTTS probability before converting
+  homeWin   = cap(Math.round(homeWin * 100));
+  draw      = cap(Math.round(draw * 100));
+  awayWin   = cap(Math.round(awayWin * 100));
+  over15    = cap(Math.round(over15 * 100));
+  over25    = cap(Math.round(over25 * 100));
+  under25   = cap(Math.round(under25 * 100));
+  btts      = cap(Math.round(rawBtts * 100));
+  const bttsNo = cap(Math.round((1 - rawBtts) * 100));
+
   return {
-    "Home Win": toPct(homeWin),
-    "Draw": toPct(draw),
-    "Away Win": toPct(awayWin),
-    "1X": toPct(homeWin + draw),
-    "X2": toPct(awayWin + draw),
-    "Over 1.5 Goals": toPct(over15),
-    "Over 2.5 Goals": toPct(over25),
-    "Under 2.5 Goals": toPct(under25),
-    "Both Teams to Score": toPct(btts),
-    "BTTS No": toPct(1 - btts),
-    expectedHomeGoals: Math.round(expectedHome * 10) / 10,
-    expectedAwayGoals: Math.round(expectedAway * 10) / 10,
+    "Home Win": homeWin,
+    "Draw": draw,
+    "Away Win": awayWin,
+    "1X": cap(Math.round(homeWin + draw)),
+    "X2": cap(Math.round(awayWin + draw)),
+    "Over 1.5 Goals": over15,
+    "Over 2.5 Goals": over25,
+    "Under 2.5 Goals": under25,
+    "Both Teams to Score": btts,
+    "BTTS No": bttsNo,
+    expectedHomeGoals: Math.round(expectedHome),   // whole numbers
+    expectedAwayGoals: Math.round(expectedAway),
   };
 }
 
@@ -82,7 +99,6 @@ export function calculateConfidence(
   dataQuality: number
 ): number {
   const prob = scores[targetMarket] as number;
-  // Baseline varies by market type
   let baseline = 33;
   if (targetMarket === "1X" || targetMarket === "X2") baseline = 60;
   if (["Over 2.5 Goals", "Under 2.5 Goals", "Both Teams to Score", "BTTS No"].includes(targetMarket)) baseline = 50;
