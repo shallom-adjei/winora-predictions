@@ -46,8 +46,6 @@ export async function GET() {
     .order("kickoff_time", { ascending: true })
    .limit(10);   // was 50
 
-await new Promise(r => setTimeout(r, 6000));  // was 2000, now 6 seconds
-
   if (!matches || matches.length === 0) {
     return NextResponse.json({ updated: 0, message: "No live/pending matches" });
   }
@@ -81,7 +79,7 @@ await new Promise(r => setTimeout(r, 6000));  // was 2000, now 6 seconds
       console.error("Failed to update fixture", match.fixture_id, err);
     }
     // Small delay to respect rate limits (10 req/min on free plan)
-    await new Promise(r => setTimeout(r, 2000));
+    await new Promise(r => setTimeout(r, 6000));
   }
 
   console.log(`[cron] updated ${updated} matches`);
