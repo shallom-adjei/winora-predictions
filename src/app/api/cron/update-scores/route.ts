@@ -58,7 +58,6 @@ export async function GET() {
     .from("predictions")
     .select("id, team_a, team_b, kickoff_time, match_status, main_pick, actual_home_score, actual_away_score")
     .not("kickoff_time", "is", null)
-    .lte("kickoff_time", nowISO)          // already started
     .neq("match_status", "FINISHED")
     .order("kickoff_time", { ascending: true })
     .limit(10);                            // small batch
