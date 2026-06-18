@@ -138,12 +138,12 @@ export function generateAnalysis(
     observations.push(`${away} have failed to score in ${awayFailed} of their last 5, struggling to convert chances.`);
   }
 
-  // --- 7. H2H insights (only if data exists) ---
+  // --- H2H insights ---
   const h2hHomeWins = safeNum(match.h2h_home_wins);
   const h2hAwayWins = safeNum(match.h2h_away_wins);
   const h2hDraws = safeNum(match.h2h_draws);
   const totalH2H = h2hHomeWins + h2hAwayWins + h2hDraws;
-    if (totalH2H >= 3) {
+  if (totalH2H >= 3) {
     if (h2hHomeWins > h2hAwayWins + 1) {
       observations.push(
         `Historically, ${home} have dominated this fixture, winning ${h2hHomeWins} of the last ${totalH2H} meetings.`
