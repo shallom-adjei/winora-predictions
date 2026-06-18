@@ -16,7 +16,7 @@ async function getScoreFromTheSportsDB(teamA: string, teamB: string, matchDate: 
     const target = events.find((e: any) => {
       const eventDate = e.dateEvent;
       if (eventDate !== matchDate) return false;
-      return e.strStatus === "Match Finished" || e.strStatus === "1st Half" || e.strStatus === "2nd Half" || e.strStatus === "Half Time";
+    return e.strStatus === "Match Finished" || e.strStatus === "FT" || e.strStatus === "1st Half" || e.strStatus === "2nd Half" || e.strStatus === "Half Time";
     });
 
     if (!target) return null;
