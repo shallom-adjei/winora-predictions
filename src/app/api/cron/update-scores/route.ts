@@ -86,15 +86,14 @@ export async function GET() {
         }
       }
 
-      // 2) If football-data.org didn't give us a live/finished score,
-      //    and the match is within its active window, try TheSportsDB.
+            // 2) If football-data.org didn't give us a live/finished score,
+      //    and the match has already started, try TheSportsDB.
       if (homeScore == null && match.kickoff_time) {
         const kickoff = new Date(match.kickoff_time);
         const hoursSinceKickoff = (now.getTime() - kickoff.getTime()) / (1000 * 60 * 60);
-        // Only check TheSportsDB if the match is between 0 and 4 hours after kick-off
-        // (avoids wasting requests on future matches or very old ones)
-        if (hoursSinceKickoff >= 0 && hoursSinceKickoff <= 4) {
-          const matchDate = kickoff.toISOString().split("T")[0];
+        // Only check TheSportsDB if the match has already kicked off (past or within the first few hours)
+        if (hoursSinceKickoff >= 0) {
+          const matchDate = kickoff.toISOString().split("T")[0]; // e.g., "2026-06-17"
           const tsdbResult = await getScoreFromTheSportsDB(match.team_a, match.team_b, matchDate);
           if (tsdbResult) {
             homeScore = tsdbResult.homeScore;
