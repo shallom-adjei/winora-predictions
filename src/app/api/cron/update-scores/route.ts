@@ -44,7 +44,9 @@ export async function GET() {
     .not("fixture_id", "is", null)
     .neq("match_status", "FINISHED")
     .order("kickoff_time", { ascending: true })
-    .limit(50);   // cover up to 50 matches per run
+   .limit(10);   // was 50
+
+await new Promise(r => setTimeout(r, 6000));  // was 2000, now 6 seconds
 
   if (!matches || matches.length === 0) {
     return NextResponse.json({ updated: 0, message: "No live/pending matches" });
