@@ -5,14 +5,14 @@ import { Crown } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 export default function PublicHeader() {
-  const navLinks = [
-    { name: "Home", href: "/" },
-    { name: "Predictions", href: "/predictions" },
-    { name: "Results", href: "/results" },
-    { name: "About Us", href: "/#about" },
-    { name: "Blog", href: "/blog" },
-    { name: "Contact", href: "/#contact" },
-  ];
+ const navLinks = [
+  { name: "Home", href: "/" },
+  { name: "Predictions", href: "/predictions" },
+  { name: "Results", href: "/results" },
+  { name: "Blog", href: "/blog" },
+  { name: "About Us", href: "/about" },
+  { name: "Contact", href: "/contact" },
+];
   const pathname = usePathname();
 
   return (
