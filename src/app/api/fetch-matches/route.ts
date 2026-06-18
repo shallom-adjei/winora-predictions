@@ -50,7 +50,7 @@ const now = new Date();
 const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
 const upcoming = matches.filter((m: any) => {
   const kickoff = new Date(m.utcDate);
-  return kickoff > twoHoursAgo;
+  return kickoff >= twoHoursAgo;
 });
 
     const { supabase } = await import("@/lib/supabase");
