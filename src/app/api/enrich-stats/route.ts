@@ -185,37 +185,60 @@ function calculateStatsFromFD(matches: any[], teamId: number) {
   };
 }
 
-async function getH2H(teamNameA: string, teamNameB: string) {
-  // TheSportsDB event search by team names
+// ----- Long-term competition averages when recent form is thin -----
+async function getLongTermCompetitionStats(teamId: number, competitionId: number) {
+  if (!FOOTBALL_DATA_KEY || !teamId || !competitionId) return null;
   try {
     const res = await fetch(
-      `https://www.thesportsdb.com/api/v1/json/3/searchevents.php?e=${encodeURIComponent(teamNameA + " vs " + teamNameB)}`
+      `https://api.football-data.org/v4/teams/${teamId}/matches?competitions=${competitionId}&status=FINISHED&limit=10`,
+      { headers: { "X-Auth-Token": FOOTBALL_DATA_KEY } }
     );
     if (!res.ok) return null;
     const data = await res.json();
-    const events = data.event || [];
-    if (events.length === 0) return null;
+    const matches = data.matches || [];
+    if (matches.length < 2) return null;   // need at least some history
 
-    // Filter to only past finished matches (they have a score)
-    const finished = events.filter((e: any) => e.strStatus === "Match Finished" && e.intHomeScore != null);
-    if (finished.length === 0) return null;
+    // Reuse the existing FD stats calculator (calculateStatsFromFD)
+    return calculateStatsFromFD(matches, teamId);
+  } catch {
+    return null;
+  }
+}
+
+// ----- H2H from football-data.org (competition-aware) -----
+async function getH2H(teamIdA: number, teamIdB: number, competitionId: number) {
+  if (!FOOTBALL_DATA_KEY || !teamIdA || !teamIdB) return null;
+  try {
+    // First try: only matches in the same competition
+    let url = `https://api.football-data.org/v4/matches?homeTeamId=${teamIdA}&awayTeamId=${teamIdB}&competitionId=${competitionId}&limit=5`;
+    let res = await fetch(url, { headers: { "X-Auth-Token": FOOTBALL_DATA_KEY } });
+    if (!res.ok) return null;
+    let data = await res.json();
+    let matches = data.matches || [];
+
+    // Fallback: cross-competition (remove competition filter) if no results
+    if (matches.length === 0) {
+      url = `https://api.football-data.org/v4/matches?homeTeamId=${teamIdA}&awayTeamId=${teamIdB}&limit=5`;
+      res = await fetch(url, { headers: { "X-Auth-Token": FOOTBALL_DATA_KEY } });
+      if (!res.ok) return null;
+      data = await res.json();
+      matches = data.matches || [];
+    }
+
+    if (matches.length === 0) return null;
 
     let homeWins = 0, draws = 0, awayWins = 0;
     let over25 = 0, btts = 0;
-
-    for (const e of finished) {
-      const homeScore = parseInt(e.intHomeScore) || 0;
-      const awayScore = parseInt(e.intAwayScore) || 0;
-      if (homeScore > awayScore) homeWins++;
-      else if (homeScore === awayScore) draws++;
+    for (const m of matches) {
+      const homeGoals = m.score.fullTime.home ?? 0;
+      const awayGoals = m.score.fullTime.away ?? 0;
+      if (homeGoals > awayGoals) homeWins++;
+      else if (homeGoals === awayGoals) draws++;
       else awayWins++;
-      if (homeScore + awayScore > 2.5) over25++;
-      if (homeScore > 0 && awayScore > 0) btts++;
+      if (homeGoals + awayGoals > 2.5) over25++;
+      if (homeGoals > 0 && awayGoals > 0) btts++;
     }
-
-    const total = finished.length;
-    if (total < 2) return null; // need at least 2 matches for meaningful stats
-
+    const total = matches.length;
     return {
       h2h_home_wins: homeWins,
       h2h_draws: draws,
@@ -264,46 +287,72 @@ export async function POST(req: NextRequest) {
 
   if (matches && matches.length > 0) {
     let enriched = 0, failed = 0;
-    for (const match of matches) {
-      try {
-        let statsA = null, statsB = null;
-        statsA = await getStatsFromTheSportsDB(match.team_a);
-        statsB = await getStatsFromTheSportsDB(match.team_b);
-        if (!statsA && match.team_id_a) statsA = await getStatsFromFootballData(match.team_id_a);
-        if (!statsB && match.team_id_b) statsB = await getStatsFromFootballData(match.team_id_b);
+   for (const match of matches) {
+    try {
+      const update: any = {};
 
-        const update: any = {};
-        if (statsA) {
-          update.form_points_a = statsA.form_points;
-          update.home_goals_scored = statsA.home_goals_scored;
-          update.home_goals_conceded = statsA.home_goals_conceded;
-          update.clean_sheets_last5_a = statsA.clean_sheets_last5;
-          update.failed_to_score_last5_a = statsA.failed_to_score_last5;
-          update.over25_last5_pct_a = statsA.over25_last5_pct;
-          update.btts_last5_pct_a = statsA.btts_last5_pct;
-        }
-        if (statsB) {
-          update.form_points_b = statsB.form_points;
-          update.away_goals_scored = statsB.home_goals_scored;
-          update.away_goals_conceded = statsB.home_goals_conceded;
-          update.clean_sheets_last5_b = statsB.clean_sheets_last5;
-          update.failed_to_score_last5_b = statsB.failed_to_score_last5;
-          update.over25_last5_pct_b = statsB.over25_last5_pct;
-          update.btts_last5_pct_b = statsB.btts_last5_pct;
-        }
+      // 1) Basic stats from TheSportsDB / football-data.org
+      let statsA = null, statsB = null;
+      statsA = await getStatsFromTheSportsDB(match.team_a);
+      statsB = await getStatsFromTheSportsDB(match.team_b);
+      if (!statsA && match.team_id_a) statsA = await getStatsFromFootballData(match.team_id_a);
+      if (!statsB && match.team_id_b) statsB = await getStatsFromFootballData(match.team_id_b);
 
-        if (Object.keys(update).length > 0) {
-          await supabase.from("predictions").update(update).eq("id", match.id);
-          enriched++;
-        } else {
-          failed++;
+      // Long-term fallback if recent form is thin
+      if ((!statsA || statsA.form_points == null) && match.team_id_a && match.competition_id) {
+        const longTermA = await getLongTermCompetitionStats(match.team_id_a, match.competition_id);
+        if (longTermA) statsA = longTermA;
+      }
+      if ((!statsB || statsB.form_points == null) && match.team_id_b && match.competition_id) {
+        const longTermB = await getLongTermCompetitionStats(match.team_id_b, match.competition_id);
+        if (longTermB) statsB = longTermB;
+      }
+
+      // Fill basic stats into update
+      if (statsA) {
+        update.form_points_a = statsA.form_points;
+        update.home_goals_scored = statsA.home_goals_scored;
+        update.home_goals_conceded = statsA.home_goals_conceded;
+        update.clean_sheets_last5_a = statsA.clean_sheets_last5;
+        update.failed_to_score_last5_a = statsA.failed_to_score_last5;
+        update.over25_last5_pct_a = statsA.over25_last5_pct;
+        update.btts_last5_pct_a = statsA.btts_last5_pct;
+      }
+      if (statsB) {
+        update.form_points_b = statsB.form_points;
+        update.away_goals_scored = statsB.home_goals_scored;
+        update.away_goals_conceded = statsB.home_goals_conceded;
+        update.clean_sheets_last5_b = statsB.clean_sheets_last5;
+        update.failed_to_score_last5_b = statsB.failed_to_score_last5;
+        update.over25_last5_pct_b = statsB.over25_last5_pct;
+        update.btts_last5_pct_b = statsB.btts_last5_pct;
+      }
+
+      // 2) H2H (competition-aware)
+      if (match.team_id_a && match.team_id_b && match.competition_id) {
+        const h2h = await getH2H(match.team_id_a, match.team_id_b, match.competition_id);
+        if (h2h) {
+          update.h2h_home_wins = h2h.h2h_home_wins;
+          update.h2h_draws = h2h.h2h_draws;
+          update.h2h_away_wins = h2h.h2h_away_wins;
+          update.h2h_over25_pct = h2h.h2h_over25_pct;
+          update.h2h_btts_pct = h2h.h2h_btts_pct;
         }
-        await new Promise(r => setTimeout(r, 7000));
-      } catch (err) {
-        console.error("Basic enrichment failed for", match.match_name, err);
+      }
+
+      // 3) Save if anything changed
+      if (Object.keys(update).length > 0) {
+        await supabase.from("predictions").update(update).eq("id", match.id);
+        enriched++;
+      } else {
         failed++;
       }
+      await new Promise(r => setTimeout(r, 7000));
+    } catch (err) {
+      console.error("Enrichment failed for", match.match_name, err);
+      failed++;
     }
+  }
     return NextResponse.json({ success: true, processed: matches.length, enriched, failed });
   }
 
@@ -324,7 +373,7 @@ export async function POST(req: NextRequest) {
     try {
       const updates: any = {};
       if (match.team_id_a && match.team_id_b) {
-        const h2h = await getH2H(match.team_id_a, match.team_id_b);
+        const h2h = await getH2H(match.team_id_a, match.team_id_b, match.competition_id)
         if (h2h) {
           updates.h2h_home_wins = h2h.h2h_home_wins;
           updates.h2h_draws = h2h.h2h_draws;
