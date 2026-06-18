@@ -45,11 +45,13 @@ export async function POST(req: NextRequest) {
     allMatches.forEach(m => unique.set(m.id, m));
     const matches = Array.from(unique.values());
 
-    // Keep only truly upcoming matches (kick‑off in the future)
-    const upcoming = matches.filter((m: any) => {
-      const kickoff = new Date(m.utcDate);
-      return kickoff > new Date();
-    });
+    // Keep matches that kick off in the future OR within the last 2 hours
+const now = new Date();
+const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+const upcoming = matches.filter((m: any) => {
+  const kickoff = new Date(m.utcDate);
+  return kickoff > twoHoursAgo;
+});
 
     const { supabase } = await import("@/lib/supabase");
     let inserted = 0;
