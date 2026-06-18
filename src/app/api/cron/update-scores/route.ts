@@ -2,9 +2,35 @@ import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-// ---------- TheSportsDB live / finished score ----------
+// ----- Team name normalisation (same as enrich-stats) -----
+function normaliseTeamName(name: string): string {
+  const map: Record<string, string> = {
+    "Czechia": "Czech Republic",
+    "Curaçao": "Curacao",
+    "Congo DR": "DR Congo",
+    "Cape Verde Islands": "Cape Verde",
+    "Bosnia-Herzegovina": "Bosnia",
+    "USA": "United States",
+    "Korea Republic": "South Korea",
+    "Ivory Coast": "Côte d'Ivoire",
+    "North Korea": "Korea DPR",
+    "St. Kitts & Nevis": "St. Kitts and Nevis",
+    "Trinidad & Tobago": "Trinidad and Tobago",
+    "Antigua & Barbuda": "Antigua and Barbuda",
+    "Uzbekistan": "Uzbekistan",
+    "Saudi Arabia": "Saudi Arabia",
+    "United Arab Emirates": "UAE",
+    "Korea DPR": "North Korea",
+    "São Tomé and Príncipe": "Sao Tome and Principe",
+  };
+  return map[name] || name;
+}
+
+// ---------- TheSportsDB live / finished score (strict date) ----------
 async function getScoreFromTheSportsDB(teamA: string, teamB: string, matchDate: string) {
-  const queries = [`${teamA} vs ${teamB}`, `${teamB} vs ${teamA}`];
+  const normalA = normaliseTeamName(teamA);
+  const normalB = normaliseTeamName(teamB);
+  const queries = [`${normalA} vs ${normalB}`, `${normalB} vs ${normalA}`];
 
   for (const q of queries) {
     try {
@@ -16,14 +42,10 @@ async function getScoreFromTheSportsDB(teamA: string, teamB: string, matchDate: 
       const data = await res.json();
       const events = data.event || [];
 
-      // First try with exact date
-      let target = events.find((e: any) => {
+      // ONLY match by exact date – never fall back to other dates
+      const target = events.find((e: any) => {
         return e.dateEvent === matchDate && isLiveOrFinished(e.strStatus);
       });
-      // Fallback: ignore date
-      if (!target) {
-        target = events.find((e: any) => isLiveOrFinished(e.strStatus));
-      }
 
       if (target) {
         const homeScore = parseInt(target.intHomeScore) || 0;
@@ -53,14 +75,15 @@ export async function GET() {
   const now = new Date();
   const nowISO = now.toISOString();
 
-  // Get matches that have already started and are not finished
+  // Only matches that have already started (kickoff_time <= now)
   const { data: matches } = await supabase
     .from("predictions")
     .select("id, team_a, team_b, kickoff_time, match_status, main_pick, actual_home_score, actual_away_score")
     .not("kickoff_time", "is", null)
+    .lte("kickoff_time", nowISO)          // already started
     .neq("match_status", "FINISHED")
     .order("kickoff_time", { ascending: true })
-    .limit(10);                            // small batch
+    .limit(10);
 
   if (!matches || matches.length === 0) {
     return NextResponse.json({ updated: 0, message: "No live/pending matches" });
@@ -74,11 +97,10 @@ export async function GET() {
       const matchDate = kickoff.toISOString().split("T")[0];
 
       const tsdb = await getScoreFromTheSportsDB(match.team_a, match.team_b, matchDate);
-      if (!tsdb) continue;   // not found, skip
+      if (!tsdb) continue;
 
       const { homeScore, awayScore, status } = tsdb;
 
-      // Only update if something changed
       if (status !== match.match_status || homeScore !== match.actual_home_score || awayScore !== match.actual_away_score) {
         const updateData: any = {
           match_status: status,
@@ -98,7 +120,7 @@ export async function GET() {
     } catch (err) {
       console.error("Failed to update", match.team_a, match.team_b, err);
     }
-    await new Promise(r => setTimeout(r, 6000));   // gentle to API
+    await new Promise(r => setTimeout(r, 6000));
   }
 
   console.log(`[cron] updated ${updated} matches`);
