@@ -4,10 +4,7 @@ export const dynamic = "force-dynamic";
 
 // ---------- TheSportsDB live score / finished score ----------
 async function getScoreFromTheSportsDB(teamA: string, teamB: string, matchDate: string) {
-  const queries = [
-    `${teamA} vs ${teamB}`,
-    `${teamB} vs ${teamA}`,
-  ];
+  const queries = [`${teamA} vs ${teamB}`, `${teamB} vs ${teamA}`];
 
   for (const q of queries) {
     try {
@@ -41,41 +38,59 @@ async function getScoreFromTheSportsDB(teamA: string, teamB: string, matchDate: 
             : "LIVE";
         return { homeScore, awayScore, status };
       }
-    } catch (err) {
-      console.error("TheSportsDB error:", err);
+    } catch {
+      // try next query
     }
   }
+  return null;
+}
 
-  console.log(`[cron] TheSportsDB: no event found for ${teamA} vs ${teamB} on ${matchDate}`);
+// ---------- football-data.org (fallback) ----------
+async function getScoreFromFootballData(fixtureId: number) {
+  const apiKey = process.env.FOOTBALL_DATA_API_KEY;
+  if (!apiKey) return null;
+  try {
+    const res = await fetch(
+      `https://api.football-data.org/v4/matches/${fixtureId}`,
+      { headers: { "X-Auth-Token": apiKey } }
+    );
+    if (!res.ok) return null;
+    const fixture = await res.json();
+    const rawStatus = fixture.status;
+    if (rawStatus === "FINISHED" || ["IN_PLAY", "PAUSED", "LIVE"].includes(rawStatus)) {
+      return {
+        homeScore: fixture.score?.fullTime?.home ?? null,
+        awayScore: fixture.score?.fullTime?.away ?? null,
+        status: rawStatus === "FINISHED" ? "FINISHED" : "LIVE",
+      };
+    }
+  } catch {
+    // network error – just skip
+  }
   return null;
 }
 
 // ---------- Main cron handler ----------
 export async function GET() {
-  const FOOTBALL_DATA_KEY = process.env.FOOTBALL_DATA_API_KEY;
-  if (!FOOTBALL_DATA_KEY) {
-    return NextResponse.json({ error: "Missing API key" }, { status: 500 });
-  }
-
   const { supabase } = await import("@/lib/supabase");
 
-  const nowISO = new Date().toISOString();
+  const now = new Date();
+  const nowISO = now.toISOString();
 
   const { data: matches } = await supabase
     .from("predictions")
     .select("id, fixture_id, main_pick, team_a, team_b, kickoff_time, match_status")
     .not("fixture_id", "is", null)
     .neq("match_status", "FINISHED")
-    .lte("kickoff_time", nowISO)              // only matches that have already started
+    .lte("kickoff_time", nowISO)              // only already started matches
     .order("kickoff_time", { ascending: true })
-      .limit(30);
+    .limit(30);
 
   if (!matches || matches.length === 0) {
     return NextResponse.json({ updated: 0, message: "No live/pending matches" });
   }
 
   let updated = 0;
-  const now = new Date();
 
   for (const match of matches) {
     try {
@@ -83,43 +98,29 @@ export async function GET() {
       let awayScore: number | null = null;
       let newStatus = match.match_status;
 
-      // 1) Try football-data.org first
-      const fdRes = await fetch(
-        `https://api.football-data.org/v4/matches/${match.fixture_id}`,
-        { headers: { "X-Auth-Token": FOOTBALL_DATA_KEY } }
-      );
-
-      if (fdRes.ok) {
-        const fixture = await fdRes.json();
-        const rawStatus = fixture.status;
-
-        if (rawStatus === "FINISHED") {
-          homeScore = fixture.score?.fullTime?.home;
-          awayScore = fixture.score?.fullTime?.away;
-          newStatus = "FINISHED";
-        } else if (["IN_PLAY", "PAUSED", "LIVE"].includes(rawStatus)) {
-          homeScore = fixture.score?.fullTime?.home;
-          awayScore = fixture.score?.fullTime?.away;
-          newStatus = "LIVE";
-        }
-      }
-
-      // 2) TheSportsDB fallback if no score and match has started
-      if (homeScore == null && match.kickoff_time) {
+      // 1) Try TheSportsDB first (reliable for World Cup)
+      if (match.kickoff_time) {
         const kickoff = new Date(match.kickoff_time);
-        const hoursSinceKickoff = (now.getTime() - kickoff.getTime()) / (1000 * 60 * 60);
-        if (hoursSinceKickoff >= 0) {
-          const matchDate = kickoff.toISOString().split("T")[0];
-          const tsdbResult = await getScoreFromTheSportsDB(match.team_a, match.team_b, matchDate);
-          if (tsdbResult) {
-            homeScore = tsdbResult.homeScore;
-            awayScore = tsdbResult.awayScore;
-            newStatus = tsdbResult.status;
-          }
+        const matchDate = kickoff.toISOString().split("T")[0];
+        const tsdb = await getScoreFromTheSportsDB(match.team_a, match.team_b, matchDate);
+        if (tsdb) {
+          homeScore = tsdb.homeScore;
+          awayScore = tsdb.awayScore;
+          newStatus = tsdb.status;
         }
       }
 
-      // 3) Update database if anything changed
+      // 2) If no score yet, try football-data.org
+      if (homeScore == null) {
+        const fd = await getScoreFromFootballData(match.fixture_id);
+        if (fd) {
+          homeScore = fd.homeScore;
+          awayScore = fd.awayScore;
+          newStatus = fd.status;
+        }
+      }
+
+      // 3) Update database if something changed
       if (newStatus !== match.match_status || homeScore != null || awayScore != null) {
         const updateData: any = { match_status: newStatus };
         if (homeScore != null) updateData.actual_home_score = homeScore;
@@ -137,7 +138,7 @@ export async function GET() {
     } catch (err) {
       console.error("Failed to update fixture", match.fixture_id, err);
     }
-    await new Promise(r => setTimeout(r, 1000));
+    await new Promise(r => setTimeout(r, 1000));   // gentle delay
   }
 
   console.log(`[cron] updated ${updated} matches`);
