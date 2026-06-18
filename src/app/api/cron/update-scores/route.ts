@@ -77,14 +77,13 @@ export async function GET() {
   const now = new Date();
   const nowISO = now.toISOString();
 
-  const { data: matches } = await supabase
-    .from("predictions")
-    .select("id, fixture_id, main_pick, team_a, team_b, kickoff_time, match_status")
-    .not("fixture_id", "is", null)
-    .neq("match_status", "FINISHED")
-    .lte("kickoff_time", nowISO)              // only already started matches
-    .order("kickoff_time", { ascending: true })
-    .limit(30);
+ const { data: matches } = await supabase
+  .from("predictions")
+  .select("id, fixture_id, main_pick, team_a, team_b, kickoff_time, match_status")
+  .not("fixture_id", "is", null)
+  .neq("match_status", "FINISHED")
+  .order("kickoff_time", { ascending: true })
+  .limit(50);   // increased limit, all non-finished matches
 
   if (!matches || matches.length === 0) {
     return NextResponse.json({ updated: 0, message: "No live/pending matches" });
