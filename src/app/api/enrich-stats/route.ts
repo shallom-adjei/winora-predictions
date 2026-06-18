@@ -298,12 +298,15 @@ export async function POST(req: NextRequest) {
       if (!statsA && match.team_id_a) statsA = await getStatsFromFootballData(match.team_id_a);
       if (!statsB && match.team_id_b) statsB = await getStatsFromFootballData(match.team_id_b);
 
-      // Long-term fallback if recent form is thin
-      if ((!statsA || statsA.form_points == null) && match.team_id_a && match.competition_id) {
+            // Long-term fallback if recent form is thin or missing
+      const weakFormA = statsA && statsA.form_points != null && Number(statsA.form_points) <= 1;
+      if ((!statsA || statsA.form_points == null || weakFormA) && match.team_id_a && match.competition_id) {
         const longTermA = await getLongTermCompetitionStats(match.team_id_a, match.competition_id);
         if (longTermA) statsA = longTermA;
       }
-      if ((!statsB || statsB.form_points == null) && match.team_id_b && match.competition_id) {
+
+      const weakFormB = statsB && statsB.form_points != null && Number(statsB.form_points) <= 1;
+      if ((!statsB || statsB.form_points == null || weakFormB) && match.team_id_b && match.competition_id) {
         const longTermB = await getLongTermCompetitionStats(match.team_id_b, match.competition_id);
         if (longTermB) statsB = longTermB;
       }
