@@ -59,15 +59,18 @@ export async function GET() {
 
   const { supabase } = await import("@/lib/supabase");
 
+  const nowISO = new Date().toISOString();
+
   const { data: matches } = await supabase
     .from("predictions")
     .select("id, fixture_id, main_pick, team_a, team_b, kickoff_time, match_status")
     .not("fixture_id", "is", null)
     .neq("match_status", "FINISHED")
+    .lte("kickoff_time", nowISO)              // only matches that have already started
     .order("kickoff_time", { ascending: true })
-    .limit(30);   // increased to 30 to cover more matches
+      .limit(30);
 
-  if (!matches?.length) {
+  if (!matches || matches.length === 0) {
     return NextResponse.json({ updated: 0, message: "No live/pending matches" });
   }
 
