@@ -1,3 +1,5 @@
+// v2 – fixed H2H dynamic count
+
 import type { PredictionScores } from "./predictionEngine";
 
 function pick<T>(arr: T[]): T {
