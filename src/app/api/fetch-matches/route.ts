@@ -45,18 +45,11 @@ export async function POST(req: NextRequest) {
     allMatches.forEach(m => unique.set(m.id, m));
     const matches = Array.from(unique.values());
 
-    // Keep matches that kick off in the future OR within the last 2 hours
-const now = new Date();
-const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
-const upcoming = matches.filter((m: any) => {
-  const kickoff = new Date(m.utcDate);
-  return kickoff >= twoHoursAgo;
-});
 
     const { supabase } = await import("@/lib/supabase");
     let inserted = 0;
 
-    for (const m of upcoming) {
+   for (const m of matches) {
       const matchName = `${m.homeTeam.name} vs ${m.awayTeam.name}`;
       // Avoid duplicates by match_api_id
       const { data: existing } = await supabase
@@ -90,11 +83,11 @@ const upcoming = matches.filter((m: any) => {
     }
 
     return NextResponse.json({
-      success: true,
-      fetched: upcoming.length,
-      inserted,
-      enriched: 0,
-    });
+  success: true,
+  fetched: matches.length,
+  inserted,
+  enriched: 0,
+});
   } catch (err: any) {
     console.error("Fetch matches error:", err.message);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
