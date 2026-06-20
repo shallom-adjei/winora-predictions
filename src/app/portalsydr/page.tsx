@@ -812,7 +812,8 @@ const handleGenerateAll = async () => {
   `Over 2.5: ${match.over25_last5_pct_a ?? "?"}% (H) / ${match.over25_last5_pct_b ?? "?"}% (A)\n` +
   `BTTS: ${match.btts_last5_pct_a ?? "?"}% (H) / ${match.btts_last5_pct_b ?? "?"}% (A)\n` +
   (match.h2h_home_wins != null ? `H2H: ${match.h2h_home_wins}W ${match.h2h_draws}D ${match.h2h_away_wins}W (last 5)\n` : "") +
-  (match.league_position_a != null ? `Position: ${match.league_position_a} (H) vs ${match.league_position_b} (A)` : "")
+  (match.league_position_a != null ? `Position: ${match.league_position_a} (H) vs ${match.league_position_b} (A)\n` : "") +
+  (match.matches_used_a != null ? `Based on ${match.matches_used_a} matches (H) / ${match.matches_used_b} matches (A)` : "")
 }
       >
         ✅ Stats loaded

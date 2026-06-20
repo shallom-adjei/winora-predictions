@@ -100,8 +100,9 @@ export default function UpcomingMatchesPage() {
   `Clean sheets: ${match.clean_sheets_last5_a ?? "?"} (H) / ${match.clean_sheets_last5_b ?? "?"} (A)\n` +
   `Over 2.5: ${match.over25_last5_pct_a ?? "?"}% (H) / ${match.over25_last5_pct_b ?? "?"}% (A)\n` +
   `BTTS: ${match.btts_last5_pct_a ?? "?"}% (H) / ${match.btts_last5_pct_b ?? "?"}% (A)\n` +
-  (match.h2h_home_wins != null ? `H2H (last 5): ${match.h2h_home_wins}W ${match.h2h_draws}D ${match.h2h_away_wins}W | Over 2.5: ${match.h2h_over25_pct}% | BTTS: ${match.h2h_btts_pct}%\n` : "") +
-  (match.league_position_a != null ? `League position: ${match.team_a} #${match.league_position_a} | ${match.team_b} #${match.league_position_b}` : "")
+  (match.h2h_home_wins != null ? `H2H: ${match.h2h_home_wins}W ${match.h2h_draws}D ${match.h2h_away_wins}W (last 5)\n` : "") +
+  (match.league_position_a != null ? `Position: ${match.league_position_a} (H) vs ${match.league_position_b} (A)\n` : "") +
+  (match.matches_used_a != null ? `Based on ${match.matches_used_a} matches (H) / ${match.matches_used_b} matches (A)` : "")
 }
           >
             ✅ Stats loaded
