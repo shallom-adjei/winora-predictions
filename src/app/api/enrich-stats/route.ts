@@ -427,7 +427,6 @@ export async function POST(req: NextRequest) {
     .from("predictions")
     .select("*")
     .not("form_points_a", "is", null)
-    .is("h2h_home_wins", null)
     .limit(10);
 
   if (!matchesNeedH2H || matchesNeedH2H.length === 0) {

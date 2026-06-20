@@ -140,27 +140,6 @@ export function generateAnalysis(
     observations.push(`${away} have failed to score in ${awayFailed} of their last 5, struggling to convert chances.`);
   }
 
-  // --- H2H insights ---
-  const h2hHomeWins = safeNum(match.h2h_home_wins);
-  const h2hAwayWins = safeNum(match.h2h_away_wins);
-  const h2hDraws = safeNum(match.h2h_draws);
-  const totalH2H = h2hHomeWins + h2hAwayWins + h2hDraws;
-  if (totalH2H >= 3) {
-    if (h2hHomeWins > h2hAwayWins + 1) {
-      observations.push(
-        `Historically, ${home} have dominated this fixture, winning ${h2hHomeWins} of the last ${totalH2H} meetings.`
-      );
-    } else if (h2hAwayWins > h2hHomeWins + 1) {
-      observations.push(
-        `${away} have had the better of recent head‑to‑heads, claiming victory in ${h2hAwayWins} of the last ${totalH2H} encounters.`
-      );
-    } else {
-      observations.push(
-        `The last ${totalH2H} meetings between these sides have been evenly split (${h2hHomeWins} wins each, ${h2hDraws} draws).`
-      );
-    }
-  }
-
   // --- 8. League position ---
   const posA = safeNum(match.league_position_a);
   const posB = safeNum(match.league_position_b);
