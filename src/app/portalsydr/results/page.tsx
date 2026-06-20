@@ -1,15 +1,18 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import PublicHeader from "@/components/PublicHeader";
+import Footer from "@/components/Footer";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
+import { motion } from "framer-motion";
+import { Activity } from "lucide-react";
 import { evaluatePick } from "@/lib/utils";
+import DateFilter from "@/components/DateFilter";
 
 function ResultBadge({ result }: { result: "Win" | "Loss" | "Pending" }) {
   return (
     <span
-      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
+      className={`inline-flex items-center justify-center w-14 py-0.5 rounded-full text-xs font-semibold ${
         result === "Win"
           ? "bg-green-500/15 text-green-400"
           : result === "Loss"
@@ -22,59 +25,72 @@ function ResultBadge({ result }: { result: "Win" | "Loss" | "Pending" }) {
   );
 }
 
-export default function AdminResultsPage() {
+export default function ResultsPage() {
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   useEffect(() => {
-    supabase
+    setLoading(true);
+    let query = supabase
       .from("predictions")
       .select("*")
       .not("result", "is", null)
       .neq("result", "Pending")
-      .order("kickoff_time", { ascending: false })
-      .then(({ data }) => {
-        if (data) setResults(data);
-        setLoading(false);
-      });
-  }, []);
+      .order("kickoff_time", { ascending: false });
+
+    if (dateFrom) query = query.gte("kickoff_time", `${dateFrom}T00:00:00`);
+    if (dateTo) query = query.lte("kickoff_time", `${dateTo}T23:59:59`);
+
+    query.then(({ data }) => {
+      if (data) setResults(data);
+      setLoading(false);
+    });
+  }, [dateFrom, dateTo]);
+
+  const filteredResults = results; // already filtered by Supabase query
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white p-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-center gap-4 mb-6">
-          <Link href="/portalsydr">
-            <Button variant="ghost" className="text-gold-400">
-              <ArrowLeft className="h-4 w-4 mr-1" /> Dashboard
-            </Button>
-          </Link>
-          <h1 className="text-2xl font-bold">Match Results</h1>
-        </div>
-
+    <div className="min-h-screen bg-surface-primary text-white flex flex-col pb-24 lg:pb-0">
+      <PublicHeader />
+      <div className="flex-1 max-w-7xl mx-auto px-4 sm:px-8 py-8 sm:py-12 w-full">
+        <h1 className="text-2xl sm:text-4xl font-bold mb-6 sm:mb-8">Match Results</h1>
+        <DateFilter
+          from={dateFrom}
+          to={dateTo}
+          onChange={(f, t) => { setDateFrom(f); setDateTo(t); }}
+        />
         {loading ? (
-          <p className="text-gray-400">Loading…</p>
-        ) : results.length === 0 ? (
-          <p className="text-gray-400">No results recorded yet.</p>
+          <p className="text-gray-400 text-sm">Loading results…</p>
+        ) : filteredResults.length === 0 ? (
+          <p className="text-gray-400 text-sm">No results found for this period.</p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            {results.map((match) => {
+            {filteredResults.map((match) => {
               const mainResult = evaluatePick(match.main_pick, match.actual_home_score, match.actual_away_score);
               const safeResult = evaluatePick(match.safe_pick, match.actual_home_score, match.actual_away_score);
               const goalsResult = evaluatePick(match.goals_pick, match.actual_home_score, match.actual_away_score);
               const bttsResult = evaluatePick(match.btts_pick, match.actual_home_score, match.actual_away_score);
 
               return (
-                <div
+                <motion.div
                   key={match.id}
-                  className="rounded-[18px] bg-[#0D0D0D] border border-white/5 p-4 sm:p-5"
+                  whileHover={{ y: -3 }}
+                  className="rounded-[18px] bg-surface-card border border-white/5 p-4 sm:p-5"
                 >
+                  {/* League + Date */}
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs text-gray-400">{match.sport}</span>
+                    <span className="text-xs text-gray-400 uppercase flex items-center gap-1">
+                      <Activity className="h-3 w-3 text-gold-400" />
+                      {match.sport}
+                    </span>
                     <span className="text-xs text-gray-500">
                       {new Date(match.kickoff_time || match.created_at).toLocaleDateString()}
                     </span>
                   </div>
 
+                  {/* Teams & Score */}
                   <div className="flex items-center justify-between mb-4">
                     <div className="text-center flex-1">
                       {match.crest_a ? (
@@ -87,8 +103,10 @@ export default function AdminResultsPage() {
                     <div className="text-center px-2">
                       {match.actual_home_score != null && match.actual_away_score != null ? (
                         <div className="flex flex-col items-center">
-                          <span className="text-xl font-bold">{match.actual_home_score} - {match.actual_away_score}</span>
-                          <span className="text-xs text-gray-400">FT</span>
+                          <span className="text-xl font-bold tabular-nums">
+                            {match.actual_home_score} - {match.actual_away_score}
+                          </span>
+                          <span className="text-xs text-gray-400 mt-0.5">FT</span>
                         </div>
                       ) : (
                         <span className="text-xs text-gray-500">VS</span>
@@ -104,38 +122,59 @@ export default function AdminResultsPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-semibold">{match.main_pick}</span>
-                    <ResultBadge result={mainResult} />
-                  </div>
-
-                  <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
+                  {/* Detailed picks with outcomes */}
+                  <div className="space-y-2 mt-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-400">Safe</span>
+                      <div>
+                        <span className="text-xs text-gray-400">Main</span>
+                        <span className="text-sm font-medium ml-2">{match.main_pick}</span>
+                      </div>
+                      <ResultBadge result={mainResult} />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-xs text-gray-400">Safe</span>
+                        <span className="text-sm font-medium ml-2">{match.safe_pick}</span>
+                      </div>
                       <ResultBadge result={safeResult} />
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-400">Goals</span>
+                      <div>
+                        <span className="text-xs text-gray-400">Goals</span>
+                        <span className="text-sm font-medium ml-2">{match.goals_pick}</span>
+                      </div>
                       <ResultBadge result={goalsResult} />
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-400">BTTS</span>
+                      <div>
+                        <span className="text-xs text-gray-400">BTTS</span>
+                        <span className="text-sm font-medium ml-2">{match.btts_pick}</span>
+                      </div>
                       <ResultBadge result={bttsResult} />
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-400">Conf.</span>
-                      <span className="text-white font-semibold">{match.confidence}%</span>
-                    </div>
                   </div>
-                  {match.expected_score && (
-                    <p className="mt-2 text-xs text-gold-400">Predicted: {match.expected_score}</p>
-                  )}
-                </div>
+
+                  {/* Confidence & Expected Score */}
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-400">Confidence</span>
+                      <span className="text-sm font-semibold">{match.confidence}%</span>
+                    </div>
+                    {match.expected_score && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-400">Predicted</span>
+                        <span className="text-sm font-semibold text-gold-400">{match.expected_score}</span>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
               );
             })}
           </div>
         )}
       </div>
+      <Footer />
+      <MobileBottomNav />
     </div>
   );
 }
