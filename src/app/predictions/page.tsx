@@ -1,21 +1,37 @@
 "use client";
-import { useState } from "react";
+"use client";
+import { useState, useMemo } from "react";
 import PublicHeader from "@/components/PublicHeader";
 import Footer from "@/components/Footer";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { motion } from "framer-motion";
-import { Badge } from "@/components/ui/badge";
 import { Activity } from "lucide-react";
 import { AnalysisModal } from "@/components/AnalysisModal";
 import { useLivePredictions } from "@/hooks/useLivePredictions";
-import { evaluatePick } from "@/lib/utils";
-import { ResultBadge } from "@/components/ResultBadge";
+import DateFilter from "@/components/DateFilter";
+
 
 export default function PredictionsPage() {
   const [analysisModalOpen, setAnalysisModalOpen] = useState(false);
   const [selectedAnalysis, setSelectedAnalysis] = useState<any>(null);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
  const { predictions, loading } = useLivePredictions(false);  // exclude finished
+
+ const filteredPredictions = useMemo(() => {
+  if (!dateFrom && !dateTo) return predictions;
+  return predictions.filter((p: any) => {
+    const kickoff = new Date(p.kickoff_time);
+    if (dateFrom && kickoff < new Date(dateFrom)) return false;
+    if (dateTo) {
+      const toDate = new Date(dateTo);
+      toDate.setHours(23, 59, 59, 999);
+      if (kickoff > toDate) return false;
+    }
+    return true;
+  });
+}, [predictions, dateFrom, dateTo]);
 
   const handleOpenAnalysis = (match: any) => {
     setSelectedAnalysis(match);
@@ -31,7 +47,12 @@ export default function PredictionsPage() {
     <div className="min-h-screen bg-surface-primary text-white flex flex-col pb-24 lg:pb-0">
       <PublicHeader />
 <div className="flex-1 max-w-7xl mx-auto px-4 sm:px-8 py-8 sm:py-12 w-full">
-  <h1 className="text-2xl sm:text-4xl font-bold mb-6 sm:mb-8">All Predictions</h1>
+ <h1 className="text-2xl sm:text-4xl font-bold mb-6 sm:mb-8">All Predictions</h1>
+<DateFilter
+  from={dateFrom}
+  to={dateTo}
+  onChange={(f, t) => { setDateFrom(f); setDateTo(t); }}
+/>
   {loading ? (
     <p className="text-gray-400 text-sm">Loading predictions…</p>
   ) : predictions.length === 0 ? (
