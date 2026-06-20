@@ -10,28 +10,14 @@ export async function POST(req: NextRequest) {
     const dateFrom = today.toISOString().split("T")[0];
     const dateTo = future.toISOString().split("T")[0];
 
-    // Fetch all relevant statuses
     const [scheduled, postponed, timed, inplay] = await Promise.all([
-      fetch(
-        `https://api.football-data.org/v4/matches?dateFrom=${dateFrom}&dateTo=${dateTo}&status=SCHEDULED`,
-        { headers: { "X-Auth-Token": apiKey } }
-      ),
-      fetch(
-        `https://api.football-data.org/v4/matches?dateFrom=${dateFrom}&dateTo=${dateTo}&status=POSTPONED`,
-        { headers: { "X-Auth-Token": apiKey } }
-      ),
-      fetch(
-        `https://api.football-data.org/v4/matches?dateFrom=${dateFrom}&dateTo=${dateTo}&status=TIMED`,
-        { headers: { "X-Auth-Token": apiKey } }
-      ),
-      fetch(
-        `https://api.football-data.org/v4/matches?dateFrom=${dateFrom}&dateTo=${dateTo}&status=IN_PLAY`,
-        { headers: { "X-Auth-Token": apiKey } }
-      ),
+      fetch(`https://api.football-data.org/v4/matches?dateFrom=${dateFrom}&dateTo=${dateTo}&status=SCHEDULED`, { headers: { "X-Auth-Token": apiKey } }),
+      fetch(`https://api.football-data.org/v4/matches?dateFrom=${dateFrom}&dateTo=${dateTo}&status=POSTPONED`, { headers: { "X-Auth-Token": apiKey } }),
+      fetch(`https://api.football-data.org/v4/matches?dateFrom=${dateFrom}&dateTo=${dateTo}&status=TIMED`, { headers: { "X-Auth-Token": apiKey } }),
+      fetch(`https://api.football-data.org/v4/matches?dateFrom=${dateFrom}&dateTo=${dateTo}&status=IN_PLAY`, { headers: { "X-Auth-Token": apiKey } }),
     ]);
 
     let allMatches: any[] = [];
-
     const responses = [scheduled, postponed, timed, inplay];
     for (const res of responses) {
       if (res.ok) {
@@ -40,18 +26,15 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Remove duplicates by match ID
     const unique = new Map<number, any>();
     allMatches.forEach(m => unique.set(m.id, m));
     const matches = Array.from(unique.values());
 
-
     const { supabase } = await import("@/lib/supabase");
     let inserted = 0;
 
-   for (const m of matches) {
+    for (const m of matches) {
       const matchName = `${m.homeTeam.name} vs ${m.awayTeam.name}`;
-      // Avoid duplicates by match_api_id
       const { data: existing } = await supabase
         .from("predictions")
         .select("id")
@@ -83,11 +66,11 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({
-  success: true,
-  fetched: matches.length,
-  inserted,
-  enriched: 0,
-});
+      success: true,
+      fetched: matches.length,
+      inserted,
+      enriched: 0,
+    });
   } catch (err: any) {
     console.error("Fetch matches error:", err.message);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
