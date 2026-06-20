@@ -301,25 +301,30 @@ async function getStandings(competitionId: number) {
   }
 }
 
-// ----- Main enrichment endpoint -----
+// ----- Main enrichment endpoint (merged) -----
 export async function POST(req: NextRequest) {
   const { supabase } = await import("@/lib/supabase");
 
-  // Phase 1 – basic stats + H2H + standings (for matches where form_points_a is null)
+  // Pick up to 10 matches that are missing ANY enrichment data
   const { data: matches } = await supabase
     .from("predictions")
     .select("*")
-    .is("form_points_a", null)
+    .or("form_points_a.is.null,h2h_home_wins.is.null,league_position_a.is.null")
+    .order("kickoff_time", { ascending: true })
     .limit(10);
 
-  if (matches && matches.length > 0) {
-    let enriched = 0, failed = 0;
+  if (!matches || matches.length === 0) {
+    return NextResponse.json({ success: true, message: "All matches already have full stats." });
+  }
 
-    for (const match of matches) {
-      try {
-        const update: any = {};
+  let enriched = 0, failed = 0;
 
-        // ----- Team A -----
+  for (const match of matches) {
+    try {
+      const update: any = {};
+
+      // ---------- 1. Basic stats (if missing) ----------
+      if (match.form_points_a == null) {
         let statsA: any = null, countA = 0;
         const tsdbA = await getStatsFromTheSportsDB(match.team_a, 10);
         if (tsdbA) { statsA = tsdbA.stats; countA = tsdbA.matchCount; }
@@ -331,7 +336,6 @@ export async function POST(req: NextRequest) {
           if (merged) { statsA = merged.stats; countA = merged.matchCount; }
         }
 
-        // Long‑term fallback if still < 8 matches
         if (countA < 8 && match.team_id_a && match.competition_id) {
           const longTermA = await getLongTermCompetitionStats(match.team_id_a, match.competition_id);
           if (longTermA) {
@@ -340,7 +344,6 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // ----- Team B -----
         let statsB: any = null, countB = 0;
         const tsdbB = await getStatsFromTheSportsDB(match.team_b, 10);
         if (tsdbB) { statsB = tsdbB.stats; countB = tsdbB.matchCount; }
@@ -360,7 +363,6 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // Store stats
         if (statsA) {
           update.form_points_a = statsA.form_points;
           update.home_goals_scored = statsA.home_goals_scored;
@@ -381,92 +383,48 @@ export async function POST(req: NextRequest) {
           update.btts_last5_pct_b = statsB.btts_last5_pct;
           update.matches_used_b = countB;
         }
-
-        // H2H
-        if (match.team_id_a && match.team_id_b && match.competition_id) {
-          const h2h = await getH2H(match.team_id_a, match.team_id_b, match.competition_id);
-          if (h2h) {
-            update.h2h_home_wins = h2h.h2h_home_wins;
-            update.h2h_draws = h2h.h2h_draws;
-            update.h2h_away_wins = h2h.h2h_away_wins;
-            update.h2h_over25_pct = h2h.h2h_over25_pct;
-            update.h2h_btts_pct = h2h.h2h_btts_pct;
-          }
-        }
-
-        // Standings (league position)
-        if (match.competition_id) {
-          const posMap = await getStandings(match.competition_id);
-          if (posMap) {
-            const posA = posMap[match.team_a] || posMap[String(match.team_id_a)];
-            const posB = posMap[match.team_b] || posMap[String(match.team_id_b)];
-            if (posA) update.league_position_a = posA;
-            if (posB) update.league_position_b = posB;
-          }
-        }
-
-        if (Object.keys(update).length > 0) {
-          await supabase.from("predictions").update(update).eq("id", match.id);
-          enriched++;
-        } else {
-          failed++;
-        }
-        // 10‑second delay for safety (6 API calls per match max: 2 TSDB + 2 FD + long-term + H2H + standings)
-        await new Promise(r => setTimeout(r, 10000));
-      } catch (err) {
-        console.error("Enrichment failed for", match.match_name, err);
-        failed++;
       }
-    }
 
-    return NextResponse.json({ success: true, processed: matches.length, enriched, failed });
-  }
-
-  // Phase 2 – H2H and position only for matches that already have basic stats but lack H2H
-  const { data: matchesNeedH2H } = await supabase
-    .from("predictions")
-    .select("*")
-    .not("form_points_a", "is", null)
-    .limit(10);
-
-  if (!matchesNeedH2H || matchesNeedH2H.length === 0) {
-    return NextResponse.json({ success: true, message: "All matches already have full stats." });
-  }
-
-  let updated = 0, skipped = 0;
-  for (const match of matchesNeedH2H) {
-    try {
-      const updates: any = {};
-      if (match.team_id_a && match.team_id_b && match.competition_id) {
+      // ---------- 2. H2H (if missing) ----------
+      if (match.h2h_home_wins == null && match.team_id_a && match.team_id_b && match.competition_id) {
         const h2h = await getH2H(match.team_id_a, match.team_id_b, match.competition_id);
         if (h2h) {
-          updates.h2h_home_wins = h2h.h2h_home_wins;
-          updates.h2h_draws = h2h.h2h_draws;
-          updates.h2h_away_wins = h2h.h2h_away_wins;
-          updates.h2h_over25_pct = h2h.h2h_over25_pct;
-          updates.h2h_btts_pct = h2h.h2h_btts_pct;
+          update.h2h_home_wins = h2h.h2h_home_wins;
+          update.h2h_draws = h2h.h2h_draws;
+          update.h2h_away_wins = h2h.h2h_away_wins;
+          update.h2h_over25_pct = h2h.h2h_over25_pct;
+          update.h2h_btts_pct = h2h.h2h_btts_pct;
+        } else {
+          // Set to 0 to mark as "checked" and avoid re-processing forever
+          update.h2h_home_wins = 0; update.h2h_draws = 0; update.h2h_away_wins = 0;
+          update.h2h_over25_pct = 0; update.h2h_btts_pct = 0;
         }
       }
-      if (match.competition_id) {
+
+      // ---------- 3. League position (if missing) ----------
+      if (match.league_position_a == null && match.competition_id) {
         const posMap = await getStandings(match.competition_id);
         if (posMap) {
           const posA = posMap[match.team_a] || posMap[String(match.team_id_a)];
           const posB = posMap[match.team_b] || posMap[String(match.team_id_b)];
-          if (posA) updates.league_position_a = posA;
-          if (posB) updates.league_position_b = posB;
+          if (posA != null) update.league_position_a = posA;
+          if (posB != null) update.league_position_b = posB;
         }
+        // If still null (API failed), we don't set 0 for league position – it's optional.
       }
-      if (Object.keys(updates).length > 0) {
-        await supabase.from("predictions").update(updates).eq("id", match.id);
-        updated++;
+
+      if (Object.keys(update).length > 0) {
+        await supabase.from("predictions").update(update).eq("id", match.id);
+        enriched++;
       } else {
-        skipped++;
+        failed++;
       }
-      await new Promise(r => setTimeout(r, 3000));
+      await new Promise(r => setTimeout(r, 10000));   // 10 sec safety
     } catch (err) {
-      console.error("H2H/Position enrichment failed", err);
-      skipped++;
+      console.error("Enrichment failed for", match.match_name, err);
+      failed++;
     }
   }
-  return NextResponse.json({ success: true, processed: matchesNeedH2H.length, enrichedH2H: updated, skipped });
+
+  return NextResponse.json({ success: true, processed: matches.length, enriched, failed });
 }
