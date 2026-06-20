@@ -318,6 +318,7 @@ export async function POST(req: NextRequest) {
   }
 
   let enriched = 0, failed = 0;
+  let firstError = "";
 
   for (const match of matches) {
     try {
@@ -423,8 +424,16 @@ export async function POST(req: NextRequest) {
     } catch (err) {
       console.error("Enrichment failed for", match.match_name, err);
       failed++;
+
+    if (!firstError) firstError = `${match.team_a} vs ${match.team_b}: ${err instanceof Error ? err.message : String(err)}`;
     }
   }
 
-  return NextResponse.json({ success: true, processed: matches.length, enriched, failed });
+ return NextResponse.json({
+  success: true,
+  processed: matches.length,
+  enriched,
+  failed,
+  ...(firstError ? { errorDetail: firstError } : {}),
+});
 }
