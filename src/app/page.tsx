@@ -10,8 +10,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { AnalysisModal } from "@/components/AnalysisModal";
 import { useLivePredictions } from "@/hooks/useLivePredictions";
-import { evaluatePick } from "@/lib/utils";
-import { ResultBadge } from "@/components/ResultBadge";
+import AdBanner from "@/components/AdBanner";
 
 export default function Home() {
   const [overview, setOverview] = useState({
@@ -233,9 +232,9 @@ const topPicks = livePredictions
 
       {/* Desktop ad banner (hero → KPI) */}
 <div className="hidden lg:block mx-auto max-w-[1280px] px-6 mt-8 mb-8">
-  <div className="w-full h-16 bg-[#0D0D0D] border border-white/5 rounded-xl flex items-center justify-center text-gray-500 text-xs tracking-wider">
-    ADVERTISEMENT
-  </div>
+  <div className="mb-8 sm:mb-10">
+   <AdBanner variant="banner" className="mb-8 sm:mb-10" />
+    </div>
 </div>
 
       {/* ===== KPI BAR ===== */}
@@ -279,9 +278,9 @@ const topPicks = livePredictions
         </div>
         {/* Mobile ad (below VIP) */}
 <div className="lg:hidden mx-auto max-w-[1280px] px-6 mb-8">
-  <div className="w-full h-14 bg-[#0D0D0D] border border-white/5 rounded-xl flex items-center justify-center text-gray-500 text-xs tracking-wider">
-    ADVERTISEMENT
-  </div>
+  <div className="mb-8 sm:mb-10">
+   <AdBanner variant="banner" className="mb-8 sm:mb-10" />
+    </div>
 </div>
       </section>
 
@@ -529,9 +528,9 @@ const topPicks = livePredictions
 
       {/* Ad below Top Picks (both screens) */}
 <div className="mx-auto max-w-[1280px] px-6 mb-12">
-  <div className="w-full h-16 bg-[#0D0D0D] border border-white/5 rounded-xl flex items-center justify-center text-gray-500 text-xs tracking-wider">
-    ADVERTISEMENT
-  </div>
+ <div className="mb-8 sm:mb-10">
+   <AdBanner variant="banner" className="mb-8 sm:mb-10" />
+    </div>
 </div>
 
       {/* ===== MOBILE VIP CARD ===== */}
