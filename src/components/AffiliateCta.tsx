@@ -1,27 +1,24 @@
-interface AffiliateCtaProps {
-  matchId: string;
-  className?: string;
-}
+import { useMemo } from "react";
 
-export default function AffiliateCta({ matchId, className = "" }: AffiliateCtaProps) {
-  // ---------- REPLACE THESE WITH YOUR REAL LINKS ----------
-  const links = [
-    {
-      name: "1xBet",
-      logo: "https://1xbet.com/logo.png",        // replace with actual logo URL
-      url: "https://1xbet.com/?affiliate=YOURID", // replace with your affiliate link
-    },
-    {
-      name: "BetWinner",
-      logo: "https://betwinner.com/logo.png",     // replace with actual logo URL
-      url: "https://betwinner.com/?affiliate=YOURID", // replace with your affiliate link
-    },
-  ];
+const AFFILIATE_LINKS = [
+  {
+    name: "1xBet",
+    logo: "https://betwinner.com/favicon.ico",   // use a tiny real favicon or a small SVG placeholder
+    url: "https://1xbet.com.gh?bf=0192a5976e834_14577427477",    // replace with your real link
+  },
+  {
+    name: "Melbet",
+    logo: "https://betwinner.com/favicon.ico",
+    url: "https://melbet-146133.top?bf=ddd533d626394_14577661311",
+  },
+];
 
+export default function AffiliateCta({ matchId, className = "" }: { matchId: string; className?: string }) {
+  // The links never change, so we can use a static array
   return (
-    <div className={`mt-2 pt-2 border-t border-white/10 ${className}`}>
+    <div className={`mt-2 pt-2 border-t border-white/10 w-full ${className}`}>
       <div className="flex items-center justify-center gap-3 sm:gap-4">
-        {links.map((link) => (
+        {AFFILIATE_LINKS.map((link) => (
           <a
             key={link.name}
             href={link.url}
@@ -33,8 +30,9 @@ export default function AffiliateCta({ matchId, className = "" }: AffiliateCtaPr
               src={link.logo}
               alt={link.name}
               className="h-4 w-auto opacity-90"
+              loading="lazy"
             />
-            Bet @ {link.name}
+            Bet Now {link.name}
           </a>
         ))}
       </div>

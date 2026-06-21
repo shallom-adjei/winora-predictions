@@ -511,6 +511,9 @@ const topPicks = livePredictions
       {/* Risk & Stake */}
       <div className="mt-2 text-xs text-gray-500">Risk: {match.riskLevel} | Stake: {match.stake}</div>
 
+      {/* Affiliate CTAs */}
+      <AffiliateCta matchId={match.id} />
+
       {/* Analysis */}
       {match.analysis && (
         <button
