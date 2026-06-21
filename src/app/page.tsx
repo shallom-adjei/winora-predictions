@@ -301,7 +301,7 @@ const topPicks = livePredictions
             <div className="hidden lg:grid grid-cols-3 gap-6">
               {topPicks.map((match, idx) => (
                 <motion.div key={idx} whileHover={{ y: -4 }}
-                  className="rounded-2xl bg-[#0D0D0D] border border-white/5 p-5 h-[330px] flex flex-col justify-between">
+                  className="rounded-2xl bg-[#0D0D0D] border border-white/5 p-5 min-h-[330px] flex flex-col justify-between">
                   <div>
                     <div className="flex items-center gap-2 text-xs text-gray-400 uppercase mb-4">
                       <Activity className="h-3 w-3 text-gold-400" />
