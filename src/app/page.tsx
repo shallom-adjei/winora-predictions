@@ -11,6 +11,7 @@ import { supabase } from "@/lib/supabase";
 import { AnalysisModal } from "@/components/AnalysisModal";
 import { useLivePredictions } from "@/hooks/useLivePredictions";
 import AdBanner from "@/components/AdBanner";
+import AffiliateCta from "@/components/AffiliateCta";
 
 export default function Home() {
   const [overview, setOverview] = useState({
@@ -100,6 +101,7 @@ const topPicks = livePredictions
   .filter((p: any) => p.prediction && p.prediction !== "No recommendation")
   .slice(0, 3)
   .map((p: any) => ({
+    id: p.id,
     league: p.sport,
     home: p.team_a,
     away: p.team_b,
@@ -397,6 +399,9 @@ const topPicks = livePredictions
         Risk: {match.riskLevel} | Stake: {match.stake}
       </span>
     </div>
+
+    {/* Affiliate CTAs */}
+<AffiliateCta matchId={match.id} />
 
     <button
       onClick={() => handleOpenAnalysis(match)}

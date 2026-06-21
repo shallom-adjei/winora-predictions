@@ -8,6 +8,7 @@ import { Activity } from "lucide-react";
 import { AnalysisModal } from "@/components/AnalysisModal";
 import { useLivePredictions } from "@/hooks/useLivePredictions";
 import DateFilter from "@/components/DateFilter";
+import AffiliateCta from "@/components/AffiliateCta";
 
 export default function PredictionsPage() {
   const [analysisModalOpen, setAnalysisModalOpen] = useState(false);
@@ -208,6 +209,8 @@ export default function PredictionsPage() {
                       <span>Risk: {p.risk_level || "—"}</span>
                       <span>Stake: {p.recommended_stake || "—"}</span>
                     </div>
+                    {/* Affiliate CTAs */}
+                    <AffiliateCta matchId={p.id} />
 
                     {/* Analysis Preview */}
                     {p.analysis && (
