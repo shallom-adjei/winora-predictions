@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Crown, Star, ArrowRight, BarChart3, TrendingUp, Activity } from "lucide-react";
+import { Crown, ArrowRight, BarChart3, TrendingUp, Activity } from "lucide-react";
 import PublicHeader from "@/components/PublicHeader";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import Link from "next/link";
@@ -232,9 +232,7 @@ const topPicks = livePredictions
 
       {/* Desktop ad banner (hero → KPI) */}
 <div className="hidden lg:block mx-auto max-w-[1280px] px-6 mt-8 mb-8">
-  <div className="mb-8 sm:mb-10">
-   <AdBanner variant="banner" className="mb-8 sm:mb-10" />
-    </div>
+  <AdBanner variant="banner" />
 </div>
 
       {/* ===== KPI BAR ===== */}
@@ -278,9 +276,7 @@ const topPicks = livePredictions
         </div>
         {/* Mobile ad (below VIP) */}
 <div className="lg:hidden mx-auto max-w-[1280px] px-6 mb-8">
-  <div className="mb-8 sm:mb-10">
-   <AdBanner variant="banner" className="mb-8 sm:mb-10" />
-    </div>
+  <AdBanner variant="banner" />
 </div>
       </section>
 
@@ -527,10 +523,8 @@ const topPicks = livePredictions
       </section>
 
       {/* Ad below Top Picks (both screens) */}
-<div className="mx-auto max-w-[1280px] px-6 mb-12">
- <div className="mb-8 sm:mb-10">
-   <AdBanner variant="banner" className="mb-8 sm:mb-10" />
-    </div>
+ <div className="mx-auto max-w-[1280px] px-6 mb-12">
+  <AdBanner variant="banner" />
 </div>
 
       {/* ===== MOBILE VIP CARD ===== */}
@@ -567,8 +561,8 @@ const topPicks = livePredictions
             <div>
               <h4 className="text-sm font-semibold text-gray-400 mb-4">Company</h4>
               <ul className="space-y-2 text-sm text-gray-500">
-                <li><Link href="/#about" className="hover:text-white transition-colors">About</Link></li>
-                <li><Link href="/#contact" className="hover:text-white transition-colors">Contact</Link></li>
+                <li><Link href="/about" className="hover:text-white transition-colors">About</Link></li>
+                <li><Link href="/contact" className="hover:text-white transition-colors">Contact</Link></li>
                 <li><Link href="/blog" className="hover:text-white transition-colors">Blog</Link></li>
               </ul>
             </div>
@@ -582,10 +576,10 @@ const topPicks = livePredictions
             <div>
               <h4 className="text-sm font-semibold text-gray-400 mb-4">Follow Us</h4>
               <ul className="space-y-2 text-sm text-gray-500">
-                <li><a href="#" className="hover:text-white transition-colors">Telegram</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Instagram</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Twitter</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">YouTube</a></li>
+                <li><a href="/Telegram" className="hover:text-white transition-colors">Telegram</a></li>
+                <li><a href="/Instagram" className="hover:text-white transition-colors">Instagram</a></li>
+                <li><a href="/Twitter" className="hover:text-white transition-colors">Twitter</a></li>
+                <li><a href="/YouTube" className="hover:text-white transition-colors">YouTube</a></li>
               </ul>
             </div>
           </div>
