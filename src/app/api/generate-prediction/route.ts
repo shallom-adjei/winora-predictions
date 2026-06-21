@@ -50,7 +50,11 @@ export async function POST(req: NextRequest) {
   const safePick = best(marketsSafe);
 
   // Confidence for the main pick
-  const confidence = calculateConfidence(scores, mainPick, dataQuality);
+ const totalMatchesUsed = Math.max(
+  Number(match.matches_used_a) || 0,
+  Number(match.matches_used_b) || 0
+);
+const confidence = calculateConfidence(scores, mainPick, dataQuality, totalMatchesUsed);
 
   // Risk – based on edge between main pick and next best 1X2
   const mainScore = scores[mainPick];

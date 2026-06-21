@@ -21,57 +21,76 @@ export interface PredictionScores {
   expectedAwayGoals: number;
 }
 
+// ----- Recency‑weighted form points (exponential decay) -----
+function recencyWeightedForm(matches: Array<{ goalsFor: number; goalsAgainst: number; date: string }>): number {
+  if (!matches.length) return 0;
+  const now = new Date();
+  let totalWeight = 0;
+  let weightedPoints = 0;
+
+  for (const m of matches) {
+    const daysAgo = (now.getTime() - new Date(m.date).getTime()) / (1000 * 60 * 60 * 24);
+    const weight = Math.exp(-daysAgo / 180);   // half‑life ~125 days
+    const result = m.goalsFor > m.goalsAgainst ? 3 : m.goalsFor === m.goalsAgainst ? 1 : 0;
+    weightedPoints += result * weight;
+    totalWeight += weight;
+  }
+
+  return totalWeight ? weightedPoints / totalWeight * 5 : 0;   // scale to 0‑15 range
+}
+
+// ----- Opponent‑strength‑adjusted goals (simplified) -----
+function adjustForOpponentStrength(
+  avgGoals: number,
+  opponentStrength: number,     // 1‑10
+  isAttack: boolean             // true = attacking stat, false = defensive
+): number {
+  const neutralStrength = 5;
+  const factor = isAttack
+    ? 1 + (opponentStrength - neutralStrength) * 0.03    // stronger opponent → slightly more goals expected (attack)
+    : 1 - (opponentStrength - neutralStrength) * 0.03;   // stronger opponent → slightly fewer goals conceded (defense)
+  return avgGoals * Math.max(0.7, Math.min(1.3, factor));
+}
+
 export function computePrediction(match: any): PredictionScores {
+  // ----- Basic stats -----
   const homeScored = Number(match.home_goals_scored) || 0;
   const homeConceded = Number(match.home_goals_conceded) || 0;
   const awayScored = Number(match.away_goals_scored) || 0;
   const awayConceded = Number(match.away_goals_conceded) || 0;
 
-  // Base expected goals
+  // ----- Strength ratings -----
+  const strengthA = Number(match.strength_a) || 5;
+  const strengthB = Number(match.strength_b) || 5;
+
+  // ----- Expected goals with opponent‑strength adjustment -----
   let expectedHome = (homeScored * 0.6 + awayConceded * 0.4) * 1.05;
   let expectedAway = (awayScored * 0.4 + homeConceded * 0.6) * 0.95;
 
-  // ----- H2H modifier -----
-  if (match.h2h_home_wins != null && match.h2h_away_wins != null) {
-    const totalH2H = match.h2h_home_wins + match.h2h_draws + match.h2h_away_wins;
-    if (totalH2H > 0) {
-      const homeWinRatio = match.h2h_home_wins / totalH2H;
-      const awayWinRatio = match.h2h_away_wins / totalH2H;
-      // If one team dominates H2H, shift expected goals slightly
-      if (homeWinRatio > 0.6) expectedHome *= 1.1;
-      if (awayWinRatio > 0.6) expectedAway *= 1.1;
-    }
-  }
+  expectedHome = adjustForOpponentStrength(expectedHome, strengthB, true);
+  expectedAway = adjustForOpponentStrength(expectedAway, strengthA, true);
 
-  // ----- League position modifier -----
-  const posA = Number(match.league_position_a);
-  const posB = Number(match.league_position_b);
-  if (posA && posB) {
-    const diff = posB - posA; // positive means home team higher (lower number)
-    if (diff > 4) expectedHome *= 1.1;
-    else if (diff < -4) expectedAway *= 1.1;
-  }
-
-    // ----- Strength modifier (1‑10 scale, 5 = average) -----
-  const strengthA = Number(match.strength_a) || 5;
-  const strengthB = Number(match.strength_b) || 5;
-  const strengthFactorA = 0.7 + (strengthA * 0.06);   // 1 → 0.76, 5 → 1.0, 10 → 1.3
+  // ----- Strength modifier (global shift) -----
+  const strengthFactorA = 0.7 + (strengthA * 0.06);
   const strengthFactorB = 0.7 + (strengthB * 0.06);
-
   expectedHome *= strengthFactorA;
   expectedAway *= strengthFactorB;
 
-  // Floor
+  // ----- Goal floor -----
   const goalFloor = 0.5;
   if (expectedHome < goalFloor && expectedAway < goalFloor) {
     expectedHome = Math.max(expectedHome, 0.3);
     expectedAway = Math.max(expectedAway, 0.3);
   }
 
-  // Poisson
+  // ----- Poisson probabilities -----
   const maxGoals = 6;
-  const probHomeGoals = Array.from({ length: maxGoals + 1 }, (_, k) => poissonProb(expectedHome, k));
-  const probAwayGoals = Array.from({ length: maxGoals + 1 }, (_, k) => poissonProb(expectedAway, k));
+  const probHomeGoals = Array.from({ length: maxGoals + 1 }, (_, k) =>
+    poissonProb(expectedHome, k)
+  );
+  const probAwayGoals = Array.from({ length: maxGoals + 1 }, (_, k) =>
+    poissonProb(expectedAway, k)
+  );
 
   let homeWin = 0, draw = 0, awayWin = 0;
   let over15 = 0, over25 = 0, under25 = 0;
@@ -117,10 +136,12 @@ export function computePrediction(match: any): PredictionScores {
   };
 }
 
+// ----- Confidence with data‑quality factor -----
 export function calculateConfidence(
   scores: PredictionScores,
   targetMarket: keyof PredictionScores,
-  dataQuality: number
+  dataQuality: number,
+  matchesUsed: number = 5
 ): number {
   const prob = scores[targetMarket] as number;
   let baseline = 33;
@@ -129,5 +150,10 @@ export function calculateConfidence(
   if (targetMarket === "Over 1.5 Goals") baseline = 75;
 
   const edge = prob - baseline;
-  return Math.min(Math.max(Math.round(60 + edge * 0.6 + dataQuality * 0.15), 50), 92);
+
+  // Data‑quality modifier: fewer matches → lower confidence
+  const dataFactor = Math.min(1, matchesUsed / 10);   // 0.5 for 5 matches, 1.0 for 10+
+  const rawConfidence = 60 + edge * 0.6 + dataQuality * 0.15 * dataFactor;
+
+  return Math.min(Math.max(Math.round(rawConfidence), 50), 92);
 }
