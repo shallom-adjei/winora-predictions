@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import toast from "react-hot-toast";
 
 const PROMPT_TEMPLATE = (teamA: string, teamB: string) => `
-You are a football data assistant. For the two teams below, search the web for their most recent competitive matches (World Cup, qualifiers, continental championships, friendlies against strong opponents) played before today (use current date for context). Also find their current FIFA ranking or League ranking and the last 5 head to head meetings between them.
+You are a football data assistant. Search the web for the most recent competitive matches for **${teamA}** and **${teamB}** (World Cup, qualifiers, continental championships, friendlies against strong opponents) played before today (use current date for context). Also find their current FIFA ranking and the last 5 head‑to‑head meetings between them.
 
 Return ONLY a valid JSON object with exactly this structure:
 
@@ -27,7 +27,7 @@ Return ONLY a valid JSON object with exactly this structure:
 
 - "matches_A": last 10 matches for ${teamA} (include at least 10 if possible)
 - "matches_B": last 10 matches for ${teamB}
-- "h2h_matches": last 5 head‑to‑head meetings between ${teamA} and ${teamB} (if fewer than 5, include all available)
+- "h2h_matches": last 5 head to head meetings between ${teamA} and ${teamB} (if fewer than 5, include all available)
 - "fifa_ranking_A": current FIFA world ranking for ${teamA}
 - "fifa_ranking_B": current FIFA world ranking for ${teamB}
 
