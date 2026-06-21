@@ -48,7 +48,9 @@ export default function ManualStatsPage() {
   const [expandedMatch, setExpandedMatch] = useState<string | null>(null);
   const [statsText, setStatsText] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [hideWithStats, setHideWithStats] = useState(true);   // default: show only matches without stats
+  const [hideWithStats, setHideWithStats] = useState(true);  
+  const [matchesTextA, setMatchesTextA] = useState("");
+const [matchesTextB, setMatchesTextB] = useState("");
 
   const fetchMatches = async () => {
     setLoading(true);
@@ -172,35 +174,53 @@ export default function ManualStatsPage() {
                 </div>
 
                 {expandedMatch === match.id && (
-                  <div className="mt-4">
-                    <textarea
-                      className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white text-sm font-mono placeholder-gray-500 focus:outline-none focus:border-gold-400/50"
-                      rows={8}
-                      placeholder={`Paste the JSON response from the AI here…`}
-                      value={statsText}
-                      onChange={(e) => setStatsText(e.target.value)}
-                    />
-                    <div className="flex justify-end gap-2 mt-3">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setExpandedMatch(null);
-                          setStatsText("");
-                        }}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        className="bg-gold-400 text-black"
-                        size="sm"
-                        onClick={() => applyStats(match.id)}
-                      >
-                        Apply Stats
-                      </Button>
-                    </div>
-                  </div>
-                )}
+  <div className="mt-4 space-y-3">
+    <div>
+      <label className="text-xs text-gray-400">Match list for {match.team_a}</label>
+      <textarea
+        className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white text-sm font-mono placeholder-gray-500 focus:outline-none focus:border-gold-400/50"
+        rows={4}
+        placeholder={`Paste the JSON array of matches for ${match.team_a}…`}
+        value={matchesTextA}
+        onChange={(e) => setMatchesTextA(e.target.value)}
+      />
+    </div>
+    <div>
+      <label className="text-xs text-gray-400">Match list for {match.team_b}</label>
+      <textarea
+        className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white text-sm font-mono placeholder-gray-500 focus:outline-none focus:border-gold-400/50"
+        rows={4}
+        placeholder={`Paste the JSON array of matches for ${match.team_b}…`}
+        value={matchesTextB}
+        onChange={(e) => setMatchesTextB(e.target.value)}
+      />
+    </div>
+    <div className="flex justify-end gap-2 mt-3">
+      <Button variant="ghost" size="sm" onClick={() => { setExpandedMatch(null); setMatchesTextA(""); setMatchesTextB(""); }}>Cancel</Button>
+      <Button className="bg-gold-400 text-black" size="sm" onClick={async () => {
+        try {
+          const parsedA = JSON.parse(matchesTextA.trim());
+          const parsedB = JSON.parse(matchesTextB.trim());
+          const res = await fetch("/api/manual-stats", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ matchId: match.id, matchesA: parsedA, matchesB: parsedB }),
+          });
+          const data = await res.json();
+          if (data.success) {
+            toast.success("Stats applied successfully!");
+            setExpandedMatch(null);
+            setMatchesTextA("");
+            setMatchesTextB("");
+            fetchMatches();
+          } else {
+            toast.error(data.error || "Invalid data.");
+          }
+        } catch { toast.error("Invalid JSON in one of the textareas."); }
+      }}>Calculate & Apply</Button>
+    </div>
+  </div>
+)}
 
                 <button
                   className="text-xs text-gold-400 mt-3 hover:underline"
