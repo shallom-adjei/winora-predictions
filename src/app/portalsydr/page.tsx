@@ -84,6 +84,7 @@ function Sidebar({
     { title: "Dashboard", icon: BarChart3, href: "/portalsydr" },
     { title: "Predictions", icon: TrendingUp, href: "/portalsydr/predictions" },
     { title: "Upcoming Matches", icon: Activity, href: "/portalsydr/matches" },
+    { title: "Manual Stats", icon: Settings, href: "/portalsydr/manual-stats" },
     { title: "Results", icon: TrendingUp, href: "/portalsydr/results" },
     { title: "Blog", icon: BarChart3, href: "/portalsydr/blog" },
     { title: "Settings", icon: Settings, href: "/portalsydr/settings" },
