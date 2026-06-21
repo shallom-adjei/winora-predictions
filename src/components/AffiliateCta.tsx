@@ -2,12 +2,12 @@ export default function AffiliateCta({ matchId, className = "" }: { matchId: str
   const affiliates = [
     {
       name: "1xBet",
-      logo: "/1xBet.png",                         
+      logo: "/1xbet.png",                         
       url: "https://1xbet.com.gh?bf=0192a5976e834_14577427477",   
     },
     {
       name: "Melbet",
-      logo: "/Melbet.png",
+      logo: "/melbet.png",
       url: "https://melbet-146133.top?bf=ddd533d626394_14577661311",
     },
   ];
