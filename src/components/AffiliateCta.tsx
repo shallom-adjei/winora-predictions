@@ -21,12 +21,12 @@ export default function AffiliateCta({ matchId, className = "" }: { matchId: str
             href={aff.url}
             target="_blank"
             rel="nofollow noopener noreferrer"
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gold-400/10 border border-gold-400/30 text-gold-400 text-xs sm:text-sm font-semibold hover:bg-gold-400/20 hover:border-gold-400/50 transition-all"
+            className="flex items-center gap-2.5 pl-3 pr-4 py-2 rounded-lg bg-gold-400/10 border border-gold-400/30 text-gold-400 text-xs sm:text-sm font-semibold hover:bg-gold-400/20 hover:border-gold-400/50 transition-all"
           >
             <img
               src={aff.logo}
               alt={aff.name}
-              className="h-5 w-5 sm:h-6 sm:w-6 object-contain drop-shadow-[0_0_4px_rgba(212,175,55,0.3)]"
+              className="h-7 w-7 sm:h-8 sm:w-8 object-contain drop-shadow-[0_0_4px_rgba(212,175,55,0.3)]"
               loading="lazy"
             />
             Bet @ {aff.name}
