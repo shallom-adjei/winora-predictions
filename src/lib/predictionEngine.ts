@@ -21,58 +21,40 @@ export interface PredictionScores {
   expectedAwayGoals: number;
 }
 
-// ----- Recency‑weighted form points (exponential decay) -----
-function recencyWeightedForm(matches: Array<{ goalsFor: number; goalsAgainst: number; date: string }>): number {
-  if (!matches.length) return 0;
-  const now = new Date();
-  let totalWeight = 0;
-  let weightedPoints = 0;
-
-  for (const m of matches) {
-    const daysAgo = (now.getTime() - new Date(m.date).getTime()) / (1000 * 60 * 60 * 24);
-    const weight = Math.exp(-daysAgo / 180);   // half‑life ~125 days
-    const result = m.goalsFor > m.goalsAgainst ? 3 : m.goalsFor === m.goalsAgainst ? 1 : 0;
-    weightedPoints += result * weight;
-    totalWeight += weight;
-  }
-
-  return totalWeight ? weightedPoints / totalWeight * 5 : 0;   // scale to 0‑15 range
-}
-
-// ----- Opponent‑strength‑adjusted goals (simplified) -----
-function adjustForOpponentStrength(
-  avgGoals: number,
-  opponentStrength: number,     // 1‑10
-  isAttack: boolean             // true = attacking stat, false = defensive
-): number {
-  const neutralStrength = 5;
-  const factor = isAttack
-    ? 1 + (opponentStrength - neutralStrength) * 0.03    // stronger opponent → slightly more goals expected (attack)
-    : 1 - (opponentStrength - neutralStrength) * 0.03;   // stronger opponent → slightly fewer goals conceded (defense)
-  return avgGoals * Math.max(0.7, Math.min(1.3, factor));
-}
-
 export function computePrediction(match: any): PredictionScores {
   // ----- Basic stats -----
-  const homeScored = Number(match.home_goals_scored) || 0;
-  const homeConceded = Number(match.home_goals_conceded) || 0;
-  const awayScored = Number(match.away_goals_scored) || 0;
-  const awayConceded = Number(match.away_goals_conceded) || 0;
+    // ----- Dixon‑Coles expected goals (if available) -----
+  const attA = Number(match.att_a);
+  const defA = Number(match.def_a);
+  const attB = Number(match.att_b);
+  const defB = Number(match.def_b);
 
-  // ----- Strength ratings -----
-  const strengthA = Number(match.strength_a) || 5;
-  const strengthB = Number(match.strength_b) || 5;
+  let expectedHome: number;
+  let expectedAway: number;
 
-  // ----- Expected goals with opponent‑strength adjustment -----
-  let expectedHome = (homeScored * 0.6 + awayConceded * 0.4) * 1.05;
-  let expectedAway = (awayScored * 0.4 + homeConceded * 0.6) * 0.95;
+  if (attA && defA && attB && defB) {
+    // Dixon‑Coles model: xG = attack * opponent_defense * league_avg * home_advantage
+    const overallAvg = 2.5;    // reasonable global average goals per match
+    const homeAdvantage = 1.15;
+    expectedHome = attA * defB * overallAvg * homeAdvantage;
+    expectedAway = attB * defA * overallAvg * (2 - homeAdvantage);   // away disadvantage symmetrical
+  } else {
+    // Fallback heuristic
+    const homeScored = Number(match.home_goals_scored) || 0;
+    const homeConceded = Number(match.home_goals_conceded) || 0;
+    const awayScored = Number(match.away_goals_scored) || 0;
+    const awayConceded = Number(match.away_goals_conceded) || 0;
 
-  expectedHome = adjustForOpponentStrength(expectedHome, strengthB, true);
-  expectedAway = adjustForOpponentStrength(expectedAway, strengthA, true);
+    expectedHome = (homeScored * 0.6 + awayConceded * 0.4) * 1.05;
+    expectedAway = (awayScored * 0.4 + homeConceded * 0.6) * 0.95;
+  }
 
   // ----- Strength modifier (global shift) -----
+  const strengthA = Number(match.strength_a) || 5;
+  const strengthB = Number(match.strength_b) || 5;
   const strengthFactorA = 0.7 + (strengthA * 0.06);
   const strengthFactorB = 0.7 + (strengthB * 0.06);
+
   expectedHome *= strengthFactorA;
   expectedAway *= strengthFactorB;
 
