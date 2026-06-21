@@ -1,8 +1,8 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
-import { ArrowLeft, Copy, Check } from "lucide-react";
+import { ArrowLeft, Copy, Check, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import toast from "react-hot-toast";
 
@@ -43,11 +43,12 @@ Only return the JSON object – nothing else.
 `;
 
 export default function ManualStatsPage() {
-  const [matches, setMatches] = useState<any[]>([]);
+  const [allMatches, setAllMatches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedMatch, setExpandedMatch] = useState<string | null>(null);
   const [statsText, setStatsText] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [hideWithStats, setHideWithStats] = useState(true);   // default: show only matches without stats
 
   const fetchMatches = async () => {
     setLoading(true);
@@ -55,16 +56,23 @@ export default function ManualStatsPage() {
     const { data } = await supabase
       .from("predictions")
       .select("*")
-      .gte("kickoff_time", nowISO)             // upcoming only
+      .gte("kickoff_time", nowISO)
       .order("kickoff_time", { ascending: true })
-      .limit(30);
-    if (data) setMatches(data);
+      .limit(50);
+    if (data) setAllMatches(data);
     setLoading(false);
   };
 
   useEffect(() => {
     fetchMatches();
   }, []);
+
+  const matchesToShow = useMemo(() => {
+    if (hideWithStats) {
+      return allMatches.filter(m => m.form_points_a == null || m.form_points_a === 0);
+    }
+    return allMatches;
+  }, [allMatches, hideWithStats]);
 
   const copyPrompt = (teamA: string, teamB: string, id: string) => {
     navigator.clipboard.writeText(PROMPT_TEMPLATE(teamA, teamB));
@@ -86,7 +94,7 @@ export default function ManualStatsPage() {
         toast.success("Stats applied successfully!");
         setExpandedMatch(null);
         setStatsText("");
-        fetchMatches();
+        fetchMatches();   // refresh list – the match will now have stats and be hidden
       } else {
         toast.error(data.error || "Invalid data. Check the JSON format.");
       }
@@ -94,8 +102,6 @@ export default function ManualStatsPage() {
       toast.error("Invalid JSON. Please paste a valid JSON object.");
     }
   };
-
-  const hasExistingStats = (match: any) => match.form_points_a != null;
 
   return (
     <div className="min-h-screen bg-[#050505] text-white p-6">
@@ -109,31 +115,40 @@ export default function ManualStatsPage() {
           <h1 className="text-2xl font-bold">Manual Stats Entry</h1>
         </div>
 
-        <p className="text-gray-400 text-sm mb-6">
-          Upcoming matches only. Copy the prompt, paste into an AI tool, then paste the JSON response and apply. Matches with existing stats can still be updated.
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+          <p className="text-gray-400 text-sm">
+            Upcoming matches only. Copy the prompt, paste into an AI tool, then paste the JSON response and apply.
+          </p>
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <Filter className="h-4 w-4 text-gold-400" />
+            <span className="text-gray-300">Hide matches with stats</span>
+            <input
+              type="checkbox"
+              className="accent-gold-400 h-4 w-4"
+              checked={hideWithStats}
+              onChange={(e) => setHideWithStats(e.target.checked)}
+            />
+          </label>
+        </div>
 
         {loading ? (
           <p className="text-gray-400">Loading…</p>
-        ) : matches.length === 0 ? (
-          <p className="text-gray-400">No upcoming matches found.</p>
+        ) : matchesToShow.length === 0 ? (
+          <p className="text-gray-400">
+            {hideWithStats
+              ? "All upcoming matches already have stats! 🎉"
+              : "No upcoming matches found."}
+          </p>
         ) : (
           <div className="space-y-4">
-            {matches.map((match) => (
+            {matchesToShow.map((match) => (
               <div
                 key={match.id}
                 className="rounded-xl bg-[#0D0D0D] border border-white/10 p-5"
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-semibold">{match.match_name}</p>
-                      {hasExistingStats(match) && (
-                        <span className="text-xs bg-green-500/15 text-green-400 px-2 py-0.5 rounded-full">
-                          has stats
-                        </span>
-                      )}
-                    </div>
+                    <p className="font-semibold">{match.match_name}</p>
                     <p className="text-xs text-gray-400">
                       {new Date(match.kickoff_time).toLocaleString()}
                     </p>
