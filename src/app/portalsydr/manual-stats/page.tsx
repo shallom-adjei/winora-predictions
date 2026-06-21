@@ -2,14 +2,14 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
-import { ArrowLeft, Copy, Check, AlertCircle } from "lucide-react";
+import { ArrowLeft, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import toast from "react-hot-toast";
 
 const PROMPT_TEMPLATE = (teamA: string, teamB: string) => `
-You are a professional football analyst. Search the web for the most recent and reliable data about ${teamA} and ${teamB}. Focus on their last 10 competitive matches (World Cup qualifiers, continental tournaments,Leagues, friendlies against strong opponents). Use the current date for context.
+You are a professional football analyst. Search the web for the most recent and reliable data about ${teamA} and ${teamB}. Focus on their last 10 competitive matches (World Cup qualifiers, continental tournaments, friendlies against strong opponents). Use the current date (June 2026) for context.
 
-Return a valid JSON object with exactly these keys. Give numeric values only, no text explanations.
+Return a valid JSON object with exactly these keys. Give numeric values only – no text explanations.
 
 {
   "form_points_a": <last 5 matches form points for ${teamA} (3=win, 1=draw, 0=loss, max 15)>,
@@ -30,7 +30,7 @@ Return a valid JSON object with exactly these keys. Give numeric values only, no
   "matches_used_b": <same for ${teamB}>,
   "strength_a": <overall strength rating for ${teamA} on a scale of 1-10, based on world ranking, squad quality, and recent performances>,
   "strength_b": <same for ${teamB}>,
-  "h2h_home_wins": <number of wins for ${teamA} in the last 5 head to head meetings>,
+  "h2h_home_wins": <number of wins for ${teamA} in the last 5 head‑to‑head meetings>,
   "h2h_draws": <number of draws in those 5 meetings>,
   "h2h_away_wins": <number of wins for ${teamB} in those 5 meetings>,
   "h2h_over25_pct": <percentage of those 5 meetings with over 2.5 goals (0-100)>,
@@ -39,7 +39,7 @@ Return a valid JSON object with exactly these keys. Give numeric values only, no
   "league_position_b": <current FIFA world ranking position for ${teamB}>
 }
 
-Only return the JSON object, nothing else.
+Only return the JSON object – nothing else.
 `;
 
 export default function ManualStatsPage() {
@@ -51,12 +51,13 @@ export default function ManualStatsPage() {
 
   const fetchMatches = async () => {
     setLoading(true);
+    const nowISO = new Date().toISOString();
     const { data } = await supabase
       .from("predictions")
       .select("*")
-      .is("form_points_a", null)
+      .gte("kickoff_time", nowISO)             // upcoming only
       .order("kickoff_time", { ascending: true })
-      .limit(20);
+      .limit(30);
     if (data) setMatches(data);
     setLoading(false);
   };
@@ -94,6 +95,8 @@ export default function ManualStatsPage() {
     }
   };
 
+  const hasExistingStats = (match: any) => match.form_points_a != null;
+
   return (
     <div className="min-h-screen bg-[#050505] text-white p-6">
       <div className="max-w-7xl mx-auto">
@@ -107,14 +110,13 @@ export default function ManualStatsPage() {
         </div>
 
         <p className="text-gray-400 text-sm mb-6">
-          For each match, copy the prompt, paste it into an AI tool (Google AI, ChatGPT, etc.),
-          paste the JSON response below, and apply.
+          Upcoming matches only. Copy the prompt, paste into an AI tool, then paste the JSON response and apply. Matches with existing stats can still be updated.
         </p>
 
         {loading ? (
           <p className="text-gray-400">Loading…</p>
         ) : matches.length === 0 ? (
-          <p className="text-gray-400">All matches already have stats! 🎉</p>
+          <p className="text-gray-400">No upcoming matches found.</p>
         ) : (
           <div className="space-y-4">
             {matches.map((match) => (
@@ -124,7 +126,14 @@ export default function ManualStatsPage() {
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-semibold">{match.match_name}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold">{match.match_name}</p>
+                      {hasExistingStats(match) && (
+                        <span className="text-xs bg-green-500/15 text-green-400 px-2 py-0.5 rounded-full">
+                          has stats
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-gray-400">
                       {new Date(match.kickoff_time).toLocaleString()}
                     </p>
@@ -185,7 +194,7 @@ export default function ManualStatsPage() {
                     setStatsText("");
                   }}
                 >
-                  {expandedMatch === match.id ? "Close" : "Enter Stats Manually"}
+                  {expandedMatch === match.id ? "Close" : "Enter / Update Stats"}
                 </button>
               </div>
             ))}
