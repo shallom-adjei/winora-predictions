@@ -6,6 +6,7 @@ import Footer from "@/components/Footer";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
+import AdBanner from "@/components/AdBanner";
 
 function stripHtml(html: string) {
   const doc = new DOMParser().parseFromString(html, "text/html");
@@ -134,9 +135,7 @@ export default function BlogPage() {
 
             {/* Ad banner – same on all screens */}
             <div className="mb-8 sm:mb-10">
-              <div className="w-full h-16 sm:h-20 bg-surface-card border border-white/5 rounded-xl flex items-center justify-center text-gray-500 text-xs sm:text-sm">
-                Advertisement
-              </div>
+              <AdBanner variant="banner" className="mb-8 sm:mb-10" />
             </div>
 
             {/* ===== LATEST ARTICLES ===== */}
@@ -180,20 +179,16 @@ export default function BlogPage() {
                 </div>
 
                 {rowIndex % 2 === 0 && rowIndex !== rows.length - 1 && (
-                  <div className="my-6 sm:my-8">
-                    <div className="w-full h-14 sm:h-16 bg-surface-card border border-white/5 rounded-xl flex items-center justify-center text-gray-500 text-xs sm:text-sm">
-                      Advertisement
-                    </div>
-                  </div>
-                )}
+  <div className="my-6 sm:my-8">
+    <AdBanner variant="inline" />
+  </div>
+)}
               </div>
             ))}
 
             {/* Bottom ad */}
             <div className="mt-10 sm:mt-14">
-              <div className="w-full h-16 sm:h-20 bg-surface-card border border-white/5 rounded-xl flex items-center justify-center text-gray-500 text-xs sm:text-sm">
-                Advertisement
-              </div>
+              <AdBanner variant="banner" className="mb-8 sm:mb-10" />
             </div>
           </div>
         )}

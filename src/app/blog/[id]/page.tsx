@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import PublicHeader from "@/components/PublicHeader";
 import Footer from "@/components/Footer";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
+import AdBanner from "@/components/AdBanner";
 
 export default function BlogPostPage() {
   const { id } = useParams();
@@ -53,20 +54,19 @@ export default function BlogPostPage() {
             </a>
           </article>
 
-          {/* Sidebar with ads (sticky on desktop) */}
-          <aside className="lg:w-72 space-y-6">
-            <div className="lg:sticky lg:top-24">
-              {/* Ad 1 */}
-              <div className="w-full h-40 bg-surface-card border border-white/5 rounded-xl flex items-center justify-center text-gray-500 text-sm mb-6">
-                Advertisement
-              </div>
+          
+{/* Inline ad – visible on all screens, placed between article and back link */}
+<div className="mt-10 lg:mt-12">
+  <AdBanner variant="banner" />
+</div>
 
-              {/* Ad 2 */}
-              <div className="w-full h-40 bg-surface-card border border-white/5 rounded-xl flex items-center justify-center text-gray-500 text-sm">
-                Advertisement
-              </div>
-            </div>
-          </aside>
+          {/* Sidebar with ads – visible only on lg screens and up */}
+<aside className="hidden lg:block lg:w-72 space-y-6">
+  <div className="lg:sticky lg:top-24">
+    <AdBanner variant="sidebar" className="mb-6" />
+    <AdBanner variant="sidebar" />
+  </div>
+</aside>
         </div>
       </main>
       <Footer />
