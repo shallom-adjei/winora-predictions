@@ -7,50 +7,40 @@ import { Button } from "@/components/ui/button";
 import toast from "react-hot-toast";
 
 const PROMPT_TEMPLATE = (teamA: string, teamB: string) => `
-You are a professional football analyst. Search the web for the most recent and reliable data about ${teamA} and ${teamB}. Focus on their last 10 competitive matches (World Cup qualifiers, continental tournaments, friendlies against strong opponents). Use the current date (June 2026) for context.
+You are a football data assistant. For the two teams below, search the web for their most recent competitive matches (World Cup, qualifiers, continental championships, friendlies against strong opponents) played before today (use current date for context). Also find their current FIFA ranking or League ranking and the last 5 head to head meetings between them.
 
-Return a valid JSON object with exactly these keys. Give numeric values only – no text explanations.
+Return ONLY a valid JSON object with exactly this structure:
 
 {
-  "form_points_a": <last 5 matches form points for ${teamA} (3=win, 1=draw, 0=loss, max 15)>,
-  "form_points_b": <same for ${teamB}>,
-  "home_goals_scored": <average goals scored per home game by ${teamA} (float)>,
-  "home_goals_conceded": <average goals conceded per home game by ${teamA} (float)>,
-  "away_goals_scored": <average goals scored per away game by ${teamB} (float)>,
-  "away_goals_conceded": <average goals conceded per away game by ${teamB} (float)>,
-  "clean_sheets_last5_a": <number of clean sheets for ${teamA} in last 5 matches>,
-  "clean_sheets_last5_b": <same for ${teamB}>,
-  "failed_to_score_last5_a": <number of matches ${teamA} failed to score in last 5>,
-  "failed_to_score_last5_b": <same for ${teamB}>,
-  "over25_last5_pct_a": <percentage of ${teamA}'s last 5 matches with over 2.5 goals (0-100)>,
-  "over25_last5_pct_b": <same for ${teamB}>,
-  "btts_last5_pct_a": <percentage of ${teamA}'s last 5 matches where both teams scored (0-100)>,
-  "btts_last5_pct_b": <same for ${teamB}>,
-  "matches_used_a": <number of matches the stats for ${teamA} are based on, ideally 10>,
-  "matches_used_b": <same for ${teamB}>,
-  "strength_a": <overall strength rating for ${teamA} on a scale of 1-10, based on world ranking, squad quality, and recent performances>,
-  "strength_b": <same for ${teamB}>,
-  "h2h_home_wins": <number of wins for ${teamA} in the last 5 head‑to‑head meetings>,
-  "h2h_draws": <number of draws in those 5 meetings>,
-  "h2h_away_wins": <number of wins for ${teamB} in those 5 meetings>,
-  "h2h_over25_pct": <percentage of those 5 meetings with over 2.5 goals (0-100)>,
-  "h2h_btts_pct": <percentage of those 5 meetings where both teams scored (0-100)>,
-  "league_position_a": <current FIFA world ranking position for ${teamA}>,
-  "league_position_b": <current FIFA world ranking position for ${teamB}>
+  "matches_A": [
+    { "date": "YYYY-MM-DD", "opponent": "Team name", "home": true, "goalsFor": 2, "goalsAgainst": 1 }
+  ],
+  "matches_B": [
+    { "date": "YYYY-MM-DD", "opponent": "Team name", "home": false, "goalsFor": 1, "goalsAgainst": 3 }
+  ],
+  "h2h_matches": [
+    { "date": "YYYY-MM-DD", "homeTeam": "${teamA}", "awayTeam": "${teamB}", "homeScore": 2, "awayScore": 0 }
+  ],
+  "fifa_ranking_A": 2,
+  "fifa_ranking_B": 61
 }
 
-Only return the JSON object – nothing else.
+- "matches_A": last 10 matches for ${teamA} (include at least 10 if possible)
+- "matches_B": last 10 matches for ${teamB}
+- "h2h_matches": last 5 head‑to‑head meetings between ${teamA} and ${teamB} (if fewer than 5, include all available)
+- "fifa_ranking_A": current FIFA world ranking for ${teamA}
+- "fifa_ranking_B": current FIFA world ranking for ${teamB}
+
+Return only the JSON object, nothing else.
 `;
 
 export default function ManualStatsPage() {
   const [allMatches, setAllMatches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedMatch, setExpandedMatch] = useState<string | null>(null);
-  const [statsText, setStatsText] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [hideWithStats, setHideWithStats] = useState(true);  
-  const [matchesTextA, setMatchesTextA] = useState("");
-const [matchesTextB, setMatchesTextB] = useState("");
+  const [hideWithStats, setHideWithStats] = useState(true);
+  const [fullJson, setFullJson] = useState("");
 
   const fetchMatches = async () => {
     setLoading(true);
@@ -81,28 +71,6 @@ const [matchesTextB, setMatchesTextB] = useState("");
     setCopiedId(id);
     toast.success("Prompt copied! Paste it into your AI tool.");
     setTimeout(() => setCopiedId(null), 3000);
-  };
-
-  const applyStats = async (matchId: string) => {
-    try {
-      const parsed = JSON.parse(statsText.trim());
-      const res = await fetch("/api/manual-stats", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ matchId, statsJson: parsed }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        toast.success("Stats applied successfully!");
-        setExpandedMatch(null);
-        setStatsText("");
-        fetchMatches();   // refresh list – the match will now have stats and be hidden
-      } else {
-        toast.error(data.error || "Invalid data. Check the JSON format.");
-      }
-    } catch {
-      toast.error("Invalid JSON. Please paste a valid JSON object.");
-    }
   };
 
   return (
@@ -174,59 +142,72 @@ const [matchesTextB, setMatchesTextB] = useState("");
                 </div>
 
                 {expandedMatch === match.id && (
-  <div className="mt-4 space-y-3">
-    <div>
-      <label className="text-xs text-gray-400">Match list for {match.team_a}</label>
-      <textarea
-        className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white text-sm font-mono placeholder-gray-500 focus:outline-none focus:border-gold-400/50"
-        rows={4}
-        placeholder={`Paste the JSON array of matches for ${match.team_a}…`}
-        value={matchesTextA}
-        onChange={(e) => setMatchesTextA(e.target.value)}
-      />
-    </div>
-    <div>
-      <label className="text-xs text-gray-400">Match list for {match.team_b}</label>
-      <textarea
-        className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white text-sm font-mono placeholder-gray-500 focus:outline-none focus:border-gold-400/50"
-        rows={4}
-        placeholder={`Paste the JSON array of matches for ${match.team_b}…`}
-        value={matchesTextB}
-        onChange={(e) => setMatchesTextB(e.target.value)}
-      />
-    </div>
-    <div className="flex justify-end gap-2 mt-3">
-      <Button variant="ghost" size="sm" onClick={() => { setExpandedMatch(null); setMatchesTextA(""); setMatchesTextB(""); }}>Cancel</Button>
-      <Button className="bg-gold-400 text-black" size="sm" onClick={async () => {
-        try {
-          const parsedA = JSON.parse(matchesTextA.trim());
-          const parsedB = JSON.parse(matchesTextB.trim());
-          const res = await fetch("/api/manual-stats", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ matchId: match.id, matchesA: parsedA, matchesB: parsedB }),
-          });
-          const data = await res.json();
-          if (data.success) {
-            toast.success("Stats applied successfully!");
-            setExpandedMatch(null);
-            setMatchesTextA("");
-            setMatchesTextB("");
-            fetchMatches();
-          } else {
-            toast.error(data.error || "Invalid data.");
-          }
-        } catch { toast.error("Invalid JSON in one of the textareas."); }
-      }}>Calculate & Apply</Button>
-    </div>
-  </div>
-)}
+                  <div className="mt-4 space-y-3">
+                    <textarea
+                      className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white text-sm font-mono placeholder-gray-500 focus:outline-none focus:border-gold-400/50"
+                      rows={14}
+                      placeholder={`Paste the complete JSON response from the AI here (including matches_A, matches_B, h2h_matches, fifa_ranking_A, fifa_ranking_B)…`}
+                      value={fullJson}
+                      onChange={(e) => setFullJson(e.target.value)}
+                    />
+                    <div className="flex justify-end gap-2 mt-3">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setExpandedMatch(null);
+                          setFullJson("");
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        className="bg-gold-400 text-black"
+                        size="sm"
+                        onClick={async () => {
+                          try {
+                            const data = JSON.parse(fullJson.trim());
+                            if (!data.matches_A || !data.matches_B) {
+                              toast.error("Missing matches_A or matches_B in the JSON.");
+                              return;
+                            }
+                            const res = await fetch("/api/manual-stats", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                matchId: match.id,
+                                matchesA: data.matches_A,
+                                matchesB: data.matches_B,
+                                h2hMatches: data.h2h_matches || [],
+                                fifaRankingA: data.fifa_ranking_A,
+                                fifaRankingB: data.fifa_ranking_B,
+                              }),
+                            });
+                            const result = await res.json();
+                            if (result.success) {
+                              toast.success("Enriched stats applied! All fields updated.");
+                              setExpandedMatch(null);
+                              setFullJson("");
+                              fetchMatches();
+                            } else {
+                              toast.error(result.error || "Invalid data.");
+                            }
+                          } catch {
+                            toast.error("Invalid JSON. Please paste a valid object.");
+                          }
+                        }}
+                      >
+                        Calculate & Apply
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
                 <button
                   className="text-xs text-gold-400 mt-3 hover:underline"
                   onClick={() => {
                     setExpandedMatch(expandedMatch === match.id ? null : match.id);
-                    setStatsText("");
+                    setFullJson("");
                   }}
                 >
                   {expandedMatch === match.id ? "Close" : "Enter / Update Stats"}
