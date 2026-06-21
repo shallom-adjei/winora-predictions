@@ -52,6 +52,15 @@ export function computePrediction(match: any): PredictionScores {
     else if (diff < -4) expectedAway *= 1.1;
   }
 
+    // ----- Strength modifier (1‑10 scale, 5 = average) -----
+  const strengthA = Number(match.strength_a) || 5;
+  const strengthB = Number(match.strength_b) || 5;
+  const strengthFactorA = 0.7 + (strengthA * 0.06);   // 1 → 0.76, 5 → 1.0, 10 → 1.3
+  const strengthFactorB = 0.7 + (strengthB * 0.06);
+
+  expectedHome *= strengthFactorA;
+  expectedAway *= strengthFactorB;
+
   // Floor
   const goalFloor = 0.5;
   if (expectedHome < goalFloor && expectedAway < goalFloor) {

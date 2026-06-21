@@ -7,28 +7,39 @@ import { Button } from "@/components/ui/button";
 import toast from "react-hot-toast";
 
 const PROMPT_TEMPLATE = (teamA: string, teamB: string) => `
-Provide the following football statistics for ${teamA} and ${teamB} based on their most recent **10 competitive matches** (World Cup qualifiers, continental championships, friendlies against strong opponents).
+You are a professional football analyst. Search the web for the most recent and reliable data about ${teamA} and ${teamB}. Focus on their last 10 competitive matches (World Cup qualifiers, continental tournaments,Leagues, friendlies against strong opponents). Use the current date for context.
 
-Return ONLY a valid JSON object with exactly these keys and numeric values:
+Return a valid JSON object with exactly these keys. Give numeric values only, no text explanations.
 
 {
-  "form_points_a": <last 5 matches form points for ${teamA} (3 for win, 1 for draw, 0 for loss, max 15)>,
+  "form_points_a": <last 5 matches form points for ${teamA} (3=win, 1=draw, 0=loss, max 15)>,
   "form_points_b": <same for ${teamB}>,
-  "home_goals_scored": <average goals scored per game by ${teamA} when playing at home (as float)>,
-  "home_goals_conceded": <average goals conceded per game by ${teamA} when playing at home>,
-  "away_goals_scored": <average goals scored per game by ${teamB} when playing away>,
-  "away_goals_conceded": <average goals conceded per game by ${teamB} when playing away>,
+  "home_goals_scored": <average goals scored per home game by ${teamA} (float)>,
+  "home_goals_conceded": <average goals conceded per home game by ${teamA} (float)>,
+  "away_goals_scored": <average goals scored per away game by ${teamB} (float)>,
+  "away_goals_conceded": <average goals conceded per away game by ${teamB} (float)>,
   "clean_sheets_last5_a": <number of clean sheets for ${teamA} in last 5 matches>,
-  "clean_sheets_last5_b": <number of clean sheets for ${teamB} in last 5 matches>,
-  "failed_to_score_last5_a": <number of matches where ${teamA} failed to score in last 5>,
-  "failed_to_score_last5_b": <number of matches where ${teamB} failed to score in last 5>,
+  "clean_sheets_last5_b": <same for ${teamB}>,
+  "failed_to_score_last5_a": <number of matches ${teamA} failed to score in last 5>,
+  "failed_to_score_last5_b": <same for ${teamB}>,
   "over25_last5_pct_a": <percentage of ${teamA}'s last 5 matches with over 2.5 goals (0-100)>,
-  "over25_last5_pct_b": <percentage of ${teamB}'s last 5 matches with over 2.5 goals (0-100)>,
+  "over25_last5_pct_b": <same for ${teamB}>,
   "btts_last5_pct_a": <percentage of ${teamA}'s last 5 matches where both teams scored (0-100)>,
-  "btts_last5_pct_b": <percentage of ${teamB}'s last 5 matches where both teams scored (0-100)>,
-  "matches_used_a": <number of matches the stats for ${teamA} are based on (ideally 10)>,
-  "matches_used_b": <number of matches the stats for ${teamB} are based on (ideally 10)>
+  "btts_last5_pct_b": <same for ${teamB}>,
+  "matches_used_a": <number of matches the stats for ${teamA} are based on, ideally 10>,
+  "matches_used_b": <same for ${teamB}>,
+  "strength_a": <overall strength rating for ${teamA} on a scale of 1-10, based on world ranking, squad quality, and recent performances>,
+  "strength_b": <same for ${teamB}>,
+  "h2h_home_wins": <number of wins for ${teamA} in the last 5 head to head meetings>,
+  "h2h_draws": <number of draws in those 5 meetings>,
+  "h2h_away_wins": <number of wins for ${teamB} in those 5 meetings>,
+  "h2h_over25_pct": <percentage of those 5 meetings with over 2.5 goals (0-100)>,
+  "h2h_btts_pct": <percentage of those 5 meetings where both teams scored (0-100)>,
+  "league_position_a": <current FIFA world ranking position for ${teamA}>,
+  "league_position_b": <current FIFA world ranking position for ${teamB}>
 }
+
+Only return the JSON object, nothing else.
 `;
 
 export default function ManualStatsPage() {
