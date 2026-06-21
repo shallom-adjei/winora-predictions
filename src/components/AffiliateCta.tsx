@@ -3,13 +3,13 @@ import { useMemo } from "react";
 const AFFILIATE_LINKS = [
   {
     name: "1xBet",
-    logo: "https://betwinner.com/favicon.ico",   // use a tiny real favicon or a small SVG placeholder
-    url: "https://1xbet.com.gh?bf=0192a5976e834_14577427477",    // replace with your real link
+    logo: "/1xbet.png",
+    url: "https://1xbet.com/?affiliate=YOURID",   // replace with your real link
   },
   {
     name: "Melbet",
-    logo: "https://betwinner.com/favicon.ico",
-    url: "https://melbet-146133.top?bf=ddd533d626394_14577661311",
+    logo: "/melbet.png",
+    url: "https://melbet.com/?affiliate=YOURID",  // replace with your real link
   },
 ];
 
