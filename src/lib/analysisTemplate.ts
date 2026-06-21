@@ -1,5 +1,3 @@
-// v2 – fixed H2H dynamic count
-
 import type { PredictionScores } from "./predictionEngine";
 
 function pick<T>(arr: T[]): T {
@@ -21,10 +19,10 @@ export function generateAnalysis(
 ): string {
   const home = match.team_a || "Home";
   const away = match.team_b || "Away";
-  const homeGoals = safeNum(match.home_goals_scored);
-  const awayGoals = safeNum(match.away_goals_scored);
   const homeForm = safeNum(match.form_points_a);
   const awayForm = safeNum(match.form_points_b);
+  const homeGoals = safeNum(match.home_goals_scored);
+  const awayGoals = safeNum(match.away_goals_scored);
   const homeClean = safeNum(match.clean_sheets_last5_a);
   const awayClean = safeNum(match.clean_sheets_last5_b);
   const homeOver25 = safeNum(match.over25_last5_pct_a);
@@ -33,40 +31,62 @@ export function generateAnalysis(
   const awayBtts = safeNum(match.btts_last5_pct_b);
   const homeFailed = safeNum(match.failed_to_score_last5_a);
   const awayFailed = safeNum(match.failed_to_score_last5_b);
+  const strengthA = safeNum(match.strength_a) || 5;
+  const strengthB = safeNum(match.strength_b) || 5;
+  const posA = safeNum(match.league_position_a);
+  const posB = safeNum(match.league_position_b);
 
   const hasStats = homeForm > 0 || awayForm > 0;
   const expectedScore = `${scores.expectedHomeGoals}-${scores.expectedAwayGoals}`;
+  const riskLower = risk.toLowerCase();
 
-  // Determine the predicted total goals and BTTS flag from the picks
-  const goalsPick = match.goals_pick || "";
-  const bttsPick = match.btts_pick || "";
-  const isOver25 = goalsPick === "Over 2.5 Goals";
-  const isBTTSYes = bttsPick === "Both Teams to Score";
+  // Determine what the main pick implies about the favoured team
+  const isHomePick = prediction === "Home Win";
+  const isAwayPick = prediction === "Away Win";
+  const isDrawPick = prediction === "Draw";
 
-  // ---------- BUILD OBSERVATIONS FROM REAL DATA ----------
+  // Determine if the form / strength data leans home or away
+  const formEdgeHome = homeForm - awayForm;
+  const strengthEdgeHome = strengthA - strengthB;
+  const positionEdgeHome = (posA && posB) ? posB - posA : 0; // positive = home better (lower rank)
+
   const observations: string[] = [];
 
-  // --- 1. Form comparison (improved) ---
+  // ---------- 1. FORM ANALYSIS (always consistent with pick) ----------
   if (homeForm > 0 && awayForm > 0) {
     const diff = Math.abs(homeForm - awayForm);
-    const maxForm = Math.max(homeForm, awayForm);
-    if (maxForm <= 2) {
-      // Both teams are struggling
-      observations.push(
-        `${home} and ${away} have both struggled for consistency, managing just ${homeForm} and ${awayForm} points respectively from their last five matches.`
-      );
-    } else if (diff <= 1) {
-      observations.push(
-        `${home} and ${away} arrive in nearly identical form, with ${homeForm} and ${awayForm} points from their last five outings respectively.`
-      );
-    } else if (homeForm > awayForm) {
-      observations.push(
-        `${home} hold a clear form advantage, collecting ${homeForm} points from their last 5 matches compared to just ${awayForm} for ${away}.`
-      );
-    } else {
-      observations.push(
-        `${away} are the sharper side on recent evidence, having banked ${awayForm} points from five games versus ${homeForm} for the hosts.`
-      );
+
+    if (isHomePick) {
+      if (formEdgeHome >= 3) {
+        observations.push(`${home} hold a clear form advantage, collecting ${homeForm} points from their last 5 matches compared to just ${awayForm} for ${away}.`);
+      } else if (formEdgeHome >= 1) {
+        observations.push(`${home} come into this match with a slight edge in recent form (${homeForm} vs ${awayForm} points), which could prove decisive at home.`);
+      } else if (formEdgeHome <= -3) {
+        // Contradiction: away has better form but we're picking home
+        observations.push(`Despite ${away}’s superior recent form (${awayForm} pts vs ${homeForm}), ${home}’s home advantage and overall quality tilt the balance.`);
+      } else if (formEdgeHome <= -1) {
+        observations.push(`While ${away} have been slightly more consistent lately, ${home}’s home strength and squad depth give them the nod.`);
+      } else {
+        observations.push(`Both sides are evenly matched on recent form, but ${home}’s home advantage and deeper squad give them the edge.`);
+      }
+    } else if (isAwayPick) {
+      if (formEdgeHome <= -3) {
+        observations.push(`${away} hold a clear form advantage, collecting ${awayForm} points from their last 5 matches compared to just ${homeForm} for the hosts.`);
+      } else if (formEdgeHome <= -1) {
+        observations.push(`${away} travel with a slight edge in recent form (${awayForm} vs ${homeForm} points), which makes them favourites.`);
+      } else if (formEdgeHome >= 3) {
+        observations.push(`Even though ${home} boast superior recent form (${homeForm} pts), ${away}’s quality on the road and tactical setup give them the advantage.`);
+      } else {
+        observations.push(`Recent form is nearly identical, but ${away}’s away record and counter‑attacking ability tip the scales.`);
+      }
+    } else if (isDrawPick) {
+      if (diff <= 2) {
+        observations.push(`${home} and ${away} arrive in nearly identical form (${homeForm} vs ${awayForm} points), making a stalemate the most likely outcome.`);
+      } else if (formEdgeHome > 2) {
+        observations.push(`Although ${home} have been the better side lately (${homeForm} pts), ${away}’s resilience on the road could force a share of the points.`);
+      } else {
+        observations.push(`Despite ${away}’s recent edge in form (${awayForm} pts), ${home}’s home strength may be enough to secure a draw.`);
+      }
     }
   } else if (homeForm > 0) {
     observations.push(`${home} have gathered ${homeForm} points from their last 5 fixtures.`);
@@ -74,105 +94,101 @@ export function generateAnalysis(
     observations.push(`${away} bring ${awayForm} points from their previous 5 matches.`);
   }
 
-  // --- 2. Attacking strength (capped at 3.0) ---
-  if (homeGoals >= 2 && homeGoals <= 3) {
-    observations.push(
-      `${home} carry genuine attacking threat, averaging ${homeGoals} goals per game in front of their own supporters.`
-    );
-  } else if (homeGoals > 3) {
-    observations.push(`${home} have been consistently dangerous in attack, especially at home.`);
-  }
+  // ---------- 2. ATTACKING THREAT (support pick) ----------
+  const showHomeAttack = isHomePick || isDrawPick;
+  const showAwayAttack = isAwayPick || isDrawPick;
 
-  if (awayGoals >= 2 && awayGoals <= 3) {
-    observations.push(
-      `${away} are equally capable going forward, posting an average of ${awayGoals} goals per away match.`
-    );
-  } else if (awayGoals > 3) {
-    observations.push(`${away} have shown they can score freely on the road.`);
-  }
-
-  // --- 3. Defensive solidity ---
-  if (homeClean >= 3) {
-    observations.push(
-      `${home}'s defence has been resolute, recording ${homeClean} clean sheets in their last 5 matches.`
-    );
-  }
-  if (awayClean >= 3) {
-    observations.push(
-      `${away} have matched that defensive strength with ${awayClean} shutouts of their own.`
-    );
-  }
-
-  // --- 4. Goal trends (only if they align with the predicted pick) ---
-  if (homeOver25 >= 60 && isOver25) {
-    observations.push(
-      `${home} have seen Over 2.5 goals in ${homeOver25}% of their recent fixtures.`
-    );
-  }
-  if (awayOver25 >= 60 && isOver25) {
-    observations.push(
-      `${away}'s matches have trended toward high scores, with Over 2.5 hitting in ${awayOver25}% of cases.`
-    );
-  }
-  // If both high but picks say Under, we skip the stat to avoid contradiction.
-
-  // --- 5. BTTS trends (only if they align with the predicted pick) ---
-  if (homeBtts >= 60 && isBTTSYes) {
-    if (homeBtts >= 100) {
-      observations.push(`Both teams have scored in all of ${home}'s recent fixtures.`);
-    } else {
-      observations.push(`BTTS has landed in ${homeBtts}% of ${home}'s recent contests.`);
+  if (showHomeAttack) {
+    if (homeGoals >= 2 && homeGoals <= 3) {
+      observations.push(`${home} carry genuine attacking threat, averaging ${homeGoals} goals per game in front of their own supporters.`);
+    } else if (homeGoals > 3) {
+      observations.push(`${home} have been consistently dangerous in attack, especially at home.`);
     }
   }
-  if (awayBtts >= 60 && isBTTSYes) {
-    if (awayBtts >= 100) {
-      observations.push(`${away} have also seen goals at both ends in every recent outing.`);
-    } else {
-      observations.push(`BTTS has paid out in ${awayBtts}% of ${away}'s latest outings.`);
+  if (showAwayAttack) {
+    if (awayGoals >= 2 && awayGoals <= 3) {
+      observations.push(`${away} are equally capable going forward, posting an average of ${awayGoals} goals per away match.`);
+    } else if (awayGoals > 3) {
+      observations.push(`${away} have shown they can score freely on the road.`);
     }
   }
 
-  // --- 6. Weakness flags ---
-  if (homeFailed >= 3) {
-    observations.push(`${home} have blanked in ${homeFailed} of their last 5 — a concern in the final third.`);
+  // ---------- 3. DEFENSIVE SOLIDITY ----------
+  if (isHomePick && homeClean >= 3) {
+    observations.push(`${home}'s defence has been resolute, recording ${homeClean} clean sheets in their last 5 matches.`);
   }
-  if (awayFailed >= 3) {
-    observations.push(`${away} have failed to score in ${awayFailed} of their last 5, struggling to convert chances.`);
+  if (isAwayPick && awayClean >= 3) {
+    observations.push(`${away} have matched that defensive steel with ${awayClean} shutouts of their own across the same period.`);
+  }
+  if (isDrawPick) {
+    if (homeClean >= 3) observations.push(`${home} have kept ${homeClean} clean sheets in their last 5.`);
+    if (awayClean >= 3) observations.push(`${away} have recorded ${awayClean} shutouts, setting up a tight defensive contest.`);
   }
 
-  // --- 8. League position ---
-  const posA = safeNum(match.league_position_a);
-  const posB = safeNum(match.league_position_b);
+  // ---------- 4. GOAL TRENDS (only if aligned with picks) ----------
+  const goalsPick = match.goals_pick || "";
+  const isOverPick = goalsPick === "Over 2.5 Goals";
+  const isUnderPick = goalsPick === "Under 2.5 Goals";
+  const bttsPick = match.btts_pick || "";
+  const isBttsYes = bttsPick === "Both Teams to Score";
+
+  if (isOverPick) {
+    if (homeOver25 >= 60) observations.push(`${home} have seen Over 2.5 goals in ${homeOver25}% of their recent fixtures.`);
+    if (awayOver25 >= 60) observations.push(`${away}'s matches have trended toward high scores, with Over 2.5 hitting in ${awayOver25}% of cases.`);
+  }
+  if (isUnderPick) {
+    if (homeOver25 < 40) observations.push(`${home}'s recent games have been low‑scoring affairs.`);
+    if (awayOver25 < 40) observations.push(`${away} have also struggled to produce high‑scoring matches.`);
+  }
+  if (isBttsYes) {
+    if (homeBtts >= 60) observations.push(`Both teams have scored in ${homeBtts}% of ${home}'s recent contests.`);
+    if (awayBtts >= 60) observations.push(`BTTS has paid out in ${awayBtts}% of ${away}'s latest outings.`);
+  }
+  if (!isBttsYes) {
+    if (homeBtts < 30) observations.push(`${home}'s matches rarely see goals at both ends.`);
+    if (awayBtts < 30) observations.push(`${away} have also kept things tight at the back.`);
+  }
+
+  // ---------- 5. WEAKNESS FLAGS (support pick) ----------
+  if (isHomePick && awayFailed >= 3) {
+    observations.push(`${away} have blanked in ${awayFailed} of their last 5, struggling to convert chances.`);
+  }
+  if (isAwayPick && homeFailed >= 3) {
+    observations.push(`${home} have fired blanks in ${homeFailed} of their last 5, a major concern.`);
+  }
+
+  // ---------- 6. LEAGUE POSITION (only if meaningful) ----------
   if (posA > 0 && posB > 0) {
-    if (posA < posB) {
+    if (isHomePick && posA < posB) {
       observations.push(`${home} sit higher in the standings (${posA} vs ${posB}), which may give them a psychological edge.`);
-    } else if (posB < posA) {
+    } else if (isAwayPick && posB < posA) {
       observations.push(`${away} enjoy a superior league position (${posB} to ${posA}) heading into this clash.`);
-    } else {
+    } else if (isDrawPick) {
       observations.push(`Both sides are level in the table, making this a crucial encounter.`);
     }
+    // if position contradicts pick, omit
   }
 
-  // ---------- CONCLUSION (varied by risk & confidence) ----------
+  // ---------- 7. CONCLUSION (varied by risk) ----------
   const engineProb = scores[prediction];
-  const riskLower = risk.toLowerCase();
-  const conclusionsLowRisk = [
+
+  const conclusionsLow = [
     `Our model projects a final score of ${expectedScore} and sees ${prediction} as the most logical outcome with a ${confidence}% confidence rating. A ${stake} stake is recommended for this low‑risk opportunity.`,
     `The expected scoreline of ${expectedScore} aligns perfectly with ${prediction} at a ${confidence}% confidence tier. Given the low‑risk profile, a ${stake} allocation offers sensible exposure.`,
   ];
-  const conclusionsMedRisk = [
+  const conclusionsMed = [
     `With an expected final score of ${expectedScore}, ${prediction} stands out at a ${confidence}% confidence level. The moderate risk warrants a controlled ${stake} stake.`,
     `The numbers point to a ${expectedScore} finish, supporting ${prediction}. At ${confidence}% confidence and medium risk, we suggest a ${stake} unit allocation.`,
   ];
-  const conclusionsHighRisk = [
+  const conclusionsHigh = [
     `This is a riskier call — the underlying metrics flag ${prediction} as a value angle despite a projected ${expectedScore} scoreline. Confidence sits at ${confidence}%; keep stakes tight at ${stake}.`,
     `${prediction} offers potential value here, though the high‑risk nature means volatility is expected. The model projects a ${expectedScore} outcome and assigns ${confidence}% confidence — limit exposure to ${stake}.`,
   ];
 
   let conclusion = "";
-  if (riskLower === "low") conclusion = pick(conclusionsLowRisk);
-  else if (riskLower === "medium") conclusion = pick(conclusionsMedRisk);
-  else conclusion = pick(conclusionsHighRisk);
+  if (riskLower === "low") conclusion = pick(conclusionsLow);
+  else if (riskLower === "medium") conclusion = pick(conclusionsMed);
+  else conclusion = pick(conclusionsHigh);
 
   // ---------- FALLBACK when no stats exist ----------
   if (!hasStats) {
@@ -185,7 +201,6 @@ export function generateAnalysis(
 
   // ---------- ASSEMBLE (limit to 3 strongest observations) ----------
   const selectedObservations = observations.slice(0, 3);
-    // Ensure minimum substance
   if (selectedObservations.length < 2) {
     selectedObservations.push(`This is a tightly‑poised contest where small margins will likely decide the outcome.`);
   }
