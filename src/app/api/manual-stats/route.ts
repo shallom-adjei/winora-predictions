@@ -1,12 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// ----- Recency weight (half‑life ~1 year) -----
-function recencyWeight(dateStr: string): number {
-  const daysAgo = (new Date().getTime() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24);
-  return Math.exp(-daysAgo / 365);
+// ----- Helpers -----
+
+function rankingToElo(rank: number): number {
+  if (!rank || rank <= 0) return 1500;
+  return 2400 - (rank - 1) * 4;   // rough mapping, good enough for starting Elo
 }
 
-// ----- Standard stats calculator (unchanged, but now returns raw data for Dixon‑Coles) -----
+function competitionWeight(competition: string): number {
+  const c = (competition || "").toLowerCase();
+  if (c.includes("world cup")) return 1.0;
+  if (c.includes("continental") || c.includes("euro") || c.includes("copa")) return 0.9;
+  if (c.includes("qualif")) return 0.85;
+  if (c.includes("friendly")) return 0.5;
+  return 0.7;   // default for unknown
+}
+
+function calculateRestDays(matches: any[]): number | null {
+  if (matches.length < 2) return null;
+  const sorted = [...matches].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const d1 = new Date(sorted[0].date);
+  const d2 = new Date(sorted[1].date);
+  return Math.round((d1.getTime() - d2.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+// ----- Original stats calculator (unchanged) -----
 function calculateStatsFromMatches(matches: any[]) {
   let formPoints = 0;
   let homeGoals = 0, homeConceded = 0, homeCount = 0;
@@ -62,7 +80,7 @@ function calculateStatsFromMatches(matches: any[]) {
   };
 }
 
-// ----- Dixon‑Coles attack/defense parameters -----
+// ----- Dixon‑Coles parameters -----
 function computeDixonColes(matchesA: any[], matchesB: any[]) {
   const allMatches = [...matchesA, ...matchesB];
   const totalMatches = allMatches.length;
@@ -83,53 +101,9 @@ function computeDixonColes(matchesA: any[], matchesB: any[]) {
   return { attA, defA, attB, defB, overallAvg: overallAvgGoals };
 }
 
-// ----- Recency‑weighted H2H calculator -----
-function calculateWeightedH2H(h2hMatches: any[]) {
-  if (!h2hMatches.length) return null;
-
-  let weightedHomeWins = 0, weightedDraws = 0, weightedAwayWins = 0;
-  let weightedOver25 = 0, weightedBtts = 0, totalWeight = 0;
-
-  for (const m of h2hMatches) {
-    const w = recencyWeight(m.date);
-    totalWeight += w;
-    const hs = m.homeScore, as = m.awayScore;
-    if (hs > as) weightedHomeWins += w;
-    else if (hs === as) weightedDraws += w;
-    else weightedAwayWins += w;
-    if (hs + as > 2.5) weightedOver25 += w;
-    if (hs > 0 && as > 0) weightedBtts += w;
-  }
-
-  if (totalWeight === 0) return null;
-
-  return {
-    h2h_home_wins: Math.round(weightedHomeWins / totalWeight * 5),
-    h2h_draws: Math.round(weightedDraws / totalWeight * 5),
-    h2h_away_wins: Math.round(weightedAwayWins / totalWeight * 5),
-    h2h_over25_pct: Math.round((weightedOver25 / totalWeight) * 100),
-    h2h_btts_pct: Math.round((weightedBtts / totalWeight) * 100),
-  };
-}
-
-// ----- FIFA ranking → strength (unchanged) -----
-function rankingToStrength(rank: number): number {
-  if (!rank || rank <= 0) return 5;
-  if (rank <= 5) return 10;
-  if (rank <= 10) return 9;
-  if (rank <= 20) return 8;
-  if (rank <= 30) return 7;
-  if (rank <= 50) return 6;
-  if (rank <= 80) return 5;
-  if (rank <= 120) return 4;
-  if (rank <= 160) return 3;
-  if (rank <= 200) return 2;
-  return 1;
-}
-
 // ----- Main endpoint -----
 export async function POST(req: NextRequest) {
-  const { matchId, matchesA, matchesB, h2hMatches, fifaRankingA, fifaRankingB } = await req.json();
+  const { matchId, matchesA, matchesB, h2hMatches, fifaRankingA, fifaRankingB, eloA, eloB } = await req.json();
   if (!matchId || !matchesA || !matchesB) {
     return NextResponse.json({ error: "Missing required data" }, { status: 400 });
   }
@@ -138,8 +112,18 @@ export async function POST(req: NextRequest) {
 
   const statsA = calculateStatsFromMatches(matchesA);
   const statsB = calculateStatsFromMatches(matchesB);
-  const weightedH2H = calculateWeightedH2H(h2hMatches || []);
-  const { attA, defA, attB, defB } = computeDixonColes(matchesA, matchesB);
+  const dc = computeDixonColes(matchesA, matchesB);
+
+  // Rest days from the match lists
+  const restA = calculateRestDays(matchesA);
+  const restB = calculateRestDays(matchesB);
+
+  // Elo ratings – use AI‑provided if available, else derive from FIFA ranking
+  const finalEloA = eloA || (fifaRankingA ? rankingToElo(fifaRankingA) : null);
+  const finalEloB = eloB || (fifaRankingB ? rankingToElo(fifaRankingB) : null);
+
+  // Competition weight – use the most common competition in the match list
+  const weight = competitionWeight(matchesA[0]?.competition || "");
 
   const update: any = {
     enrichment_source: "manual",
@@ -159,23 +143,12 @@ export async function POST(req: NextRequest) {
     btts_last5_pct_b: statsB.btts_last5_pct,
     matches_used_a: statsA.matches_used,
     matches_used_b: statsB.matches_used,
-    strength_a: fifaRankingA ? rankingToStrength(fifaRankingA) : null,
-    strength_b: fifaRankingB ? rankingToStrength(fifaRankingB) : null,
-    league_position_a: fifaRankingA || null,
-    league_position_b: fifaRankingB || null,
-    att_a: attA,
-    def_a: defA,
-    att_b: attB,
-    def_b: defB,
+    att_a: dc.attA, def_a: dc.defA,
+    att_b: dc.attB, def_b: dc.defB,
+    elo_a: finalEloA, elo_b: finalEloB,
+    rest_days_a: restA, rest_days_b: restB,
+    competition_weight: weight,
   };
-
-  if (weightedH2H) {
-    update.h2h_home_wins = weightedH2H.h2h_home_wins;
-    update.h2h_draws = weightedH2H.h2h_draws;
-    update.h2h_away_wins = weightedH2H.h2h_away_wins;
-    update.h2h_over25_pct = weightedH2H.h2h_over25_pct;
-    update.h2h_btts_pct = weightedH2H.h2h_btts_pct;
-  }
 
   const { error } = await supabase
     .from("predictions")

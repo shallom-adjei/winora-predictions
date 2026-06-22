@@ -21,9 +21,21 @@ export interface PredictionScores {
   expectedAwayGoals: number;
 }
 
+// Elo → goal advantage factor (1 Elo point ≈ 0.0005 goals)
+function eloFactor(eloDiff: number): number {
+  return 1 + eloDiff * 0.0005;
+}
+
+// Fatigue factor: <3 days rest penalises xG
+function fatigueFactor(restDays: number | null): number {
+  if (restDays === null) return 1;
+  if (restDays <= 2) return 0.92;
+  if (restDays === 3) return 0.96;
+  return 1;
+}
+
 export function computePrediction(match: any): PredictionScores {
-  // ----- Basic stats -----
-    // ----- Dixon‑Coles expected goals (if available) -----
+  // ----- Dixon‑Coles expected goals (if available) -----
   const attA = Number(match.att_a);
   const defA = Number(match.def_a);
   const attB = Number(match.att_b);
@@ -33,11 +45,10 @@ export function computePrediction(match: any): PredictionScores {
   let expectedAway: number;
 
   if (attA && defA && attB && defB) {
-    // Dixon‑Coles model: xG = attack * opponent_defense * league_avg * home_advantage
-    const overallAvg = 2.5;    // reasonable global average goals per match
+    const overallAvg = 2.5;
     const homeAdvantage = 1.15;
     expectedHome = attA * defB * overallAvg * homeAdvantage;
-    expectedAway = attB * defA * overallAvg * (2 - homeAdvantage);   // away disadvantage symmetrical
+    expectedAway = attB * defA * overallAvg * (2 - homeAdvantage);
   } else {
     // Fallback heuristic
     const homeScored = Number(match.home_goals_scored) || 0;
@@ -49,14 +60,26 @@ export function computePrediction(match: any): PredictionScores {
     expectedAway = (awayScored * 0.4 + homeConceded * 0.6) * 0.95;
   }
 
-  // ----- Strength modifier (global shift) -----
-  const strengthA = Number(match.strength_a) || 5;
-  const strengthB = Number(match.strength_b) || 5;
-  const strengthFactorA = 0.7 + (strengthA * 0.06);
-  const strengthFactorB = 0.7 + (strengthB * 0.06);
+  // ----- Elo modifier -----
+  const eloA = Number(match.elo_a) || 1500;
+  const eloB = Number(match.elo_b) || 1500;
+  const eloDiff = eloA - eloB;
+  const eloFactorA = eloFactor(eloDiff);
+  const eloFactorB = 1 / eloFactorA;   // symmetrical
 
-  expectedHome *= strengthFactorA;
-  expectedAway *= strengthFactorB;
+  expectedHome *= eloFactorA;
+  expectedAway *= eloFactorB;
+
+  // ----- Competition weight (applied to xG to scale down friendlies) -----
+  const weight = Number(match.competition_weight) || 1;
+  expectedHome *= weight;
+  expectedAway *= weight;
+
+  // ----- Rest days / fatigue -----
+  const restA = Number(match.rest_days_a) || null;
+  const restB = Number(match.rest_days_b) || null;
+  expectedHome *= fatigueFactor(restA);
+  expectedAway *= fatigueFactor(restB);
 
   // ----- Goal floor -----
   const goalFloor = 0.5;
@@ -118,7 +141,7 @@ export function computePrediction(match: any): PredictionScores {
   };
 }
 
-// ----- Confidence with data‑quality factor -----
+// ----- Confidence (unchanged) -----
 export function calculateConfidence(
   scores: PredictionScores,
   targetMarket: keyof PredictionScores,
@@ -132,9 +155,7 @@ export function calculateConfidence(
   if (targetMarket === "Over 1.5 Goals") baseline = 75;
 
   const edge = prob - baseline;
-
-  // Data‑quality modifier: fewer matches → lower confidence
-  const dataFactor = Math.min(1, matchesUsed / 10);   // 0.5 for 5 matches, 1.0 for 10+
+  const dataFactor = Math.min(1, matchesUsed / 10);
   const rawConfidence = 60 + edge * 0.6 + dataQuality * 0.15 * dataFactor;
 
   return Math.min(Math.max(Math.round(rawConfidence), 50), 92);

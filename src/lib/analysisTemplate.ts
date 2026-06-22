@@ -169,6 +169,16 @@ export function generateAnalysis(
     // if position contradicts pick, omit
   }
 
+    // ---------- 6. REST DAYS (if short) ----------
+  const restA = safeNum(match.rest_days_a);
+  const restB = safeNum(match.rest_days_b);
+  if (restA > 0 && restA <= 3) observations.push(`${home} have had only ${restA} days of rest, which could lead to fatigue.`);
+  if (restB > 0 && restB <= 3) observations.push(`${away} are on a short turnaround with just ${restB} days since their last match.`);
+
+  // ---------- 7. COMPETITION IMPORTANCE (if it's a friendly) ----------
+  const weight = safeNum(match.competition_weight);
+  if (weight > 0 && weight < 0.7) observations.push(`This is a less competitive fixture, which may affect motivation and line‑ups.`);
+
   // ---------- 7. CONCLUSION (varied by risk) ----------
   const engineProb = scores[prediction];
 
