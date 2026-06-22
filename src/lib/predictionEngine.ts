@@ -36,10 +36,16 @@ function fatigueFactor(restDays: number | null): number {
 
 export function computePrediction(match: any): PredictionScores {
   // ----- Dixon‑Coles expected goals (if available) -----
-  const attA = Number(match.att_a);
-  const defA = Number(match.def_a);
-  const attB = Number(match.att_b);
-  const defB = Number(match.def_b);
+const rawAttA = Number(match.att_a);
+const rawDefA = Number(match.def_a);
+const rawAttB = Number(match.att_b);
+const rawDefB = Number(match.def_b);
+
+const clamp = (v: number) => Math.min(2.5, Math.max(0.3, v));
+const attA = rawAttA ? clamp(rawAttA) : null;
+const defA = rawDefA ? clamp(rawDefA) : null;
+const attB = rawAttB ? clamp(rawAttB) : null;
+const defB = rawDefB ? clamp(rawDefB) : null;
 
   let expectedHome: number;
   let expectedAway: number;
@@ -51,6 +57,17 @@ export function computePrediction(match: any): PredictionScores {
     expectedAway = attB * defA * overallAvg * (2 - homeAdvantage);
   } else {
     // Fallback heuristic
+    const homeScored = Number(match.home_goals_scored) || 0;
+    const homeConceded = Number(match.home_goals_conceded) || 0;
+    const awayScored = Number(match.away_goals_scored) || 0;
+    const awayConceded = Number(match.away_goals_conceded) || 0;
+
+    expectedHome = (homeScored * 0.6 + awayConceded * 0.4) * 1.05;
+    expectedAway = (awayScored * 0.4 + homeConceded * 0.6) * 0.95;
+  }
+
+    // Safety check – if both expected goals are still unrealistically low, fall back to raw averages
+  if (expectedHome < 0.5 && expectedAway < 0.5) {
     const homeScored = Number(match.home_goals_scored) || 0;
     const homeConceded = Number(match.home_goals_conceded) || 0;
     const awayScored = Number(match.away_goals_scored) || 0;
