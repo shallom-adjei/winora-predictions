@@ -3,16 +3,28 @@ import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, ChevronUp, Activity } from "lucide-react";
 import AffiliateCta from "@/components/AffiliateCta";
+import { computePrediction } from "@/lib/predictionEngine";
 
-function comboScore(match: any): number {
-  const confidence = Number(match.confidence) || 0;
-  const matchesUsedA = Number(match.matches_used_a) || 0;
-  const matchesUsedB = Number(match.matches_used_b) || 0;
-  const minMatches = Math.min(matchesUsedA, matchesUsedB);
-  const formA = Number(match.form_points_a) || 0;
-  const formB = Number(match.form_points_b) || 0;
-  const formGap = Math.abs(formA - formB);
-  return confidence + Math.min(minMatches, 20) + Math.min(formGap, 10);
+// Markets we consider for the combo (exclude 1X/X2 – those are “safe”)
+const COMBO_MARKETS = [
+  "Home Win", "Draw", "Away Win",
+  "Over 1.5 Goals", "Over 2.5 Goals", "Under 2.5 Goals",
+  "Both Teams to Score", "BTTS No"
+] as const;
+
+function bestMarket(match: any) {
+  const scores = computePrediction(match);
+  let best: string | null = null;
+  let bestProb = 0;
+
+  for (const market of COMBO_MARKETS) {
+    const prob = scores[market as keyof typeof scores] as number;
+    if (prob > bestProb) {
+      bestProb = prob;
+      best = market;
+    }
+  }
+  return { market: best, confidence: bestProb };
 }
 
 export default function ComboPicks({ predictions }: { predictions: any[] }) {
@@ -21,7 +33,12 @@ export default function ComboPicks({ predictions }: { predictions: any[] }) {
   const topFive = useMemo(() => {
     return predictions
       .filter((p: any) => p.prediction && p.prediction !== "No recommendation" && p.match_status !== "FINISHED")
-      .sort((a: any, b: any) => comboScore(b) - comboScore(a))
+      .map((p: any) => {
+        const { market, confidence } = bestMarket(p);
+        return { ...p, comboMarket: market, comboConfidence: confidence };
+      })
+      .filter((p: any) => p.comboMarket) // in case engine returns nothing
+      .sort((a: any, b: any) => b.comboConfidence - a.comboConfidence)
       .slice(0, 5);
   }, [predictions]);
 
@@ -36,12 +53,12 @@ export default function ComboPicks({ predictions }: { predictions: any[] }) {
           ⚡ Daily Combo
         </h2>
         <div className="flex items-center gap-2 text-gray-400 text-sm">
-          <span className="hidden sm:inline">Top 5 value matches</span>
+          <span className="hidden sm:inline">Top 5 value picks</span>
           {open ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
         </div>
       </div>
 
-      {/* Expanded view – only top 5 matches, main pick only */}
+      {/* Expanded view – top 5 matches, each showing the best market */}
       <AnimatePresence>
         {open && (
           <motion.div
@@ -76,13 +93,13 @@ export default function ComboPicks({ predictions }: { predictions: any[] }) {
                       </div>
                     </div>
 
-                    {/* Only main pick + confidence */}
-                    <p className="text-sm font-semibold text-center">{match.main_pick}</p>
+                    {/* Combo pick – the most probable market */}
+                    <p className="text-sm font-semibold text-center text-gold-400">{match.comboMarket}</p>
                     <div className="mt-2 flex items-center gap-2">
                       <div className="h-1.5 flex-1 rounded-full bg-gray-800">
-                        <div className="h-full rounded-full bg-green-500" style={{ width: `${match.confidence}%` }} />
+                        <div className="h-full rounded-full bg-green-500" style={{ width: `${match.comboConfidence}%` }} />
                       </div>
-                      <span className="text-xs font-bold text-green-500">{match.confidence}%</span>
+                      <span className="text-xs font-bold text-green-500">{match.comboConfidence}%</span>
                     </div>
 
                     {match.expected_score && (
