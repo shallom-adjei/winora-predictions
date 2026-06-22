@@ -5,26 +5,23 @@ import { ChevronDown, ChevronUp, Activity } from "lucide-react";
 import AffiliateCta from "@/components/AffiliateCta";
 import { computePrediction } from "@/lib/predictionEngine";
 
-// Markets we consider for the combo (exclude 1X/X2 – those are “safe”)
-const COMBO_MARKETS = [
-  "Home Win", "Draw", "Away Win",
-  "Over 1.5 Goals", "Over 2.5 Goals", "Under 2.5 Goals",
-  "Both Teams to Score", "BTTS No"
-] as const;
+// Market baselines – roughly the global average probability
+const BASELINES: Record<string, number> = {
+  "Home Win": 33,
+  "Draw": 24,
+  "Away Win": 28,
+  "Over 1.5 Goals": 75,
+  "Over 2.5 Goals": 50,
+  "Under 2.5 Goals": 50,
+  "Both Teams to Score": 50,
+  "BTTS No": 50,
+};
 
-function bestMarket(match: any) {
-  const scores = computePrediction(match);
-  let best: string | null = null;
-  let bestProb = 0;
+// Markets we consider (excluding safe 1X/X2)
+const COMBO_MARKETS = Object.keys(BASELINES);
 
-  for (const market of COMBO_MARKETS) {
-    const prob = scores[market as keyof typeof scores] as number;
-    if (prob > bestProb) {
-      bestProb = prob;
-      best = market;
-    }
-  }
-  return { market: best, confidence: bestProb };
+function marketEdge(prob: number, market: string): number {
+  return prob - (BASELINES[market] || 0);
 }
 
 export default function ComboPicks({ predictions }: { predictions: any[] }) {
@@ -34,11 +31,39 @@ export default function ComboPicks({ predictions }: { predictions: any[] }) {
     return predictions
       .filter((p: any) => p.prediction && p.prediction !== "No recommendation" && p.match_status !== "FINISHED")
       .map((p: any) => {
-        const { market, confidence } = bestMarket(p);
-        return { ...p, comboMarket: market, comboConfidence: confidence };
+        const scores = computePrediction(p);
+        let bestMarket: string | null = null;
+        let bestEdge = -Infinity;
+
+        for (const market of COMBO_MARKETS) {
+          const prob = (scores as any)[market] as number;
+          if (prob === undefined) continue;
+          const edge = marketEdge(prob, market);
+          if (edge > bestEdge) {
+            bestEdge = edge;
+            bestMarket = market;
+          }
+        }
+
+        // Composite score: edge + data depth + form gap
+        const matchesUsedA = Number(p.matches_used_a) || 0;
+        const matchesUsedB = Number(p.matches_used_b) || 0;
+        const minMatches = Math.min(matchesUsedA, matchesUsedB);
+        const formA = Number(p.form_points_a) || 0;
+        const formB = Number(p.form_points_b) || 0;
+        const formGap = Math.abs(formA - formB);
+
+        const comboScore = bestEdge + Math.min(minMatches, 20) * 0.5 + Math.min(formGap, 10) * 0.3;
+
+        return {
+          ...p,
+          comboMarket: bestMarket,
+          comboConfidence: bestMarket ? (scores as any)[bestMarket] : 0,
+          comboScore,
+        };
       })
-      .filter((p: any) => p.comboMarket) // in case engine returns nothing
-      .sort((a: any, b: any) => b.comboConfidence - a.comboConfidence)
+      .filter((p: any) => p.comboMarket && p.comboConfidence >= 50)  // only reasonable confidence
+      .sort((a: any, b: any) => b.comboScore - a.comboScore)
       .slice(0, 5);
   }, [predictions]);
 
@@ -93,7 +118,7 @@ export default function ComboPicks({ predictions }: { predictions: any[] }) {
                       </div>
                     </div>
 
-                    {/* Combo pick – the most probable market */}
+                    {/* Combo pick – the highest edge market */}
                     <p className="text-sm font-semibold text-center text-gold-400">{match.comboMarket}</p>
                     <div className="mt-2 flex items-center gap-2">
                       <div className="h-1.5 flex-1 rounded-full bg-gray-800">
