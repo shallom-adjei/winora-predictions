@@ -131,8 +131,6 @@ export async function POST(req: NextRequest) {
     btts_last5_pct_b: statsB.btts_last5_pct,
     matches_used_a: statsA.matches_used,
     matches_used_b: statsB.matches_used,
-    att_a: dc.attA, def_a: dc.defA,
-    att_b: dc.attB, def_b: dc.defB,
     elo_a: finalEloA, elo_b: finalEloB,
     rest_days_a: restA, rest_days_b: restB,
   };
