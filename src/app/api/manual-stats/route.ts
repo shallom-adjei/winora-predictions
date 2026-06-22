@@ -7,15 +7,6 @@ function rankingToElo(rank: number): number {
   return 2400 - (rank - 1) * 4;   // rough mapping, good enough for starting Elo
 }
 
-function competitionWeight(competition: string): number {
-  const c = (competition || "").toLowerCase();
-  if (c.includes("world cup")) return 1.0;
-  if (c.includes("continental") || c.includes("euro") || c.includes("copa")) return 0.9;
-  if (c.includes("qualif")) return 0.85;
-  if (c.includes("friendly")) return 0.5;
-  return 0.7;   // default for unknown
-}
-
 function calculateRestDays(matches: any[]): number | null {
   if (matches.length < 2) return null;
   const sorted = [...matches].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -122,9 +113,6 @@ export async function POST(req: NextRequest) {
   const finalEloA = eloA || (fifaRankingA ? rankingToElo(fifaRankingA) : null);
   const finalEloB = eloB || (fifaRankingB ? rankingToElo(fifaRankingB) : null);
 
-  // Competition weight – use the most common competition in the match list
-  const weight = competitionWeight(matchesA[0]?.competition || "");
-
   const update: any = {
     enrichment_source: "manual",
     form_points_a: statsA.form_points,
@@ -147,7 +135,6 @@ export async function POST(req: NextRequest) {
     att_b: dc.attB, def_b: dc.defB,
     elo_a: finalEloA, elo_b: finalEloB,
     rest_days_a: restA, rest_days_b: restB,
-    competition_weight: weight,
   };
 
   const { error } = await supabase
