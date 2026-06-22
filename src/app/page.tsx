@@ -12,6 +12,20 @@ import { AnalysisModal } from "@/components/AnalysisModal";
 import { useLivePredictions } from "@/hooks/useLivePredictions";
 import AdBanner from "@/components/AdBanner";
 import AffiliateCta from "@/components/AffiliateCta";
+import ComboPicks from "@/components/ComboPicks";
+
+function comboScore(match: any): number {
+  const confidence = Number(match.confidence) || 0;
+  const matchesUsedA = Number(match.matches_used_a) || 0;
+  const matchesUsedB = Number(match.matches_used_b) || 0;
+  const minMatches = Math.min(matchesUsedA, matchesUsedB);
+  const formA = Number(match.form_points_a) || 0;
+  const formB = Number(match.form_points_b) || 0;
+  const formGap = Math.abs(formA - formB);
+
+  // Score: confidence (0-100) + matches depth (0-20) + form gap (0-10)
+  return confidence + Math.min(minMatches, 20) + Math.min(formGap, 10);
+}
 
 export default function Home() {
   const [overview, setOverview] = useState({
@@ -281,6 +295,9 @@ const topPicks = livePredictions
   <AdBanner variant="banner" />
 </div>
       </section>
+
+      {/* ===== DAILY COMBO ===== */}
+      <ComboPicks predictions={livePredictions} />
 
       {/* ===== TODAY'S TOP PICKS ===== */}
       <section className="mx-auto max-w-[1280px] px-6 lg:px-8 mb-12 lg:mb-24">
