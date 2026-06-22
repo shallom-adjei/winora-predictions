@@ -21,8 +21,8 @@ Return ONLY a valid JSON object with exactly this structure:
   "h2h_matches": [
     { "date": "YYYY-MM-DD", "homeTeam": "${teamA}", "awayTeam": "${teamB}", "homeScore": 2, "awayScore": 0 }
   ],
-  "fifa_ranking_A": 2,
-  "fifa_ranking_B": 61
+  "fifa_ranking_A": <CURRENT_FIFA_RANKING_FOR_TEAM_A>,
+  "fifa_ranking_B": <CURRENT_FIFA_RANKING_FOR_TEAM_B>
 }
 
 - "matches_A": last 10 matches for ${teamA} (include at least 10 if possible)
