@@ -61,7 +61,7 @@ export default function ComboPicks({ predictions }: { predictions: any[] }) {
           comboScore,
         };
       })
-      .filter((p: any) => p.comboMarket && p.comboConfidence >= 50)
+      .filter((p: any) => p.comboMarket && p.comboConfidence >= 65)
       .sort((a: any, b: any) => b.comboScore - a.comboScore);
 
     // Diversity: max 2 of the same market type
