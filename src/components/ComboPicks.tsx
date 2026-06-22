@@ -28,7 +28,7 @@ export default function ComboPicks({ predictions }: { predictions: any[] }) {
   const [open, setOpen] = useState(false);
 
   const topFive = useMemo(() => {
-    return predictions
+    const candidates = predictions
       .filter((p: any) => p.prediction && p.prediction !== "No recommendation" && p.match_status !== "FINISHED")
       .map((p: any) => {
         const scores = computePrediction(p);
@@ -45,7 +45,6 @@ export default function ComboPicks({ predictions }: { predictions: any[] }) {
           }
         }
 
-        // Composite score: edge + data depth + form gap
         const matchesUsedA = Number(p.matches_used_a) || 0;
         const matchesUsedB = Number(p.matches_used_b) || 0;
         const minMatches = Math.min(matchesUsedA, matchesUsedB);
@@ -62,9 +61,21 @@ export default function ComboPicks({ predictions }: { predictions: any[] }) {
           comboScore,
         };
       })
-      .filter((p: any) => p.comboMarket && p.comboConfidence >= 50)  // only reasonable confidence
-      .sort((a: any, b: any) => b.comboScore - a.comboScore)
-      .slice(0, 5);
+      .filter((p: any) => p.comboMarket && p.comboConfidence >= 50)
+      .sort((a: any, b: any) => b.comboScore - a.comboScore);
+
+    // Diversity: max 2 of the same market type
+    const selected: any[] = [];
+    const marketCount: Record<string, number> = {};
+    for (const candidate of candidates) {
+      const market = candidate.comboMarket;
+      if ((marketCount[market] || 0) >= 2) continue; // skip overused markets
+      selected.push(candidate);
+      marketCount[market] = (marketCount[market] || 0) + 1;
+      if (selected.length === 5) break;
+    }
+
+    return selected;
   }, [predictions]);
 
   return (
