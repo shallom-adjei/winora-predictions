@@ -3,17 +3,15 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   BarChart3,
   TrendingUp,
   Users,
-  DollarSign,
   Eye,
-  Bell,
   ArrowUpRight,
   ChevronDown,
   Activity,
-  CreditCard,
   Settings,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -40,7 +38,7 @@ const quickStatsFallback = [
   { label: "Today's Predictions", value: "0", change: "", icon: BarChart3 },
   { label: "Win Rate", value: "0%", change: "", icon: TrendingUp },
   { label: "Pending", value: "0", change: "", icon: Eye },
-  { label: "Avg Confidence", value: "0%", change: "", icon: DollarSign },
+  { label: "Avg Confidence", value: "0%", change: "", icon: TrendingUp },
 ];
 
 const pieDataFallback = [
@@ -186,7 +184,7 @@ export default function AdminDashboard() {
   const [realPieData, setRealPieData] = useState(pieDataFallback);
   const [realPerformanceData, setRealPerformanceData] = useState(performanceDataFallback);
   const [realActivityFeed, setRealActivityFeed] = useState(activityFeedFallback);
-  const [realQuickStats, setRealQuickStats] = useState(quickStatsFallback);
+  const [realQuickStats, setRealQuickStats] = useState<Array<{ label: string; value: string; change: string; icon: React.ElementType }>>(quickStatsFallback);
 
   // ---- OVERVIEW STATE ----
   const [overviewData, setOverviewData] = useState({ winRate: "0" });
@@ -201,11 +199,12 @@ export default function AdminDashboard() {
   const [passwordError, setPasswordError] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
 
-  // ---- HANDLERS ----
-  const handleLogout = () => {
-    document.cookie = "admin_token=; path=/; max-age=0";
-    window.location.href = "/portalsydr/login";
-  };
+  const router = useRouter();
+
+const handleLogout = async () => {
+  await supabase.auth.signOut();
+  router.replace("/portalsydr/login");
+};
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -352,11 +351,11 @@ export default function AdminDashboard() {
         .lte("created_at", todayEnd);
 
       // ----- Quick stats -----
-      setRealQuickStats([
+           setRealQuickStats([
         { label: "Today's Predictions", value: String(todayPreds), change: "", icon: BarChart3 },
         { label: "Win Rate", value: `${winRate}%`, change: "", icon: TrendingUp },
         { label: "Pending", value: String(pending), change: "", icon: Eye },
-        { label: "Avg Confidence", value: `${avgConf}%`, change: "", icon: DollarSign },
+        { label: "Avg Confidence", value: `${avgConf}%`, change: "", icon: TrendingUp },
       ]);
 
       // ----- Pie chart (predictions by sport) -----
@@ -962,33 +961,6 @@ const handleGenerateAll = async () => {
     </tr>
   )}
 </tbody>
-                  <tbody>
-                    {recentPredictions.length > 0 ? (
-                      recentPredictions.map((pred, i) => (
-                        <tr key={i} className="border-b border-white/5 hover:bg-white/5">
-                          <td className="py-4 text-sm">{pred.date}</td>
-                          <td className="py-4 text-sm">{pred.match}</td>
-                          <td className="py-4 text-sm">{pred.prediction}</td>
-                          <td className="py-4 text-sm">{pred.odd}</td>
-                          <td className="py-4 text-sm">{pred.stake}</td>
-                          <td className="py-4">
-                            <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              pred.result === "Win" ? "bg-green-500/10 text-green-500" :
-                              pred.result === "Loss" ? "bg-red-500/10 text-red-500" :
-                              "bg-yellow-500/10 text-yellow-500"
-                            }`}>{pred.result}</span>
-                          </td>
-                          <td className={`py-4 text-sm font-medium ${pred.profit.startsWith("+") ? "text-green-500" : "text-red-500"}`}>
-                            {pred.profit}
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={7} className="py-4 text-center text-gray-500">No recent predictions</td>
-                      </tr>
-                    )}
-                  </tbody>
                 </table>
               </div>
             </div>
