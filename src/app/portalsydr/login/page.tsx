@@ -1,9 +1,11 @@
 "use client";
 import { useState } from "react";
+import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Lock, Eye, EyeOff } from "lucide-react";
 
 export default function AdminLogin() {
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -14,26 +16,19 @@ export default function AdminLogin() {
     setError("");
     setLoading(true);
 
-    try {
-      const res = await fetch("/api/admin-login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
-      });
+    const { error: authError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError(data.error || "Invalid password");
-        return;
-      }
-
-      // Login successful – redirect to dashboard
-      window.location.href = "/portalsydr";
-    } catch {
-      setError("Network error. Please try again.");
-    } finally {
+    if (authError) {
+      setError(authError.message);
       setLoading(false);
+      return;
     }
+
+    // Login successful – redirect to admin dashboard
+    window.location.href = "/portalsydr";
   };
 
   return (
@@ -42,9 +37,19 @@ export default function AdminLogin() {
         <div className="text-center mb-8">
           <Lock className="h-12 w-12 text-gold-400 mx-auto mb-4" />
           <h1 className="text-3xl font-bold text-white">Admin Access</h1>
-          <p className="text-gray-400 mt-2">Enter your password to continue</p>
+          <p className="text-gray-400 mt-2">Sign in with your admin account</p>
         </div>
+
         <form onSubmit={handleSubmit} className="space-y-4">
+          <input
+            type="email"
+            placeholder="Admin email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 outline-none focus:border-gold-400/50"
+            required
+          />
+
           <div className="relative">
             <input
               type={showPassword ? "text" : "password"}
@@ -63,13 +68,15 @@ export default function AdminLogin() {
               {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
             </button>
           </div>
+
           {error && <p className="text-red-400 text-sm">{error}</p>}
+
           <Button
             type="submit"
             disabled={loading}
             className="w-full bg-gold-400 text-black font-semibold hover:bg-gold-500 py-3"
           >
-            {loading ? "Checking..." : "Sign In"}
+            {loading ? "Signing in..." : "Sign In"}
           </Button>
         </form>
       </div>
