@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import PublicHeader from "@/components/PublicHeader";
 import Footer from "@/components/Footer";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
@@ -16,7 +16,19 @@ export default function PredictionsPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
-  const { predictions, loading } = useLivePredictions(false); // exclude finished
+  const [predictions, setPredictions] = useState<any[]>([]);
+const [loading, setLoading] = useState(true);
+
+useEffect(() => {
+  fetch("/api/get-predictions")
+    .then((r) => r.json())
+    .then((data) => {
+      setPredictions(data.predictions || []);
+      setLoading(false);
+    })
+    .catch(() => setLoading(false));
+}, []);
+
 
   // Filter by date range
   const filteredPredictions = useMemo(() => {

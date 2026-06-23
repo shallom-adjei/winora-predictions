@@ -109,7 +109,14 @@ export default function Home() {
   }, []);
 
 // ---- LIVE DATA (replaces old topPicks state) ----
-const { predictions: livePredictions } = useLivePredictions(false);  // exclude finished
+const [livePredictions, setLivePredictions] = useState<any[]>([]);
+
+useEffect(() => {
+  fetch("/api/get-predictions")
+    .then((r) => r.json())
+    .then((data) => setLivePredictions(data.predictions || []))
+    .catch(() => {});
+}, []);
 
 const topPicks = livePredictions
   .filter((p: any) => p.prediction && p.prediction !== "No recommendation")
