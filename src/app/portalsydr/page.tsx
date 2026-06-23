@@ -199,7 +199,18 @@ export default function AdminDashboard() {
   const [passwordError, setPasswordError] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
 
-  const router = useRouter();
+ const router = useRouter();
+const [sessionReady, setSessionReady] = useState(false);
+
+useEffect(() => {
+  supabase.auth.getSession().then(({ data }) => {
+    if (!data.session) {
+      router.replace("/portalsydr/login");
+    } else {
+      setSessionReady(true);
+    }
+  });
+}, [router]);
 
 const handleLogout = async () => {
   await supabase.auth.signOut();
@@ -446,26 +457,6 @@ const uniqueCount = uniqueVisitors
     fetchAnalytics();
   }, []);
 
-const [sessionReady, setSessionReady] = useState(false);
-
-useEffect(() => {
-  supabase.auth.getSession().then(({ data }) => {
-    if (!data.session) {
-      router.replace("/portalsydr/login");
-    } else {
-      setSessionReady(true);
-    }
-  });
-}, [router]);
-
-if (!sessionReady) {
-  return (
-    <div className="flex min-h-screen bg-[#050505] text-white items-center justify-center">
-      <div className="text-xl text-gold-400">Verifying session…</div>
-    </div>
-  );
-}
-
   // ----- Action Handlers -----
   const handleAddPick = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -641,6 +632,14 @@ const handleGenerateAll = async () => {
     } catch { toast.error("Network error"); }
     finally { setUpdating(false); }
   };
+
+    if (!sessionReady) {
+    return (
+      <div className="flex min-h-screen bg-[#050505] text-white items-center justify-center">
+        <div className="text-xl text-gold-400">Verifying session…</div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
