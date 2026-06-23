@@ -1,9 +1,6 @@
-"use client";
-import { useEffect } from "react";
-
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import { Toaster } from "react-hot-toast";
+import { ClientWrapper } from "@/components/ClientWrapper";
 import "./globals.css";
 
 const inter = Inter({
@@ -15,31 +12,6 @@ export const metadata: Metadata = {
   title: "Winora – Sports Intelligence",
   description: "Premium data-driven sports predictions",
 };
-
-function AnalyticsTracker() {
-  useEffect(() => {
-    let visitorId = localStorage.getItem("visitor_id");
-    if (!visitorId) {
-      visitorId =
-        typeof crypto !== "undefined" && crypto.randomUUID
-          ? crypto.randomUUID()
-          : Math.random().toString(36).substring(2);
-      localStorage.setItem("visitor_id", visitorId);
-    }
-
-    fetch("/api/record-view", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        path: window.location.pathname,
-        referrer: document.referrer,
-        visitorId,
-      }),
-    });
-  }, []);
-
-  return null;
-}
 
 export default function RootLayout({
   children,
@@ -57,10 +29,8 @@ export default function RootLayout({
         />
       </head>
       <body className={`${inter.variable} font-sans antialiased`}>
-        <AnalyticsTracker />
-        <Toaster position="top-right" />
-        {children}
-      </body>
+  <ClientWrapper>{children}</ClientWrapper>
+</body>
     </html>
   );
 }
