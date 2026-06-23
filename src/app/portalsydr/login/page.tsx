@@ -27,7 +27,7 @@ export default function AdminLogin() {
       return;
     }
 
-    // Login successful – redirect to admin dashboard
+    // Login successful – redirect to dashboard
     window.location.href = "/portalsydr";
   };
 
