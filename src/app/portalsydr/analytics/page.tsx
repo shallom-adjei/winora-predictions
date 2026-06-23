@@ -129,13 +129,25 @@ export default function AnalyticsPage() {
 
 const router = useRouter();
 
+const [sessionReady, setSessionReady] = useState(false);
+
 useEffect(() => {
   supabase.auth.getSession().then(({ data }) => {
     if (!data.session) {
       router.replace("/portalsydr/login");
+    } else {
+      setSessionReady(true);
     }
   });
 }, [router]);
+
+if (!sessionReady) {
+  return (
+    <div className="flex min-h-screen bg-[#050505] text-white items-center justify-center">
+      <div className="text-xl text-gold-400">Verifying session…</div>
+    </div>
+  );
+}
 
   return (
     <div className="min-h-screen bg-[#050505] text-white p-6">
