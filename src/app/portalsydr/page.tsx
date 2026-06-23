@@ -87,6 +87,7 @@ function Sidebar({
     { title: "Manual Stats", icon: Settings, href: "/portalsydr/manual-stats" },
     { title: "Results", icon: TrendingUp, href: "/portalsydr/results" },
     { title: "Blog", icon: BarChart3, href: "/portalsydr/blog" },
+    { title: "Analytics", icon: BarChart3, href: "/portalsydr/analytics" },
     { title: "Settings", icon: Settings, href: "/portalsydr/settings" },
     { title: "Profile", icon: Users, href: "/portalsydr/profile" },
   ];
@@ -418,6 +419,16 @@ export default function AdminDashboard() {
     } catch (err) {
       console.error("Analytics fetch error:", err);
     }
+
+    // ----- Total visitors (unique visitor IDs) -----
+const { data: uniqueVisitors } = await supabase
+  .from("analytics_events")
+  .select("visitor_id");
+
+const uniqueCount = uniqueVisitors
+  ? new Set(uniqueVisitors.map((r: any) => r.visitor_id)).size
+  : 0;
+
     // Fetch waitlist sign‑ups
     const { data: waitlistData } = await supabase
       .from("waitlist")
@@ -721,9 +732,6 @@ const handleGenerateAll = async () => {
               <span className="text-2xl font-bold">{realPieData.reduce((sum, entry) => sum + entry.value, 0)}</span>
               <p className="text-xs text-gray-400">Total</p>
             </div>
-            <Button variant="ghost" className="text-gold-400 text-xs w-full mt-auto hover:bg-white/5">
-              View Full Report <ArrowUpRight className="ml-1 h-3 w-3" />
-            </Button>
           </div>
 
           <div className="col-span-2 rounded-[20px] bg-[#0D0D0D] border border-white/5 p-6 h-[320px] overflow-y-auto">
