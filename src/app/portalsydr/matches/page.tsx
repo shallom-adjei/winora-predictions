@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import toast from "react-hot-toast";
+import { useRouter } from "next/navigation";
 
 export default function UpcomingMatchesPage() {
   const [matches, setMatches] = useState<any[]>([]);
@@ -24,6 +25,16 @@ export default function UpcomingMatchesPage() {
   useEffect(() => {
     fetchMatches();
   }, []);
+
+const router = useRouter();
+
+useEffect(() => {
+  supabase.auth.getSession().then(({ data }) => {
+    if (!data.session) {
+      router.replace("/portalsydr/login");
+    }
+  });
+}, [router]);
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this match?")) return;

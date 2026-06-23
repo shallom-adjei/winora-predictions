@@ -446,6 +446,14 @@ const uniqueCount = uniqueVisitors
     fetchAnalytics();
   }, []);
 
+  useEffect(() => {
+  supabase.auth.getSession().then(({ data }) => {
+    if (!data.session) {
+      router.replace("/portalsydr/login");
+    }
+  });
+}, [router]);
+
   // ----- Action Handlers -----
   const handleAddPick = async (e: React.FormEvent) => {
     e.preventDefault();

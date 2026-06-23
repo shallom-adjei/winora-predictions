@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, Copy, Check, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import toast from "react-hot-toast";
+import { useRouter } from "next/navigation";
 
 const PROMPT_TEMPLATE = (teamA: string, teamB: string) => `
 You are a football data assistant. Search the web for the most recent competitive matches for **${teamA}** and **${teamB}** (World Cup, qualifiers, continental championships, friendlies against strong opponents) played before today (use current date for context). Also find their current FIFA ranking and the last 5 head‑to‑head meetings between them.
@@ -58,6 +59,16 @@ export default function ManualStatsPage() {
   useEffect(() => {
     fetchMatches();
   }, []);
+
+const router = useRouter();
+
+useEffect(() => {
+  supabase.auth.getSession().then(({ data }) => {
+    if (!data.session) {
+      router.replace("/portalsydr/login");
+    }
+  });
+}, [router]);
 
   const matchesToShow = useMemo(() => {
     if (hideWithStats) {

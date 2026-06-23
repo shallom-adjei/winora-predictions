@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { evaluatePick } from "@/lib/utils";
 import DateFilter from "@/components/DateFilter";
 import toast from "react-hot-toast";
+import { useRouter } from "next/navigation";
 
 function ResultBadge({ result }: { result: "Win" | "Loss" | "Pending" }) {
   return (
@@ -52,6 +53,16 @@ export default function AdminResultsPage() {
   useEffect(() => {
     fetchResults();
   }, [dateFrom, dateTo]);
+
+const router = useRouter();
+
+useEffect(() => {
+  supabase.auth.getSession().then(({ data }) => {
+    if (!data.session) {
+      router.replace("/portalsydr/login");
+    }
+  });
+}, [router]);
 
   // Group by date
   const grouped = useMemo(() => {

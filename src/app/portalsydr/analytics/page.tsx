@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import { ArrowLeft, BarChart3, TrendingUp, Users, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 import {
   LineChart,
   Line,
@@ -125,6 +126,16 @@ export default function AnalyticsPage() {
   useEffect(() => {
     fetchAnalytics();
   }, []);
+
+const router = useRouter();
+
+useEffect(() => {
+  supabase.auth.getSession().then(({ data }) => {
+    if (!data.session) {
+      router.replace("/portalsydr/login");
+    }
+  });
+}, [router]);
 
   return (
     <div className="min-h-screen bg-[#050505] text-white p-6">
