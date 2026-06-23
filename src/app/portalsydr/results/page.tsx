@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import { ArrowLeft, Activity, RefreshCw } from "lucide-react";
@@ -26,13 +26,28 @@ function ResultBadge({ result }: { result: "Win" | "Loss" | "Pending" }) {
 }
 
 export default function AdminResultsPage() {
+  // ---------- ALL HOOKS AT THE TOP (no early returns before them) ----------
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [sessionReady, setSessionReady] = useState(false);
 
-  // Fetch results with date filtering
-  const fetchResults = () => {
+  const router = useRouter();
+
+  // Session guard – redirect to login if not signed in
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (!data.session) {
+        router.replace("/portalsydr/login");
+      } else {
+        setSessionReady(true);
+      }
+    });
+  }, [router]);
+
+  // Fetch results with date filtering, wrapped in useCallback for stable reference
+  const fetchResults = useCallback(() => {
     setLoading(true);
     let query = supabase
       .from("predictions")
@@ -48,35 +63,15 @@ export default function AdminResultsPage() {
       if (data) setResults(data);
       setLoading(false);
     });
-  };
-
-  useEffect(() => {
-    fetchResults();
   }, [dateFrom, dateTo]);
 
-const router = useRouter();
-
-const [sessionReady, setSessionReady] = useState(false);
-
-useEffect(() => {
-  supabase.auth.getSession().then(({ data }) => {
-    if (!data.session) {
-      router.replace("/portalsydr/login");
-    } else {
-      setSessionReady(true);
+  useEffect(() => {
+    if (sessionReady) {
+      fetchResults();
     }
-  });
-}, [router]);
+  }, [sessionReady, fetchResults]);
 
-if (!sessionReady) {
-  return (
-    <div className="flex min-h-screen bg-[#050505] text-white items-center justify-center">
-      <div className="text-xl text-gold-400">Verifying session…</div>
-    </div>
-  );
-}
-
-  // Group by date
+  // Group by date – must be before early return
   const grouped = useMemo(() => {
     const groups: Record<string, any[]> = {};
     results.forEach((match) => {
@@ -92,7 +87,7 @@ if (!sessionReady) {
     return groups;
   }, [results]);
 
-  // Manual score refresh
+  // Regular functions (not hooks) are fine here
   const handleRefreshScores = async () => {
     try {
       const res = await fetch("/api/cron/update-scores");
@@ -104,6 +99,16 @@ if (!sessionReady) {
     }
   };
 
+  // ---------- EARLY RETURN (only after all hooks are declared) ----------
+  if (!sessionReady) {
+    return (
+      <div className="flex min-h-screen bg-[#050505] text-white items-center justify-center">
+        <div className="text-xl text-gold-400">Verifying session…</div>
+      </div>
+    );
+  }
+
+  // ---------- NORMAL RENDER ----------
   return (
     <div className="min-h-screen bg-[#050505] text-white p-6">
       <div className="max-w-7xl mx-auto">

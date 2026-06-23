@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import { ArrowLeft, Copy, Check, Filter } from "lucide-react";
@@ -36,14 +36,30 @@ Return only the JSON object, nothing else.
 `;
 
 export default function ManualStatsPage() {
+  // ---------- ALL HOOKS AT THE TOP (no early returns before them) ----------
   const [allMatches, setAllMatches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedMatch, setExpandedMatch] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [hideWithStats, setHideWithStats] = useState(true);
   const [fullJson, setFullJson] = useState("");
+  const [sessionReady, setSessionReady] = useState(false);
 
-  const fetchMatches = async () => {
+  const router = useRouter();
+
+  // Session guard – redirect to login if not signed in
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (!data.session) {
+        router.replace("/portalsydr/login");
+      } else {
+        setSessionReady(true);
+      }
+    });
+  }, [router]);
+
+  // Fetch upcoming matches
+  const fetchMatches = useCallback(async () => {
     setLoading(true);
     const nowISO = new Date().toISOString();
     const { data } = await supabase
@@ -54,34 +70,15 @@ export default function ManualStatsPage() {
       .limit(50);
     if (data) setAllMatches(data);
     setLoading(false);
-  };
-
-  useEffect(() => {
-    fetchMatches();
   }, []);
 
-const router = useRouter();
-
-const [sessionReady, setSessionReady] = useState(false);
-
-useEffect(() => {
-  supabase.auth.getSession().then(({ data }) => {
-    if (!data.session) {
-      router.replace("/portalsydr/login");
-    } else {
-      setSessionReady(true);
+  useEffect(() => {
+    if (sessionReady) {
+      fetchMatches();
     }
-  });
-}, [router]);
+  }, [sessionReady, fetchMatches]);
 
-if (!sessionReady) {
-  return (
-    <div className="flex min-h-screen bg-[#050505] text-white items-center justify-center">
-      <div className="text-xl text-gold-400">Verifying session…</div>
-    </div>
-  );
-}
-
+  // Derived state (hook, so it must stay before early return)
   const matchesToShow = useMemo(() => {
     if (hideWithStats) {
       return allMatches.filter(m => m.form_points_a == null || m.form_points_a === 0);
@@ -89,6 +86,7 @@ if (!sessionReady) {
     return allMatches;
   }, [allMatches, hideWithStats]);
 
+  // Regular function – fine to stay here
   const copyPrompt = (teamA: string, teamB: string, id: string) => {
     navigator.clipboard.writeText(PROMPT_TEMPLATE(teamA, teamB));
     setCopiedId(id);
@@ -96,6 +94,16 @@ if (!sessionReady) {
     setTimeout(() => setCopiedId(null), 3000);
   };
 
+  // ---------- EARLY RETURN (only after all hooks are declared) ----------
+  if (!sessionReady) {
+    return (
+      <div className="flex min-h-screen bg-[#050505] text-white items-center justify-center">
+        <div className="text-xl text-gold-400">Verifying session…</div>
+      </div>
+    );
+  }
+
+  // ---------- NORMAL RENDER ----------
   return (
     <div className="min-h-screen bg-[#050505] text-white p-6">
       <div className="max-w-7xl mx-auto">
