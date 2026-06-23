@@ -47,7 +47,9 @@ export function generateAnalysis(
   const formEdgeHome = homeForm - awayForm;
   const observations: string[] = [];
 
-  // ----- 1. FORM (many variants, no repeated "despite") -----
+  // =========================================================
+  //  1. FORM – zero "despite" / "although", 3+ variants each
+  // =========================================================
   if (homeForm > 0 && awayForm > 0) {
     const diff = Math.abs(homeForm - awayForm);
 
@@ -65,12 +67,12 @@ export function generateAnalysis(
       } else if (formEdgeHome <= -3) {
         observations.push(pick([
           `${away} may arrive with better recent numbers (${awayForm} pts), but ${home}’s home strength and tactical setup are expected to override that.`,
-          `Although ${away} have posted ${awayForm} points lately, ${home}’s familiarity with home conditions tips the scales.`,
           `Form favours ${away} (${awayForm} pts vs ${homeForm}), yet ${home}’s home resilience often compensates.`,
+          `${home} will lean on their home record to bridge the form gap – ${away} have ${awayForm} pts, ${home} ${homeForm}.`,
         ]));
       } else if (formEdgeHome <= -1) {
         observations.push(pick([
-          `${away} hold a minor form advantage (${awayForm} vs ${homeForm}), but playing at home often levels such gaps.`,
+          `A minor form lead for ${away} (${awayForm} vs ${homeForm}) is unlikely to outweigh ${home}’s home advantage.`,
           `The visitors have been marginally sharper (${awayForm} pts), though ${home} will bank on home support.`,
         ]));
       } else {
@@ -92,13 +94,13 @@ export function generateAnalysis(
         ]));
       } else if (formEdgeHome >= 3) {
         observations.push(pick([
-          `Even though ${home} boast superior recent form (${homeForm} pts), ${away}’s quality on the road gives them the nod.`,
           `${home} may be flying high (${homeForm} pts), but ${away} have the tools to spoil the party.`,
+          `The hosts’ stronger recent numbers (${homeForm} pts) are offset by ${away}’s quality on the road.`,
         ]));
       } else {
         observations.push(pick([
-          `Recent form is nearly identical, but ${away}’s away record and counter‑attacking ability tip the scales.`,
           `With little to separate them on paper, ${away}’s road resilience could prove decisive.`,
+          `Recent form is nearly identical, but ${away}’s away record and counter‑attacking ability tip the scales.`,
         ]));
       }
     } else if (isDrawPick) {
@@ -109,13 +111,13 @@ export function generateAnalysis(
         ]));
       } else if (formEdgeHome > 2) {
         observations.push(pick([
-          `Although ${home} have been the better side lately (${homeForm} pts), ${away}’s resilience on the road could force a share of the points.`,
           `${home}’s form (${homeForm} pts) is stronger, but ${away} rarely leave empty‑handed.`,
+          `${home} have been the better side lately (${homeForm} pts), yet ${away}’s resilience on the road could force a share of the points.`,
         ]));
       } else {
         observations.push(pick([
-          `Despite ${away}’s recent edge (${awayForm} pts), ${home}’s home strength may be enough to secure a draw.`,
-          `${away} come in with slightly better numbers, but a stalemate looks the safest call.`,
+          `${away} come in with slightly better numbers (${awayForm} pts), but a stalemate looks the safest call.`,
+          `${away}’s recent edge (${awayForm} pts) may not be enough to separate these two – a draw beckons.`,
         ]));
       }
     }
@@ -125,7 +127,9 @@ export function generateAnalysis(
     observations.push(`${away} bring ${awayForm} points from their previous 5 matches.`);
   }
 
-  // ----- 2. ATTACKING THREAT (varied) -----
+  // =========================================================
+  //  2. ATTACKING THREAT (2‑3 variants each)
+  // =========================================================
   const showHomeAttack = isHomePick || isDrawPick;
   const showAwayAttack = isAwayPick || isDrawPick;
 
@@ -150,7 +154,9 @@ export function generateAnalysis(
     }
   }
 
-  // ----- 3. DEFENSIVE SOLIDITY (varied) -----
+  // =========================================================
+  //  3. DEFENSIVE SOLIDITY (2 variants each)
+  // =========================================================
   if (isHomePick && homeClean >= 3) {
     observations.push(pick([
       `${home}'s defence has been resolute, recording ${homeClean} clean sheets in their last 5 matches.`,
@@ -168,7 +174,9 @@ export function generateAnalysis(
     if (awayClean >= 3) observations.push(`${away} have recorded ${awayClean} shutouts, setting up a tight defensive contest.`);
   }
 
-  // ----- 4. GOAL TRENDS (varied) -----
+  // =========================================================
+  //  4. GOAL TRENDS
+  // =========================================================
   const goalsPick = match.goals_pick || "";
   const isOverPick = goalsPick === "Over 2.5 Goals";
   const isUnderPick = goalsPick === "Under 2.5 Goals";
@@ -192,7 +200,9 @@ export function generateAnalysis(
     if (awayBtts < 30) observations.push(`${away} have also kept things tight at the back.`);
   }
 
-  // ----- 5. WEAKNESS FLAGS -----
+  // =========================================================
+  //  5. WEAKNESS FLAGS
+  // =========================================================
   if (isHomePick && awayFailed >= 3) {
     observations.push(`${away} have blanked in ${awayFailed} of their last 5, struggling to convert chances.`);
   }
@@ -200,7 +210,9 @@ export function generateAnalysis(
     observations.push(`${home} have fired blanks in ${homeFailed} of their last 5, a major concern.`);
   }
 
-  // ----- 6. LEAGUE POSITION (varied) -----
+  // =========================================================
+  //  6. LEAGUE POSITION (2 variants each)
+  // =========================================================
   if (posA > 0 && posB > 0) {
     if (isHomePick && posA < posB) {
       observations.push(pick([
@@ -217,11 +229,15 @@ export function generateAnalysis(
     }
   }
 
-  // ----- 7. REST DAYS (fatigue) -----
+  // =========================================================
+  //  7. REST DAYS
+  // =========================================================
   if (restA > 0 && restA <= 3) observations.push(`${home} have had only ${restA} days of rest, which could lead to fatigue.`);
   if (restB > 0 && restB <= 3) observations.push(`${away} are on a short turnaround with just ${restB} days since their last match.`);
 
-  // ----- 8. CONCLUSION (7‑8 variants per risk) -----
+  // =========================================================
+  //  8. CONCLUSION (6‑8 variants per risk)
+  // =========================================================
   const conclusionsLow: string[] = [
     `Our model projects a final score of ${expectedScore} and sees ${prediction} as the most logical outcome with a ${confidence}% confidence rating. A ${stake} stake is recommended for this low‑risk opportunity.`,
     `The expected scoreline of ${expectedScore} aligns perfectly with ${prediction} at a ${confidence}% confidence tier. Given the low‑risk profile, a ${stake} allocation offers sensible exposure.`,
@@ -254,7 +270,9 @@ export function generateAnalysis(
   else if (riskLower === "medium") conclusion = pick(conclusionsMed);
   else conclusion = pick(conclusionsHigh);
 
-  // ----- FALLBACK -----
+  // =========================================================
+  //  FALLBACK – no stats
+  // =========================================================
   if (!hasStats) {
     const fallbacks = [
       `${home} and ${away} meet with limited recent data available, so our engine relies on squad strength projections. The expected score of ${expectedScore} points toward ${prediction} at a ${confidence}% confidence level. Risk is assessed as ${riskLower} — recommended stake: ${stake}.`,
@@ -263,7 +281,9 @@ export function generateAnalysis(
     return pick(fallbacks);
   }
 
-  // ----- ASSEMBLE -----
+  // =========================================================
+  //  ASSEMBLE
+  // =========================================================
   const selectedObservations = observations.slice(0, 3);
   if (selectedObservations.length < 2) {
     selectedObservations.push(`This is a tightly‑poised contest where small margins will likely decide the outcome.`);
