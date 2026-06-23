@@ -40,19 +40,17 @@ export function generateAnalysis(
   const expectedScore = `${scores.expectedHomeGoals}-${scores.expectedAwayGoals}`;
   const riskLower = risk.toLowerCase();
 
-  // Determine what the main pick implies about the favoured team
   const isHomePick = prediction === "Home Win";
   const isAwayPick = prediction === "Away Win";
   const isDrawPick = prediction === "Draw";
 
-  // Determine if the form / strength data leans home or away
   const formEdgeHome = homeForm - awayForm;
   const strengthEdgeHome = strengthA - strengthB;
-  const positionEdgeHome = (posA && posB) ? posB - posA : 0; // positive = home better (lower rank)
+  const positionEdgeHome = (posA && posB) ? posB - posA : 0;
 
   const observations: string[] = [];
 
-  // ---------- 1. FORM ANALYSIS (always consistent with pick) ----------
+  // ---------- FORM ANALYSIS ----------
   if (homeForm > 0 && awayForm > 0) {
     const diff = Math.abs(homeForm - awayForm);
 
@@ -62,7 +60,6 @@ export function generateAnalysis(
       } else if (formEdgeHome >= 1) {
         observations.push(`${home} come into this match with a slight edge in recent form (${homeForm} vs ${awayForm} points), which could prove decisive at home.`);
       } else if (formEdgeHome <= -3) {
-        // Contradiction: away has better form but we're picking home
         observations.push(`Despite ${away}’s superior recent form (${awayForm} pts vs ${homeForm}), ${home}’s home advantage and overall quality tilt the balance.`);
       } else if (formEdgeHome <= -1) {
         observations.push(`While ${away} have been slightly more consistent lately, ${home}’s home strength and squad depth give them the nod.`);
@@ -94,7 +91,7 @@ export function generateAnalysis(
     observations.push(`${away} bring ${awayForm} points from their previous 5 matches.`);
   }
 
-  // ---------- 2. ATTACKING THREAT (support pick) ----------
+  // ---------- ATTACKING THREAT ----------
   const showHomeAttack = isHomePick || isDrawPick;
   const showAwayAttack = isAwayPick || isDrawPick;
 
@@ -113,7 +110,7 @@ export function generateAnalysis(
     }
   }
 
-  // ---------- 3. DEFENSIVE SOLIDITY ----------
+  // ---------- DEFENSIVE SOLIDITY ----------
   if (isHomePick && homeClean >= 3) {
     observations.push(`${home}'s defence has been resolute, recording ${homeClean} clean sheets in their last 5 matches.`);
   }
@@ -125,7 +122,7 @@ export function generateAnalysis(
     if (awayClean >= 3) observations.push(`${away} have recorded ${awayClean} shutouts, setting up a tight defensive contest.`);
   }
 
-  // ---------- 4. GOAL TRENDS (only if aligned with picks) ----------
+  // ---------- GOAL TRENDS ----------
   const goalsPick = match.goals_pick || "";
   const isOverPick = goalsPick === "Over 2.5 Goals";
   const isUnderPick = goalsPick === "Under 2.5 Goals";
@@ -149,7 +146,7 @@ export function generateAnalysis(
     if (awayBtts < 30) observations.push(`${away} have also kept things tight at the back.`);
   }
 
-  // ---------- 5. WEAKNESS FLAGS (support pick) ----------
+  // ---------- WEAKNESS FLAGS ----------
   if (isHomePick && awayFailed >= 3) {
     observations.push(`${away} have blanked in ${awayFailed} of their last 5, struggling to convert chances.`);
   }
@@ -157,7 +154,7 @@ export function generateAnalysis(
     observations.push(`${home} have fired blanks in ${homeFailed} of their last 5, a major concern.`);
   }
 
-  // ---------- 6. LEAGUE POSITION (only if meaningful) ----------
+  // ---------- LEAGUE POSITION ----------
   if (posA > 0 && posB > 0) {
     if (isHomePick && posA < posB) {
       observations.push(`${home} sit higher in the standings (${posA} vs ${posB}), which may give them a psychological edge.`);
@@ -166,33 +163,32 @@ export function generateAnalysis(
     } else if (isDrawPick) {
       observations.push(`Both sides are level in the table, making this a crucial encounter.`);
     }
-    // if position contradicts pick, omit
   }
 
-    // ---------- 6. REST DAYS (if short) ----------
-  const restA = safeNum(match.rest_days_a);
-  const restB = safeNum(match.rest_days_b);
-  if (restA > 0 && restA <= 3) observations.push(`${home} have had only ${restA} days of rest, which could lead to fatigue.`);
-  if (restB > 0 && restB <= 3) observations.push(`${away} are on a short turnaround with just ${restB} days since their last match.`);
-
-  // ---------- 7. COMPETITION IMPORTANCE (if it's a friendly) ----------
-  const weight = safeNum(match.competition_weight);
-  if (weight > 0 && weight < 0.7) observations.push(`This is a less competitive fixture, which may affect motivation and line‑ups.`);
-
-  // ---------- 7. CONCLUSION (varied by risk) ----------
+  // ---------- CONCLUSION (varied, unique) ----------
   const engineProb = scores[prediction];
-
-  const conclusionsLow = [
+  const conclusionsLow: string[] = [
     `Our model projects a final score of ${expectedScore} and sees ${prediction} as the most logical outcome with a ${confidence}% confidence rating. A ${stake} stake is recommended for this low‑risk opportunity.`,
     `The expected scoreline of ${expectedScore} aligns perfectly with ${prediction} at a ${confidence}% confidence tier. Given the low‑risk profile, a ${stake} allocation offers sensible exposure.`,
+    `${prediction} is the clear pick here, backed by a ${confidence}% confidence reading. The predicted ${expectedScore} finish supports a calm ${stake} unit play.`,
+    `With everything pointing toward ${prediction}, our engine assigns a ${confidence}% confidence level. A conservative ${stake} stake is suggested for this low‑risk fixture.`,
+    `The data leans heavily toward ${prediction}, with a projected score of ${expectedScore}. At ${confidence}% confidence, a ${stake} position is appropriate.`,
   ];
-  const conclusionsMed = [
+
+  const conclusionsMed: string[] = [
     `With an expected final score of ${expectedScore}, ${prediction} stands out at a ${confidence}% confidence level. The moderate risk warrants a controlled ${stake} stake.`,
     `The numbers point to a ${expectedScore} finish, supporting ${prediction}. At ${confidence}% confidence and medium risk, we suggest a ${stake} unit allocation.`,
+    `${prediction} looks the best bet here, with our model forecasting ${expectedScore}. Confidence is ${confidence}%, and the medium‑risk rating calls for a ${stake} stake.`,
+    `Given the moderate risk profile, ${prediction} (${expectedScore}) earns a ${confidence}% confidence score. A measured ${stake} entry is recommended.`,
+    `Our analysis favours ${prediction} with a ${expectedScore} outcome. Confidence sits at ${confidence}%; risk is medium — stake ${stake}.`,
   ];
-  const conclusionsHigh = [
+
+  const conclusionsHigh: string[] = [
     `This is a riskier call — the underlying metrics flag ${prediction} as a value angle despite a projected ${expectedScore} scoreline. Confidence sits at ${confidence}%; keep stakes tight at ${stake}.`,
     `${prediction} offers potential value here, though the high‑risk nature means volatility is expected. The model projects a ${expectedScore} outcome and assigns ${confidence}% confidence — limit exposure to ${stake}.`,
+    `A high‑risk opportunity presents itself: ${prediction} (expected score ${expectedScore}) with a ${confidence}% confidence rating. Caution is advised; stake no more than ${stake}.`,
+    `While the numbers hint at ${prediction} and a ${expectedScore} finish, the risk level is elevated. Confidence is ${confidence}%; a cautious ${stake} stake is wise.`,
+    `For those comfortable with risk, ${prediction} at ${confidence}% confidence could be worth a small play. Predicted score: ${expectedScore}. Stake: ${stake}.`,
   ];
 
   let conclusion = "";
@@ -200,7 +196,7 @@ export function generateAnalysis(
   else if (riskLower === "medium") conclusion = pick(conclusionsMed);
   else conclusion = pick(conclusionsHigh);
 
-  // ---------- FALLBACK when no stats exist ----------
+  // ---------- FALLBACK ----------
   if (!hasStats) {
     const fallbacks = [
       `${home} and ${away} meet with limited recent data available, so our engine relies on squad strength projections. The expected score of ${expectedScore} points toward ${prediction} at a ${confidence}% confidence level. Risk is assessed as ${riskLower} — recommended stake: ${stake}.`,
@@ -209,7 +205,7 @@ export function generateAnalysis(
     return pick(fallbacks);
   }
 
-  // ---------- ASSEMBLE (limit to 3 strongest observations) ----------
+  // ---------- ASSEMBLE ----------
   const selectedObservations = observations.slice(0, 3);
   if (selectedObservations.length < 2) {
     selectedObservations.push(`This is a tightly‑poised contest where small margins will likely decide the outcome.`);

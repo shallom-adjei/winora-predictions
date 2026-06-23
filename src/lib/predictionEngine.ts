@@ -142,6 +142,11 @@ const defB = rawDefB ? clamp(rawDefB) : null;
   btts = cap(Math.round(rawBtts * 100));
   const bttsNo = cap(Math.round((1 - rawBtts) * 100));
 
+  expectedHome += (Math.random() * 0.4 - 0.2);
+  expectedAway += (Math.random() * 0.4 - 0.2);
+  expectedHome = Math.max(0, expectedHome);
+  expectedAway = Math.max(0, expectedAway);
+
   return {
     "Home Win": homeWin,
     "Draw": draw,
