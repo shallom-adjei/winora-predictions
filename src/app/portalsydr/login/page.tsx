@@ -11,25 +11,29 @@ export default function AdminLogin() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setError("");
+  setLoading(true);
 
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+  const { error: authError } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
 
-    if (authError) {
-      setError(authError.message);
-      setLoading(false);
-      return;
-    }
+  if (authError) {
+    setError(authError.message);
+    setLoading(false);
+    return;
+  }
 
-    // Login successful – redirect to dashboard
-    window.location.href = "/portalsydr";
-  };
+  // ----- NEW: set the admin_token cookie (middleware reads this) -----
+  const token = Buffer.from(email).toString("base64");
+  document.cookie = `admin_token=${token}; path=/; max-age=604800; SameSite=Lax`;
+
+  // Login successful – redirect to dashboard
+  window.location.href = "/portalsydr";
+};
 
   return (
     <div className="min-h-screen bg-[#050505] flex items-center justify-center">
