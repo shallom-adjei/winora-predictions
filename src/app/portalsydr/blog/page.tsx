@@ -29,10 +29,16 @@ export default function AdminBlog() {
     },
   });
 
+  // ----- Fetch posts via internal API -----
   const fetchPosts = async () => {
     setLoading(true);
-    const { data } = await supabase.from("blog_posts").select("*").order("created_at", { ascending: false });
-    if (data) setPosts(data);
+    try {
+      const res = await fetch("/api/get-blog-posts");
+      const data = await res.json();
+      setPosts(data.posts || []);
+    } catch (err) {
+      console.error("Failed to fetch blog posts", err);
+    }
     setLoading(false);
   };
 
@@ -93,42 +99,30 @@ export default function AdminBlog() {
     input.click();
   };
 
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  if (!editor) return;
-  const content = editor.getHTML();
-
-  // Upload thumbnail if a new file was selected (still uses supabase storage directly)
-  let imageUrl: string | null = thumbnailPreview || null;
-  if (thumbnailFile) {
-    const uploaded = await uploadThumbnail();
-    if (!uploaded) return;
-    imageUrl = uploaded;
-  }
-
-  try {
-    const res = await fetch("/api/admin-blog-save", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        id: editingId,       // null for new posts
-        title,
-        content,
-        image_url: imageUrl,
-      }),
-    });
-
-    if (res.ok) {
-      toast.success(editingId ? "Post updated!" : "Post published!");
-      resetForm();
-      fetchPosts();
-    } else {
-      toast.error("Failed to save post");
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editor) return;
+    const content = editor.getHTML();
+    let imageUrl: string | null = null;
+    if (thumbnailFile) {
+      imageUrl = await uploadThumbnail();
+      if (!imageUrl) return;
     }
-  } catch {
-    toast.error("Network error");
-  }
-};
+
+    if (editingId) {
+      const updateData: any = { title, content };
+      if (imageUrl) updateData.image_url = imageUrl;
+      const { error } = await supabase.from("blog_posts").update(updateData).eq("id", editingId);
+      if (error) { toast.error("Failed to update post"); return; }
+      toast.success("Post updated!");
+    } else {
+      const { error } = await supabase.from("blog_posts").insert([{ title, content, image_url: imageUrl }]);
+      if (error) { toast.error("Failed to create post"); return; }
+      toast.success("Post published!");
+    }
+    resetForm();
+    fetchPosts();
+  };
 
   const handleEdit = (post: any) => {
     setEditingId(post.id);
@@ -142,27 +136,46 @@ const handleSubmit = async (e: React.FormEvent) => {
     }
   };
 
+  // ----- Delete via internal API -----
   const handleDelete = async (id: string) => {
     if (!confirm("Delete?")) return;
-    await supabase.from("blog_posts").delete().eq("id", id);
-    toast.success("Deleted");
-    fetchPosts();
+    try {
+      const res = await fetch("/api/admin-blog-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      if (res.ok) {
+        toast.success("Deleted");
+        fetchPosts();
+      } else {
+        toast.error("Delete failed");
+      }
+    } catch {
+      toast.error("Network error");
+    }
   };
 
+  // ----- Toggle top story via internal API -----
   const toggleTopStory = async (post: any) => {
-    const now = new Date();
-    const isTop = post.top_story_until && new Date(post.top_story_until) > now;
-    if (isTop) {
-      const { error } = await supabase.from("blog_posts").update({ top_story_until: null }).eq("id", post.id);
-      if (error) toast.error("Failed to remove top story");
-      else toast.success("Removed from top stories");
-    } else {
-      const expires = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-      const { error } = await supabase.from("blog_posts").update({ top_story_until: expires.toISOString() }).eq("id", post.id);
-      if (error) toast.error("Failed to set top story");
-      else toast.success("Set as top story (24h)");
+    try {
+      const res = await fetch("/api/admin-blog-topstory", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: post.id,
+          currentTopStoryUntil: post.top_story_until,
+        }),
+      });
+      if (res.ok) {
+        toast.success(post.top_story_until ? "Removed from top stories" : "Set as top story (24h)");
+        fetchPosts();
+      } else {
+        toast.error("Failed");
+      }
+    } catch {
+      toast.error("Network error");
     }
-    fetchPosts();
   };
 
   return (
@@ -177,7 +190,7 @@ const handleSubmit = async (e: React.FormEvent) => {
           <h1 className="text-2xl font-bold">Blog Manager</h1>
         </div>
 
-        {/* Editor form */}
+        {/* Editor form – same as before, kept for brevity but unchanged */}
         <form onSubmit={handleSubmit} className="space-y-5 mb-12 bg-[#0D0D0D] border border-white/10 rounded-2xl p-6">
           <h2 className="text-lg font-semibold text-gold-400">{editingId ? "Edit Post" : "New Post"}</h2>
           <input
