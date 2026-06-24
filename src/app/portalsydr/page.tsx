@@ -166,6 +166,31 @@ export default function AdminDashboard() {
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+
+const [authReady, setAuthReady] = useState(false);
+
+useEffect(() => {
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    setAuthReady(!!session);
+  });
+}, []);
+
+if (!authReady) {
+  return (
+    <div className="flex min-h-screen bg-[#050505] text-white items-center justify-center">
+      <div className="text-center">
+        <p className="text-xl text-gold-400 mb-4">Please log in to access the admin panel.</p>
+        <button
+          onClick={() => router.push("/portalsydr/login")}
+          className="bg-gold-400 text-black px-4 py-2 rounded"
+        >
+          Go to Login
+        </button>
+      </div>
+    </div>
+  );
+}
+
   const [newPick, setNewPick] = useState({
     sport: "Football",
     match_name: "",
