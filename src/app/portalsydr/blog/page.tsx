@@ -93,30 +93,42 @@ export default function AdminBlog() {
     input.click();
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editor) return;
-    const content = editor.getHTML();
-    let imageUrl: string | null = null;
-    if (thumbnailFile) {
-      imageUrl = await uploadThumbnail();
-      if (!imageUrl) return;
-    }
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!editor) return;
+  const content = editor.getHTML();
 
-    if (editingId) {
-      const updateData: any = { title, content };
-      if (imageUrl) updateData.image_url = imageUrl;
-      const { error } = await supabase.from("blog_posts").update(updateData).eq("id", editingId);
-      if (error) { toast.error("Failed to update post"); return; }
-      toast.success("Post updated!");
+  // Upload thumbnail if a new file was selected (still uses supabase storage directly)
+  let imageUrl: string | null = thumbnailPreview || null;
+  if (thumbnailFile) {
+    const uploaded = await uploadThumbnail();
+    if (!uploaded) return;
+    imageUrl = uploaded;
+  }
+
+  try {
+    const res = await fetch("/api/admin-blog-save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: editingId,       // null for new posts
+        title,
+        content,
+        image_url: imageUrl,
+      }),
+    });
+
+    if (res.ok) {
+      toast.success(editingId ? "Post updated!" : "Post published!");
+      resetForm();
+      fetchPosts();
     } else {
-      const { error } = await supabase.from("blog_posts").insert([{ title, content, image_url: imageUrl }]);
-      if (error) { toast.error("Failed to create post"); return; }
-      toast.success("Post published!");
+      toast.error("Failed to save post");
     }
-    resetForm();
-    fetchPosts();
-  };
+  } catch {
+    toast.error("Network error");
+  }
+};
 
   const handleEdit = (post: any) => {
     setEditingId(post.id);
