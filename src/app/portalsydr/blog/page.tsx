@@ -17,6 +17,7 @@ export default function AdminBlog() {
   const [uploading, setUploading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [version, setVersion] = useState(0);   // cache buster
 
   const editor = useEditor({
     extensions: [StarterKit, Image],
@@ -28,10 +29,13 @@ export default function AdminBlog() {
     },
   });
 
-  // ----- Fetch posts via internal API (bypasses RLS, no caching) -----
+  // ----- Fetch posts – completely unique URL every time -----
   const fetchPosts = useCallback(async () => {
     try {
-      const res = await fetch(`/api/get-blog-posts?t=${Date.now()}`, { cache: "no-store" });
+      const res = await fetch(
+        `/api/get-blog-posts?t=${Date.now()}&v=${version}&r=${Math.random()}`,
+        { cache: "no-store" }
+      );
       const data = await res.json();
       setPosts(data.posts || []);
     } catch (err) {
@@ -39,11 +43,9 @@ export default function AdminBlog() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [version]);
 
-  useEffect(() => {
-    fetchPosts();
-  }, [fetchPosts]);
+  useEffect(() => { fetchPosts(); }, [fetchPosts]);
 
   // ---------- IMAGE UPLOADS (storage) ----------
   const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -60,11 +62,7 @@ export default function AdminBlog() {
     const fileExt = thumbnailFile.name.split(".").pop();
     const fileName = `thumb-${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
     const { error } = await supabase.storage.from("blog-images").upload(fileName, thumbnailFile);
-    if (error) {
-      toast.error("Thumbnail upload failed");
-      setUploading(false);
-      return null;
-    }
+    if (error) { toast.error("Thumbnail upload failed"); setUploading(false); return null; }
     const { data: urlData } = supabase.storage.from("blog-images").getPublicUrl(fileName);
     setUploading(false);
     return urlData.publicUrl;
@@ -81,11 +79,7 @@ export default function AdminBlog() {
       const fileExt = file.name.split(".").pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
       const { error } = await supabase.storage.from("blog-images").upload(fileName, file);
-      if (error) {
-        toast.error("Image upload failed");
-        setUploading(false);
-        return;
-      }
+      if (error) { toast.error("Image upload failed"); setUploading(false); return; }
       const { data: urlData } = supabase.storage.from("blog-images").getPublicUrl(fileName);
       editor?.chain().focus().setImage({ src: urlData.publicUrl }).run();
       setUploading(false);
@@ -93,7 +87,7 @@ export default function AdminBlog() {
     input.click();
   };
 
-  // ---------- SAVE (create / update) ----------
+  // ---------- SAVE ----------
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editor) return;
@@ -114,7 +108,8 @@ export default function AdminBlog() {
       if (res.ok) {
         toast.success(editingId ? "Post updated!" : "Post published!");
         resetForm();
-        fetchPosts();   // refresh list without full page reload
+        fetchPosts();
+        setVersion(prev => prev + 1);   // break cache for next fetch
       } else {
         const errData = await res.json().catch(() => ({}));
         toast.error(errData.error || "Failed to save post");
@@ -155,7 +150,8 @@ export default function AdminBlog() {
       });
       if (res.ok) {
         toast.success("Deleted");
-        fetchPosts();   // refresh list instantly
+        fetchPosts();
+        setVersion(prev => prev + 1);   // break cache
       } else {
         toast.error("Delete failed");
       }
@@ -176,6 +172,7 @@ export default function AdminBlog() {
       if (res.ok) {
         toast.success(isTop ? "Removed from top stories" : "Set as top story (24h)");
         fetchPosts();
+        setVersion(prev => prev + 1);   // break cache
       } else {
         toast.error("Failed");
       }
@@ -203,7 +200,7 @@ export default function AdminBlog() {
           <h1 className="text-2xl font-bold">Blog Manager</h1>
         </div>
 
-        {/* Editor form */}
+        {/* Editor form – identical to your previous version, unchanged for brevity */}
         <form onSubmit={handleSubmit} className="space-y-5 mb-12 bg-[#0D0D0D] border border-white/10 rounded-2xl p-6">
           <h2 className="text-lg font-semibold text-gold-400">{editingId ? "Edit Post" : "New Post"}</h2>
           <input placeholder="Post title" value={title} onChange={e => setTitle(e.target.value)}
