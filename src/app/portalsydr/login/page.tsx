@@ -27,12 +27,9 @@ const handleSubmit = async (e: React.FormEvent) => {
     return;
   }
 
-  // ----- NEW: set the admin_token cookie (middleware reads this) -----
-  const token = Buffer.from(email).toString("base64");
-  document.cookie = `admin_token=${token}; path=/; max-age=604800; SameSite=Lax`;
-
-  // Login successful – redirect to dashboard
-  window.location.href = "/portalsydr";
+const token = Buffer.from(email).toString("base64");
+document.cookie = `admin_token=${token}; path=/; max-age=604800; SameSite=Lax`;
+window.location.href = "/portalsydr";
 };
 
   return (
