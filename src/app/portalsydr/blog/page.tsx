@@ -102,10 +102,10 @@ export default function AdminBlog() {
         body: JSON.stringify({ id: editingId, title, content, image_url: imageUrl }),
       });
       if (res.ok) {
-        toast.success(editingId ? "Post updated!" : "Post published!");
-        resetForm();
-        fetchPosts();
-      } else {
+  toast.success(editingId ? "Post updated!" : "Post published!");
+  resetForm();
+  window.location.reload();   // force full refresh to show new post
+} else {
         const errData = await res.json().catch(() => ({}));
         toast.error(errData.error || "Failed to save post");
       }
@@ -144,9 +144,9 @@ export default function AdminBlog() {
         body: JSON.stringify({ id }),
       });
       if (res.ok) {
-        toast.success("Deleted");
-        fetchPosts();
-      } else {
+  toast.success("Deleted");
+  window.location.reload();   // force full refresh
+} else {
         toast.error("Delete failed");
       }
     } catch {
