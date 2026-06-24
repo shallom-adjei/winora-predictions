@@ -6,6 +6,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import AdBanner from "@/components/AdBanner";
+import LoadingScreen from "@/components/LoadingScreen";
 
 function stripHtml(html: string) {
   const doc = new DOMParser().parseFromString(html, "text/html");
@@ -68,9 +69,7 @@ const fetchData = useCallback(async () => {
         </h1>
 
         {loading ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-pulse text-gold-400 text-lg">Loading articles...</div>
-          </div>
+          <LoadingScreen message="Loading articles…" />
         ) : posts.length === 0 ? (
           <p className="text-center text-gray-400">No articles yet.</p>
         ) : (

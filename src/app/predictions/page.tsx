@@ -6,10 +6,9 @@ import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { motion } from "framer-motion";
 import { Activity } from "lucide-react";
 import { AnalysisModal } from "@/components/AnalysisModal";
-import { useLivePredictions } from "@/hooks/useLivePredictions";
 import DateFilter from "@/components/DateFilter";
 import AffiliateCta from "@/components/AffiliateCta";
-import { supabase } from "@/lib/supabase";
+import LoadingScreen from "@/components/LoadingScreen";
 
 export default function PredictionsPage() {
   const [analysisModalOpen, setAnalysisModalOpen] = useState(false);
@@ -91,7 +90,7 @@ useEffect(() => {
         />
 
         {loading ? (
-          <p className="text-gray-400 text-sm">Loading predictions…</p>
+          <LoadingScreen message="Loading predictions…" />
         ) : filteredPredictions.length === 0 ? (
           <p className="text-gray-400 text-sm">No predictions for this period.</p>
         ) : (

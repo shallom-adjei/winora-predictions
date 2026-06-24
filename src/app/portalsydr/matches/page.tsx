@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import toast from "react-hot-toast";
+import LoadingScreen from "@/components/LoadingScreen";
 
 export default function UpcomingMatchesPage() {
   const [matches, setMatches] = useState<any[]>([]);
@@ -45,7 +46,7 @@ export default function UpcomingMatchesPage() {
         </div>
 
         {loading ? (
-          <p className="text-gray-400">Loading...</p>
+          <LoadingScreen message="Loading upcoming matches…" />
         ) : matches.length === 0 ? (
           <p className="text-gray-400">No upcoming matches found.</p>
         ) : (

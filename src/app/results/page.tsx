@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import { Activity } from "lucide-react";
 import { evaluatePick } from "@/lib/utils";
 import DateFilter from "@/components/DateFilter";
+import LoadingScreen from "@/components/LoadingScreen";
 
 function ResultBadge({ result }: { result: "Win" | "Loss" | "Pending" }) {
   return (
@@ -78,7 +79,7 @@ export default function ResultsPage() {
         />
 
         {loading ? (
-          <p className="text-gray-400 text-sm">Loading results…</p>
+           <LoadingScreen message="Loading results…" />
         ) : results.length === 0 ? (
           <p className="text-gray-400 text-sm">No results for this period.</p>
         ) : (

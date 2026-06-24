@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import toast from "react-hot-toast";
+import LoadingScreen from "@/components/LoadingScreen";
 
 export default function AdminPredictionsPage() {
   const [predictions, setPredictions] = useState<any[]>([]);
@@ -84,7 +85,7 @@ export default function AdminPredictionsPage() {
         </div>
 
         {loading ? (
-          <p className="text-gray-400">Loading...</p>
+          <LoadingScreen message="Loading predictions…" /> 
         ) : predictions.length === 0 ? (
           <p className="text-gray-400">No predictions yet.</p>
         ) : (

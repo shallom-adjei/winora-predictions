@@ -1,13 +1,12 @@
 "use client";
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import { ArrowLeft, Activity, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { evaluatePick } from "@/lib/utils";
 import DateFilter from "@/components/DateFilter";
 import toast from "react-hot-toast";
-import { useRouter } from "next/navigation";
+import LoadingScreen from "@/components/LoadingScreen";
 
 function ResultBadge({ result }: { result: "Win" | "Loss" | "Pending" }) {
   return (
@@ -26,35 +25,31 @@ function ResultBadge({ result }: { result: "Win" | "Loss" | "Pending" }) {
 }
 
 export default function AdminResultsPage() {
-  // ---------- ALL HOOKS AT THE TOP (no early returns before them) ----------
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
-
-  // Fetch results with date filtering, wrapped in useCallback for stable reference
-  const fetchResults = useCallback(() => {
+  const fetchResults = useCallback(async () => {
     setLoading(true);
-    let query = supabase
-      .from("predictions")
-      .select("*")
-      .not("result", "is", null)
-      .neq("result", "Pending")
-      .order("kickoff_time", { ascending: false });
-
-    if (dateFrom) query = query.gte("kickoff_time", `${dateFrom}T00:00:00`);
-    if (dateTo) query = query.lte("kickoff_time", `${dateTo}T23:59:59`);
-
-    query.then(({ data }) => {
-      if (data) setResults(data);
-      setLoading(false);
-    });
+    try {
+      const res = await fetch("/api/admin-results");
+      const data = await res.json();
+      let list = data.results || [];
+      // client‑side date filtering
+      if (dateFrom) list = list.filter((m: any) => new Date(m.kickoff_time) >= new Date(`${dateFrom}T00:00:00`));
+      if (dateTo) list = list.filter((m: any) => new Date(m.kickoff_time) <= new Date(`${dateTo}T23:59:59`));
+      setResults(list);
+    } catch (err) {
+      console.error(err);
+    }
+    setLoading(false);
   }, [dateFrom, dateTo]);
 
+  useEffect(() => {
+    fetchResults();
+  }, [fetchResults]);
 
-
-  // Group by date – must be before early return
   const grouped = useMemo(() => {
     const groups: Record<string, any[]> = {};
     results.forEach((match) => {
@@ -70,7 +65,6 @@ export default function AdminResultsPage() {
     return groups;
   }, [results]);
 
-  // Regular functions (not hooks) are fine here
   const handleRefreshScores = async () => {
     try {
       const res = await fetch("/api/cron/update-scores");
@@ -82,9 +76,6 @@ export default function AdminResultsPage() {
     }
   };
 
- 
-
-  // ---------- NORMAL RENDER ----------
   return (
     <div className="min-h-screen bg-[#050505] text-white p-6">
       <div className="max-w-7xl mx-auto">
@@ -97,11 +88,7 @@ export default function AdminResultsPage() {
             </Link>
             <h1 className="text-2xl font-bold">Match Results</h1>
           </div>
-          <Button
-            onClick={handleRefreshScores}
-            variant="outline"
-            className="text-sm gap-2"
-          >
+          <Button onClick={handleRefreshScores} variant="outline" className="text-sm gap-2">
             <RefreshCw className="h-4 w-4" />
             Refresh Scores
           </Button>
@@ -110,17 +97,14 @@ export default function AdminResultsPage() {
         <DateFilter
           from={dateFrom}
           to={dateTo}
-          onChange={(f, t) => {
-            setDateFrom(f);
-            setDateTo(t);
-          }}
+          onChange={(f, t) => { setDateFrom(f); setDateTo(t); }}
           showQuickButtons={true}
         />
 
         {loading ? (
-          <p className="text-gray-400 text-sm">Loading results…</p>
+          <LoadingScreen message="Loading results…" />
         ) : results.length === 0 ? (
-          <p className="text-gray-400 text-sm">No results for this period.</p>
+          <p className="text-gray-400">No results for this period.</p>
         ) : (
           Object.keys(grouped).map((dateLabel) => (
             <div key={dateLabel} className="mb-10">
@@ -133,10 +117,7 @@ export default function AdminResultsPage() {
                   const bttsResult = evaluatePick(match.btts_pick, match.actual_home_score, match.actual_away_score);
 
                   return (
-                    <div
-                      key={match.id}
-                      className="rounded-[18px] bg-[#0D0D0D] border border-white/5 p-4 sm:p-5"
-                    >
+                    <div key={match.id} className="rounded-[18px] bg-[#0D0D0D] border border-white/5 p-4 sm:p-5">
                       {/* League + Date */}
                       <div className="flex items-center justify-between mb-3">
                         <span className="text-xs text-gray-400 uppercase flex items-center gap-1">

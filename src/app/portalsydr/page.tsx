@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import LoadingScreen from "@/components/LoadingScreen";
 import {
   BarChart3,
   TrendingUp,
@@ -502,13 +503,7 @@ const handleGenerateAll = async () => {
 
 
 
-  if (loading) {
-    return (
-      <div className="flex min-h-screen bg-[#050505] text-white items-center justify-center">
-        <div className="text-xl text-gold-400">Loading dashboard...</div>
-      </div>
-    );
-  }
+ if (loading) { return <LoadingScreen message="Loading dashboard…" /> }
 
   return (
     <div className="flex min-h-screen bg-[#050505] text-white">

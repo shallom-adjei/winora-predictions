@@ -4,12 +4,13 @@ import { Toaster } from "react-hot-toast";
 
 function AnalyticsTracker() {
   useEffect(() => {
+    if (window.location.pathname.startsWith("/portalsydr")) return; // skip admin
+
     let visitorId = localStorage.getItem("visitor_id");
     if (!visitorId) {
-      visitorId =
-        typeof crypto !== "undefined" && crypto.randomUUID
-          ? crypto.randomUUID()
-          : Math.random().toString(36).substring(2);
+      visitorId = typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : Math.random().toString(36).substring(2);
       localStorage.setItem("visitor_id", visitorId);
     }
 
@@ -23,7 +24,6 @@ function AnalyticsTracker() {
       }),
     });
   }, []);
-
   return null;
 }
 
