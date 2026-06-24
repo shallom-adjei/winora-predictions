@@ -19,10 +19,12 @@ export default function BlogPage() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  // Single fetch function, cache‑busted
+  // Aggressive cache‑busting: unique URL every call, cache: no‑store
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch(`/api/get-blog-posts?t=${Date.now()}`);
+      const res = await fetch(`/api/get-blog-posts?t=${Date.now()}&r=${Math.random()}`, {
+        cache: "no-store",
+      });
       const data = await res.json();
       if (data.posts) {
         setPosts(data.posts);
@@ -43,7 +45,7 @@ export default function BlogPage() {
     fetchData();
   }, [fetchData]);
 
-  // Auto‑refresh every 10 seconds
+  // Auto‑refresh every 5 seconds
   useEffect(() => {
     const interval = setInterval(fetchData, 5000);
     return () => clearInterval(interval);
