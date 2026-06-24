@@ -1,6 +1,5 @@
 "use client";
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import { ArrowLeft, Copy, Check, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -43,24 +42,23 @@ export default function ManualStatsPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [hideWithStats, setHideWithStats] = useState(true);
   const [fullJson, setFullJson] = useState("");
- 
 
-
-  // Fetch upcoming matches
+  // Fetch upcoming matches via internal API
   const fetchMatches = useCallback(async () => {
     setLoading(true);
-    const nowISO = new Date().toISOString();
-    const { data } = await supabase
-      .from("predictions")
-      .select("*")
-      .gte("kickoff_time", nowISO)
-      .order("kickoff_time", { ascending: true })
-      .limit(50);
-    if (data) setAllMatches(data);
+    try {
+      const res = await fetch("/api/admin-upcoming-matches");
+      const data = await res.json();
+      if (data.matches) setAllMatches(data.matches);
+    } catch (err) {
+      console.error("Failed to fetch upcoming matches", err);
+    }
     setLoading(false);
   }, []);
 
- 
+  useEffect(() => {
+    fetchMatches();
+  }, [fetchMatches]);
 
   // Derived state (hook, so it must stay before early return)
   const matchesToShow = useMemo(() => {
@@ -77,8 +75,6 @@ export default function ManualStatsPage() {
     toast.success("Prompt copied! Paste it into your AI tool.");
     setTimeout(() => setCopiedId(null), 3000);
   };
-
- 
 
   // ---------- NORMAL RENDER ----------
   return (

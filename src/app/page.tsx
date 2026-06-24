@@ -6,26 +6,11 @@ import { Crown, ArrowRight, BarChart3, TrendingUp, Activity } from "lucide-react
 import PublicHeader from "@/components/PublicHeader";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import Link from "next/link";
-import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
+import { useState, useEffect, useMemo } from "react";
 import { AnalysisModal } from "@/components/AnalysisModal";
-import { useLivePredictions } from "@/hooks/useLivePredictions";
 import AdBanner from "@/components/AdBanner";
 import AffiliateCta from "@/components/AffiliateCta";
 import ComboPicks from "@/components/ComboPicks";
-
-function comboScore(match: any): number {
-  const confidence = Number(match.confidence) || 0;
-  const matchesUsedA = Number(match.matches_used_a) || 0;
-  const matchesUsedB = Number(match.matches_used_b) || 0;
-  const minMatches = Math.min(matchesUsedA, matchesUsedB);
-  const formA = Number(match.form_points_a) || 0;
-  const formB = Number(match.form_points_b) || 0;
-  const formGap = Math.abs(formA - formB);
-
-  // Score: confidence (0-100) + matches depth (0-20) + form gap (0-10)
-  return confidence + Math.min(minMatches, 20) + Math.min(formGap, 10);
-}
 
 export default function Home() {
   const [overview, setOverview] = useState({
@@ -38,123 +23,75 @@ export default function Home() {
   });
   const [analysisModalOpen, setAnalysisModalOpen] = useState(false);
   const [selectedAnalysis, setSelectedAnalysis] = useState<any>(null);
+  const [livePredictions, setLivePredictions] = useState<any[]>([]);
 
-  // ========== FETCH OVERVIEW (KPI + floating card) ==========
+  // Fetch KPIs
   useEffect(() => {
-    const fetchOverview = async () => {
-      try {
-        // Total predictions
-        const { count: total, error: totalErr } = await supabase
-          .from("predictions")
-          .select("*", { count: "exact", head: true });
-        if (totalErr) console.error("totalErr:", totalErr);
-
-        // Win rate
-        const { data: results, error: winErr } = await supabase
-          .from("predictions")
-          .select("result")
-          .not("result", "is", null)
-          .neq("result", "Pending");
-        if (winErr) console.error("winErr:", winErr);
-        const wins = results?.filter((r) => r.result === "Win").length || 0;
-        const totalWithResult = results?.length || 1;
-        const winRate = ((wins / totalWithResult) * 100).toFixed(1);
-
-        // Current streak
-        const { data: recent, error: streakErr } = await supabase
-          .from("predictions")
-          .select("result, created_at")
-          .order("created_at", { ascending: false })
-          .limit(20);
-        if (streakErr) console.error("streakErr:", streakErr);
-        let streak = 0;
-        if (recent) {
-          for (const r of recent) {
-            if (r.result === "Win") streak++;
-            else break;
-          }
-        }
-
-        // Pending count
-        const { count: pending, error: pendErr } = await supabase
-          .from("predictions")
-          .select("*", { count: "exact", head: true })
-          .or("result.is.null,result.eq.Pending");
-        if (pendErr) console.error("pendErr:", pendErr);
-
-        // Average confidence
-        const { data: confData, error: confErr } = await supabase
-          .from("predictions")
-          .select("confidence")
-          .not("confidence", "is", null);
-        if (confErr) console.error("confErr:", confErr);
-        const avgConf = confData?.length
-          ? (confData.reduce((sum, r) => sum + (r.confidence || 0), 0) / confData.length).toFixed(1)
-          : "0";
-
+    fetch("/api/kpi-overview")
+      .then((r) => r.json())
+      .then((d) => {
         setOverview({
-          totalPredictions: total || 0,
-          winRate,
-          streak,
+          totalPredictions: d.total || 0,
+          winRate: d.winRate || "0",
+          streak: d.streak || 0,
           roi: "—",
-          pending: pending || 0,
-          avgConfidence: avgConf,
+          pending: d.pending || 0,
+          avgConfidence: d.avgConf || "0",
         });
-      } catch (err) {
-        console.error("Overview fetch error:", err);
-      }
-    };
-
-    fetchOverview();
+      })
+      .catch((err) => console.error("KPI fetch failed", err));
   }, []);
 
-// ---- LIVE DATA (replaces old topPicks state) ----
-const [livePredictions, setLivePredictions] = useState<any[]>([]);
+  // Fetch live predictions (non-finished)
+  useEffect(() => {
+    fetch("/api/get-predictions")
+      .then((r) => r.json())
+      .then((data) => setLivePredictions(data.predictions || []))
+      .catch(() => {});
+  }, []);
 
-useEffect(() => {
-  fetch("/api/get-predictions")
-    .then((r) => r.json())
-    .then((data) => setLivePredictions(data.predictions || []))
-    .catch(() => {});
-}, []);
+  const topPicks = useMemo(() => {
+    return livePredictions
+      .filter((p: any) => p.prediction && p.prediction !== "No recommendation")
+      .slice(0, 3)
+      .map((p: any) => ({
+        id: p.id,
+        league: p.sport,
+        home: p.team_a,
+        away: p.team_b,
+        time: p.time,
+        prediction: p.prediction,
+        confidence: p.confidence,
+        analysis: p.analysis,
+        crest_a: p.crest_a,
+        crest_b: p.crest_b,
+        expectedScore: p.expected_score,
+        mainPick: p.main_pick,
+        safePick: p.safe_pick,
+        goalsPick: p.goals_pick,
+        bttsPick: p.btts_pick,
+        riskLevel: p.risk_level,
+        stake: p.recommended_stake,
+        match_status: p.match_status,
+        actual_home_score: p.actual_home_score,
+        actual_away_score: p.actual_away_score,
+        matches_used_a: p.matches_used_a,
+        matches_used_b: p.matches_used_b,
+        form_points_a: p.form_points_a,
+        form_points_b: p.form_points_b,
+      }));
+  }, [livePredictions]);
 
-const topPicks = livePredictions
-  .filter((p: any) => p.prediction && p.prediction !== "No recommendation")
-  .slice(0, 3)
-  .map((p: any) => ({
-    id: p.id,
-    league: p.sport,
-    home: p.team_a,
-    away: p.team_b,
-    time: p.time,
-    prediction: p.prediction,
-    confidence: p.confidence,
-    analysis: p.analysis,
-    crest_a: p.crest_a,
-    crest_b: p.crest_b,
-    expectedScore: p.expected_score,
-    mainPick: p.main_pick,
-    safePick: p.safe_pick,
-    goalsPick: p.goals_pick,
-    bttsPick: p.btts_pick,
-    riskLevel: p.risk_level,
-    stake: p.recommended_stake,
-    match_status: p.match_status,
-    actual_home_score: p.actual_home_score,
-    actual_away_score: p.actual_away_score,
-  }));
-  
-
- const handleOpenAnalysis = (match: any) => {
-  setSelectedAnalysis({
-    home: match.home || match.team_a || match.match?.split(" vs ")[0],
-    away: match.away || match.team_b || match.match?.split(" vs ")[1],
-    prediction: match.prediction,
-    analysis: match.analysis,
-    fullReport: match.fullReport,
-  });
-  setAnalysisModalOpen(true);
-};
+  const handleOpenAnalysis = (match: any) => {
+    setSelectedAnalysis({
+      home: match.home || match.team_a || match.match?.split(" vs ")[0],
+      away: match.away || match.team_b || match.match?.split(" vs ")[1],
+      prediction: match.prediction,
+      analysis: match.analysis,
+      fullReport: match.fullReport,
+    });
+    setAnalysisModalOpen(true);
+  };
 
   const handleCloseAnalysis = () => {
     setAnalysisModalOpen(false);
@@ -184,11 +121,11 @@ const topPicks = livePredictions
               Data-driven football predictions backed by expert analysis to help you make smarter betting decisions.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
-            <Link href="/vip">
-  <Button className="h-[60px] w-[250px] rounded-xl bg-gold-400 text-base font-semibold text-black hover:bg-gold-500 gap-2">
-    <Crown className="h-5 w-5" /> Get Early Access <ArrowRight className="h-4 w-4" />
-  </Button>
-</Link>
+              <Link href="/vip">
+                <Button className="h-[60px] w-[250px] rounded-xl bg-gold-400 text-base font-semibold text-black hover:bg-gold-500 gap-2">
+                  <Crown className="h-5 w-5" /> Get Early Access <ArrowRight className="h-4 w-4" />
+                </Button>
+              </Link>
               <Link href="/predictions">
                 <Button variant="outline" className="h-[60px] w-[250px] rounded-xl border-white/20 text-base font-semibold text-white hover:bg-white/5">
                   View Today's Picks
@@ -197,7 +134,7 @@ const topPicks = livePredictions
             </div>
           </div>
 
-          {/* Desktop floating card: Today's Overview (single, premium) */}
+          {/* Desktop floating card: Today's Overview */}
           <div className="hidden lg:block absolute top-1/2 -translate-y-1/2 right-8 xl:right-16">
             <motion.div
               initial={{ opacity: 0, y: 30 }}
@@ -205,7 +142,6 @@ const topPicks = livePredictions
               transition={{ delay: 0.8 }}
               className="w-[290px] rounded-2xl border border-gold-400/20 bg-gradient-to-br from-white/[0.03] to-white/[0.01] backdrop-blur-xl p-5 flex flex-col justify-between shadow-[0_0_30px_rgba(212,175,55,0.08)]"
             >
-              {/* Header */}
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xs font-semibold uppercase tracking-widest text-gold-400">
                   Today's Overview
@@ -219,7 +155,6 @@ const topPicks = livePredictions
                 </span>
               </div>
 
-              {/* Metrics */}
               <div className="space-y-3">
                 <div className="rounded-xl bg-white/[0.03] px-4 py-3 flex items-center justify-between">
                   <span className="text-xs text-gray-400">Predictions Made</span>
@@ -242,7 +177,6 @@ const topPicks = livePredictions
                 </div>
               </div>
 
-              {/* Footer link */}
               <Link href="/predictions" className="mt-4">
                 <Button variant="ghost" className="text-gold-400 text-xs hover:bg-white/5 w-full justify-start p-0">
                   View All Predictions <ArrowRight className="ml-2 h-3 w-3" />
@@ -254,13 +188,12 @@ const topPicks = livePredictions
       </section>
 
       {/* Desktop ad banner (hero → KPI) */}
-<div className="hidden lg:block mx-auto max-w-[1280px] px-6 mt-8 mb-8">
-  <AdBanner variant="banner" />
-</div>
+      <div className="hidden lg:block mx-auto max-w-[1280px] px-6 mt-8 mb-8">
+        <AdBanner variant="banner" />
+      </div>
 
       {/* ===== KPI BAR ===== */}
       <section className="mx-auto max-w-[1280px] px-6 lg:px-8 mt-16 mb-16 lg:mb-24">
-        {/* Desktop KPI – now with 4 real columns */}
         <div className="hidden lg:grid grid-cols-4 gap-4 rounded-2xl border border-white/10 bg-[#0D0D0D] p-8 h-[130px]">
           {[
             { icon: BarChart3, title: "Total Predictions", value: overview.totalPredictions },
@@ -280,7 +213,6 @@ const topPicks = livePredictions
           ))}
         </div>
 
-        {/* Mobile KPI – static 2‑column grid */}
         <div className="lg:hidden grid grid-cols-2 gap-4">
           {[
             { icon: BarChart3, title: "Total Predictions", value: overview.totalPredictions },
@@ -297,10 +229,9 @@ const topPicks = livePredictions
             </div>
           ))}
         </div>
-        {/* Mobile ad (below VIP) */}
-<div className="lg:hidden mx-auto max-w-[1280px] px-6 mb-8">
-  <AdBanner variant="banner" />
-</div>
+        <div className="lg:hidden mx-auto max-w-[1280px] px-6 mb-8">
+          <AdBanner variant="banner" />
+        </div>
       </section>
 
       {/* ===== DAILY COMBO ===== */}
@@ -341,37 +272,37 @@ const topPicks = livePredictions
                         <p className="text-sm font-medium">{match.home}</p>
                       </div>
                       <div className="text-center px-2">
-  {match.match_status === "LIVE" ? (
-    <div className="flex flex-col items-center gap-1">
-      <span className="relative flex items-center gap-1.5">
-        <span className="relative flex h-2 w-2">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75"></span>
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500"></span>
-        </span>
-        <span className="text-xs font-bold text-red-400">LIVE</span>
-      </span>
-      {match.actual_home_score != null && match.actual_away_score != null && (
-        <span className="text-sm font-bold text-white tabular-nums">
-          {match.actual_home_score} - {match.actual_away_score}
-        </span>
-      )}
-    </div>
-  ) : match.match_status === "FINISHED" ? (
-    <div className="flex flex-col items-center gap-1">
-      <span className="text-xs font-bold text-gray-400">FT</span>
-      {match.actual_home_score != null && match.actual_away_score != null && (
-        <span className="text-sm font-bold text-white tabular-nums">
-          {match.actual_home_score} - {match.actual_away_score}
-        </span>
-      )}
-    </div>
-  ) : (
-    <>
-      <p className="text-xs font-bold text-gray-500">{match.time}</p>
-      <p className="text-xs text-gray-600">VS</p>
-    </>
-  )}
-</div>
+                        {match.match_status === "LIVE" ? (
+                          <div className="flex flex-col items-center gap-1">
+                            <span className="relative flex items-center gap-1.5">
+                              <span className="relative flex h-2 w-2">
+                                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75"></span>
+                                <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500"></span>
+                              </span>
+                              <span className="text-xs font-bold text-red-400">LIVE</span>
+                            </span>
+                            {match.actual_home_score != null && match.actual_away_score != null && (
+                              <span className="text-sm font-bold text-white tabular-nums">
+                                {match.actual_home_score} - {match.actual_away_score}
+                              </span>
+                            )}
+                          </div>
+                        ) : match.match_status === "FINISHED" ? (
+                          <div className="flex flex-col items-center gap-1">
+                            <span className="text-xs font-bold text-gray-400">FT</span>
+                            {match.actual_home_score != null && match.actual_away_score != null && (
+                              <span className="text-sm font-bold text-white tabular-nums">
+                                {match.actual_home_score} - {match.actual_away_score}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <>
+                            <p className="text-xs font-bold text-gray-500">{match.time}</p>
+                            <p className="text-xs text-gray-600">VS</p>
+                          </>
+                        )}
+                      </div>
                       <div className="text-center flex-1">
                         {match.crest_b ? (
                           <img src={match.crest_b} alt={match.away} className="h-12 w-12 object-contain mx-auto mb-2" />
@@ -389,177 +320,134 @@ const topPicks = livePredictions
                       <span className="text-xs font-bold text-green-500">{match.confidence}%</span>
                     </div>
                     {match.analysis && (
-  <>
-    {/* Expected score display */}
-    {match.expectedScore && (
-      <p className="mt-3 text-xs text-gold-400 font-semibold">
-        Predicted Score: {match.expectedScore}
-      </p>
-    )}
-
-    {/* Picks grid */}
-    <div className="mt-2 grid grid-cols-2 gap-1 text-xs">
-      <div>
-        <span className="text-gray-500">Main:</span>{" "}
-        <span className="text-white font-medium">{match.mainPick}</span>
-      </div>
-      <div>
-        <span className="text-gray-500">Safe:</span>{" "}
-        <span className="text-white font-medium">{match.safePick}</span>
-      </div>
-      <div>
-        <span className="text-gray-500">Goals:</span>{" "}
-        <span className="text-white font-medium">{match.goalsPick}</span>
-      </div>
-      <div>
-        <span className="text-gray-500">BTTS:</span>{" "}
-        <span className="text-white font-medium">{match.bttsPick}</span>
-      </div>
-    </div>
-
-    {/* Risk & Stake */}
-    <div className="mt-2 flex items-center gap-2 text-xs">
-      <span className="text-gray-500">
-        Risk: {match.riskLevel} | Stake: {match.stake}
-      </span>
-    </div>
-
-    {/* Affiliate CTAs */}
-<AffiliateCta matchId={match.id} />
-
-    <button
-      onClick={() => handleOpenAnalysis(match)}
-      className="text-xs text-gold-400 hover:underline mt-1"
-    >
-      View Full Analysis
-    </button>
-  </>
-)}
+                      <>
+                        {match.expectedScore && (
+                          <p className="mt-3 text-xs text-gold-400 font-semibold">
+                            Predicted Score: {match.expectedScore}
+                          </p>
+                        )}
+                        <div className="mt-2 grid grid-cols-2 gap-1 text-xs">
+                          <div><span className="text-gray-500">Main:</span> <span className="text-white font-medium">{match.mainPick}</span></div>
+                          <div><span className="text-gray-500">Safe:</span> <span className="text-white font-medium">{match.safePick}</span></div>
+                          <div><span className="text-gray-500">Goals:</span> <span className="text-white font-medium">{match.goalsPick}</span></div>
+                          <div><span className="text-gray-500">BTTS:</span> <span className="text-white font-medium">{match.bttsPick}</span></div>
+                        </div>
+                        <div className="mt-2 flex items-center gap-2 text-xs">
+                          <span className="text-gray-500">Risk: {match.riskLevel} | Stake: {match.stake}</span>
+                        </div>
+                        <AffiliateCta matchId={match.id} />
+                        <button
+                          onClick={() => handleOpenAnalysis(match)}
+                          className="text-xs text-gold-400 hover:underline mt-1"
+                        >
+                          View Full Analysis
+                        </button>
+                      </>
+                    )}
                   </div>
                 </motion.div>
               ))}
             </div>
 
-{/* Mobile cards – same layout as desktop, with live score between crests */}
-<div className="lg:hidden space-y-4">
-  {topPicks.map((match, idx) => (
-    <motion.div
-      key={idx}
-      whileTap={{ scale: 0.98 }}
-      className="rounded-[18px] bg-[#0D0D0D] border border-white/5 p-4"
-    >
-      {/* League */}
-      <div className="flex items-center gap-2 text-xs text-gray-400 uppercase mb-3">
-        <Activity className="h-3 w-3 text-gold-400" />
-        {match.league}
-      </div>
-
-      {/* Teams and LIVE/FT/Time in the middle */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="text-center flex-1">
-          {match.crest_a ? (
-            <img src={match.crest_a} alt={match.home} className="h-10 w-10 object-contain mx-auto mb-1" />
-          ) : (
-            <div className="h-10 w-10 rounded-full bg-gray-800 mx-auto mb-1" />
-          )}
-          <p className="text-xs font-medium">{match.home}</p>
-        </div>
-
-        {/* ---- MIDDLE SECTION (same as desktop) ---- */}
-        <div className="text-center px-2">
-          {match.match_status === "LIVE" ? (
-            <div className="flex flex-col items-center gap-1">
-              <span className="relative flex items-center gap-1.5">
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75"></span>
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500"></span>
-                </span>
-                <span className="text-xs font-bold text-red-400">LIVE</span>
-              </span>
-              {match.actual_home_score != null && match.actual_away_score != null && (
-                <span className="text-sm font-bold text-white tabular-nums">
-                  {match.actual_home_score} - {match.actual_away_score}
-                </span>
-              )}
+            {/* Mobile cards */}
+            <div className="lg:hidden space-y-4">
+              {topPicks.map((match, idx) => (
+                <motion.div
+                  key={idx}
+                  whileTap={{ scale: 0.98 }}
+                  className="rounded-[18px] bg-[#0D0D0D] border border-white/5 p-4"
+                >
+                  <div className="flex items-center gap-2 text-xs text-gray-400 uppercase mb-3">
+                    <Activity className="h-3 w-3 text-gold-400" />
+                    {match.league}
+                  </div>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="text-center flex-1">
+                      {match.crest_a ? (
+                        <img src={match.crest_a} alt={match.home} className="h-10 w-10 object-contain mx-auto mb-1" />
+                      ) : (
+                        <div className="h-10 w-10 rounded-full bg-gray-800 mx-auto mb-1" />
+                      )}
+                      <p className="text-xs font-medium">{match.home}</p>
+                    </div>
+                    <div className="text-center px-2">
+                      {match.match_status === "LIVE" ? (
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="relative flex items-center gap-1.5">
+                            <span className="relative flex h-2 w-2">
+                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75"></span>
+                              <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500"></span>
+                            </span>
+                            <span className="text-xs font-bold text-red-400">LIVE</span>
+                          </span>
+                          {match.actual_home_score != null && match.actual_away_score != null && (
+                            <span className="text-sm font-bold text-white tabular-nums">
+                              {match.actual_home_score} - {match.actual_away_score}
+                            </span>
+                          )}
+                        </div>
+                      ) : match.match_status === "FINISHED" ? (
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="text-xs font-bold text-gray-400">FT</span>
+                          {match.actual_home_score != null && match.actual_away_score != null && (
+                            <span className="text-sm font-bold text-white tabular-nums">
+                              {match.actual_home_score} - {match.actual_away_score}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <>
+                          <p className="text-xs font-bold text-gray-500">{match.time}</p>
+                          <p className="text-xs text-gray-600">VS</p>
+                        </>
+                      )}
+                    </div>
+                    <div className="text-center flex-1">
+                      {match.crest_b ? (
+                        <img src={match.crest_b} alt={match.away} className="h-10 w-10 object-contain mx-auto mb-1" />
+                      ) : (
+                        <div className="h-10 w-10 rounded-full bg-gray-800 mx-auto mb-1" />
+                      )}
+                      <p className="text-xs font-medium">{match.away}</p>
+                    </div>
+                  </div>
+                  <p className="text-sm font-semibold">{match.prediction}</p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <div className="h-1.5 flex-1 rounded-full bg-gray-800">
+                      <div className="h-full rounded-full bg-green-500" style={{ width: `${match.confidence}%` }} />
+                    </div>
+                    <span className="text-xs font-bold text-green-500">{match.confidence}%</span>
+                  </div>
+                  {match.expectedScore && (
+                    <p className="mt-2 text-xs text-gold-400 font-semibold">Predicted Score: {match.expectedScore}</p>
+                  )}
+                  <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                    <div><span className="text-gray-500">Main:</span> <span className="text-white font-medium">{match.mainPick}</span></div>
+                    <div><span className="text-gray-500">Safe:</span> <span className="text-white font-medium">{match.safePick}</span></div>
+                    <div><span className="text-gray-500">Goals:</span> <span className="text-white font-medium">{match.goalsPick}</span></div>
+                    <div><span className="text-gray-500">BTTS:</span> <span className="text-white font-medium">{match.bttsPick}</span></div>
+                  </div>
+                  <div className="mt-2 text-xs text-gray-500">Risk: {match.riskLevel} | Stake: {match.stake}</div>
+                  <AffiliateCta matchId={match.id} />
+                  {match.analysis && (
+                    <button
+                      onClick={() => handleOpenAnalysis(match)}
+                      className="text-xs text-gold-400 hover:underline mt-2"
+                    >
+                      View Full Analysis
+                    </button>
+                  )}
+                </motion.div>
+              ))}
             </div>
-          ) : match.match_status === "FINISHED" ? (
-            <div className="flex flex-col items-center gap-1">
-              <span className="text-xs font-bold text-gray-400">FT</span>
-              {match.actual_home_score != null && match.actual_away_score != null && (
-                <span className="text-sm font-bold text-white tabular-nums">
-                  {match.actual_home_score} - {match.actual_away_score}
-                </span>
-              )}
-            </div>
-          ) : (
-            <>
-              <p className="text-xs font-bold text-gray-500">{match.time}</p>
-              <p className="text-xs text-gray-600">VS</p>
-            </>
-          )}
-        </div>
-        {/* ------------------------------------ */}
-
-        <div className="text-center flex-1">
-          {match.crest_b ? (
-            <img src={match.crest_b} alt={match.away} className="h-10 w-10 object-contain mx-auto mb-1" />
-          ) : (
-            <div className="h-10 w-10 rounded-full bg-gray-800 mx-auto mb-1" />
-          )}
-          <p className="text-xs font-medium">{match.away}</p>
-        </div>
-      </div>
-
-      {/* Main Prediction + Confidence */}
-      <p className="text-sm font-semibold">{match.prediction}</p>
-      <div className="mt-2 flex items-center gap-2">
-        <div className="h-1.5 flex-1 rounded-full bg-gray-800">
-          <div className="h-full rounded-full bg-green-500" style={{ width: `${match.confidence}%` }} />
-        </div>
-        <span className="text-xs font-bold text-green-500">{match.confidence}%</span>
-      </div>
-
-      {/* Expected Score */}
-      {match.expectedScore && (
-        <p className="mt-2 text-xs text-gold-400 font-semibold">Predicted Score: {match.expectedScore}</p>
-      )}
-
-      {/* Picks Grid */}
-      <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-        <div><span className="text-gray-500">Main:</span> <span className="text-white font-medium">{match.mainPick}</span></div>
-        <div><span className="text-gray-500">Safe:</span> <span className="text-white font-medium">{match.safePick}</span></div>
-        <div><span className="text-gray-500">Goals:</span> <span className="text-white font-medium">{match.goalsPick}</span></div>
-        <div><span className="text-gray-500">BTTS:</span> <span className="text-white font-medium">{match.bttsPick}</span></div>
-      </div>
-
-      {/* Risk & Stake */}
-      <div className="mt-2 text-xs text-gray-500">Risk: {match.riskLevel} | Stake: {match.stake}</div>
-
-      {/* Affiliate CTAs */}
-      <AffiliateCta matchId={match.id} />
-
-      {/* Analysis */}
-      {match.analysis && (
-        <button
-          onClick={() => handleOpenAnalysis(match)}
-          className="text-xs text-gold-400 hover:underline mt-2"
-        >
-          View Full Analysis
-        </button>
-      )}
-    </motion.div>
-  ))}
-</div>
           </>
         )}
       </section>
 
-      {/* Ad below Top Picks (both screens) */}
- <div className="mx-auto max-w-[1280px] px-6 mb-12">
-  <AdBanner variant="banner" />
-</div>
+      <div className="mx-auto max-w-[1280px] px-6 mb-12">
+        <AdBanner variant="banner" />
+      </div>
 
-      {/* ===== MOBILE VIP CARD ===== */}
       <section className="lg:hidden mx-auto max-w-[1280px] px-6 mb-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
           className="rounded-2xl border border-gold-400/30 bg-gradient-to-br from-gold-400/5 to-transparent p-5 flex flex-col items-center text-center">
@@ -571,15 +459,14 @@ const topPicks = livePredictions
           <p className="text-xs text-gray-300 max-w-xs mb-5">
             Get daily premium predictions, expert analysis, and exclusive tools.
           </p>
-         <Link href="/vip">
-  <Button className="h-[60px] w-[250px] rounded-xl bg-gold-400 text-base font-semibold text-black hover:bg-gold-500 gap-2">
-    <Crown className="h-5 w-5" /> Get Early Access <ArrowRight className="h-4 w-4" />
-  </Button>
-</Link>
+          <Link href="/vip">
+            <Button className="h-[60px] w-[250px] rounded-xl bg-gold-400 text-base font-semibold text-black hover:bg-gold-500 gap-2">
+              <Crown className="h-5 w-5" /> Get Early Access <ArrowRight className="h-4 w-4" />
+            </Button>
+          </Link>
         </motion.div>
       </section>
 
-      {/* ===== FOOTER ===== */}
       <footer className="border-t border-white/5 bg-[#050505] py-12">
         <div className="max-w-[1280px] mx-auto px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
@@ -628,8 +515,6 @@ const topPicks = livePredictions
       </footer>
 
       <MobileBottomNav />
-
-      {/* Analysis Modal */}
       <AnalysisModal
         isOpen={analysisModalOpen}
         onClose={handleCloseAnalysis}

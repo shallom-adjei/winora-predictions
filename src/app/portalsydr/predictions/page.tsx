@@ -5,7 +5,6 @@ import Link from "next/link";
 import { ArrowLeft, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import toast from "react-hot-toast";
-import { useRouter } from "next/navigation";
 
 export default function AdminPredictionsPage() {
   const [predictions, setPredictions] = useState<any[]>([]);
@@ -14,11 +13,13 @@ export default function AdminPredictionsPage() {
 
   const fetchPredictions = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("predictions")
-      .select("*")
-      .order("kickoff_time", { ascending: true });
-    if (data) setPredictions(data);
+    try {
+      const res = await fetch("/api/admin-predictions");
+      const data = await res.json();
+      setPredictions(data.predictions || []);
+    } catch (err) {
+      console.error(err);
+    }
     setLoading(false);
   };
 
