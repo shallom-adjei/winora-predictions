@@ -1,6 +1,5 @@
 "use client";
 import { useState, useEffect, useMemo } from "react";
-import { supabase } from "@/lib/supabase";
 import PublicHeader from "@/components/PublicHeader";
 import Footer from "@/components/Footer";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
@@ -31,23 +30,19 @@ export default function ResultsPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
-  // Fetch results with date filtering
   useEffect(() => {
     setLoading(true);
-    let query = supabase
-      .from("predictions")
-      .select("*")
-      .not("result", "is", null)
-      .neq("result", "Pending")
-      .order("kickoff_time", { ascending: false });
-
-    if (dateFrom) query = query.gte("kickoff_time", `${dateFrom}T00:00:00`);
-    if (dateTo) query = query.lte("kickoff_time", `${dateTo}T23:59:59`);
-
-    query.then(({ data }) => {
-      if (data) setResults(data);
-      setLoading(false);
-    });
+    fetch("/api/get-results")
+      .then((r) => r.json())
+      .then((data) => {
+        let all = data.results || [];
+        // Client‑side date filtering (keep your existing logic)
+        if (dateFrom) all = all.filter((m: any) => new Date(m.kickoff_time) >= new Date(`${dateFrom}T00:00:00`));
+        if (dateTo) all = all.filter((m: any) => new Date(m.kickoff_time) <= new Date(`${dateTo}T23:59:59`));
+        setResults(all);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
   }, [dateFrom, dateTo]);
 
   // Group by date

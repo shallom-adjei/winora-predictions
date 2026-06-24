@@ -236,217 +236,101 @@ const handleLogout = async () => {
     }
   };
 
-  // ---------- DATA FETCHING ----------
-  const fetchDashboardData = async () => {
-    setLoading(true);
-    const { data: upcoming } = await supabase
-      .from("predictions")
-      .select("*")
-      .or("result.eq.pending,result.is.null")
-      .order("created_at", { ascending: false })
-      .limit(5);
-    if (upcoming) {
-      setUpcomingMatches(
-        upcoming.map((p) => ({
-          id: p.id,
-          match: p.match_name,
-          league: p.sport,
-          time: p.time,
-          prediction: p.prediction,
-          confidence: p.confidence,
-          status: p.result || "Pending",
-          match_status: p.match_status,
-          actual_home_score: p.actual_home_score,
-          actual_away_score: p.actual_away_score,
-          team_a: p.team_a,
-          team_b: p.team_b,
-          form_points_a: p.form_points_a,
-          form_points_b: p.form_points_b,
-          home_goals_scored: p.home_goals_scored,
-          home_goals_conceded: p.home_goals_conceded,
-          away_goals_scored: p.away_goals_scored,
-          away_goals_conceded: p.away_goals_conceded,
-          league_position_a: p.league_position_a,
-          league_position_b: p.league_position_b,
-          h2h_last5: p.h2h_last5,
-          h2h_over25_pct: p.h2h_over25_pct,
-          h2h_btts_pct: p.h2h_btts_pct,
-          clean_sheets_last5_a: p.clean_sheets_last5_a,
-          clean_sheets_last5_b: p.clean_sheets_last5_b,
-          failed_to_score_last5_a: p.failed_to_score_last5_a,
-          failed_to_score_last5_b: p.failed_to_score_last5_b,
-          over25_last5_pct_a: p.over25_last5_pct_a,
-          over25_last5_pct_b: p.over25_last5_pct_b,
-          btts_last5_pct_a: p.btts_last5_pct_a,
-          btts_last5_pct_b: p.btts_last5_pct_b,
-          home_team: p.team_a,
-          injuries: null,
-          odds_home: p.home_odds,
-          odds_draw: p.draw_odds,
-          odds_away: p.away_odds,
-        }))
-      );
-    }
+const fetchDashboardData = async () => {
+  setLoading(true);
+  try {
+    const res = await fetch("/api/admin-data");
+    const d = await res.json();
 
-    const { data: recent } = await supabase
-      .from("predictions")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(10);
-    if (recent) {
-      setRecentPredictions(
-  recent.map((p) => ({
-    id: p.id,
-    date: new Date(p.created_at).toLocaleDateString(),
-    match: p.match_name,
-    prediction: p.main_pick || p.prediction,
-    odd: "—",
-    stake: "—",
-    result: p.result || "Pending",
-    profit: "—",
-    actual_home_score: p.actual_home_score,
-    actual_away_score: p.actual_away_score,
-    main_pick: p.main_pick,
-    safe_pick: p.safe_pick,
-    goals_pick: p.goals_pick,
-    btts_pick: p.btts_pick,
-  }))
-);
-    }
-    setLoading(false);
-  };
+    // Quick Stats
+    setRealQuickStats([
+      { label: "Today's Predictions", value: String(d.todayPreds), change: "", icon: BarChart3 },
+      { label: "Win Rate", value: `${d.winRate}%`, change: "", icon: TrendingUp },
+      { label: "Pending", value: String(d.pending), change: "", icon: Eye },
+      { label: "Avg Confidence", value: `${d.avgConf}%`, change: "", icon: TrendingUp },
+    ]);
 
-  const fetchAnalytics = async () => {
-    try {
-      // ----- Win rate -----
-      const { data: results } = await supabase
-        .from("predictions")
-        .select("result")
-        .not("result", "is", null)
-        .neq("result", "Pending");
-      const wins = results?.filter((r) => r.result === "Win").length || 0;
-      const total = results?.length || 1;
-      const winRate = ((wins / total) * 100).toFixed(1);
+    // Upcoming Matches – map all needed fields (copy the full mapping from your old setUpcomingMatches)
+    setUpcomingMatches(
+      (d.upcoming || []).map((p: any) => ({
+        id: p.id,
+        match: p.match_name,
+        league: p.sport,
+        time: p.time,
+        prediction: p.prediction,
+        confidence: p.confidence,
+        status: p.result || "Pending",
+        match_status: p.match_status,
+        actual_home_score: p.actual_home_score,
+        actual_away_score: p.actual_away_score,
+        team_a: p.team_a,
+        team_b: p.team_b,
+        form_points_a: p.form_points_a,
+        form_points_b: p.form_points_b,
+        home_goals_scored: p.home_goals_scored,
+        home_goals_conceded: p.home_goals_conceded,
+        away_goals_scored: p.away_goals_scored,
+        away_goals_conceded: p.away_goals_conceded,
+        league_position_a: p.league_position_a,
+        league_position_b: p.league_position_b,
+        h2h_last5: p.h2h_last5,
+        h2h_over25_pct: p.h2h_over25_pct,
+        h2h_btts_pct: p.h2h_btts_pct,
+        clean_sheets_last5_a: p.clean_sheets_last5_a,
+        clean_sheets_last5_b: p.clean_sheets_last5_b,
+        failed_to_score_last5_a: p.failed_to_score_last5_a,
+        failed_to_score_last5_b: p.failed_to_score_last5_b,
+        over25_last5_pct_a: p.over25_last5_pct_a,
+        over25_last5_pct_b: p.over25_last5_pct_b,
+        btts_last5_pct_a: p.btts_last5_pct_a,
+        btts_last5_pct_b: p.btts_last5_pct_b,
+        home_team: p.team_a,
+        injuries: null,
+        odds_home: p.home_odds,
+        odds_draw: p.draw_odds,
+        odds_away: p.away_odds,
+      }))
+    );
 
-      // ----- Pending -----
-      const { count: pending } = await supabase
-        .from("predictions")
-        .select("*", { count: "exact", head: true })
-        .or("result.is.null,result.eq.Pending");
+    // Recent Predictions
+    setRecentPredictions(
+      (d.recent || []).map((p: any) => ({
+        id: p.id,
+        date: new Date(p.created_at).toLocaleDateString(),
+        match: p.match_name,
+        prediction: p.main_pick || p.prediction,
+        odd: "—",
+        stake: "—",
+        result: p.result || "Pending",
+        profit: "—",
+        actual_home_score: p.actual_home_score,
+        actual_away_score: p.actual_away_score,
+        main_pick: p.main_pick,
+        safe_pick: p.safe_pick,
+        goals_pick: p.goals_pick,
+        btts_pick: p.btts_pick,
+      }))
+    );
 
-      // ----- Average confidence -----
-      const { data: confidenceData } = await supabase
-        .from("predictions")
-        .select("confidence")
-        .not("confidence", "is", null);
-      const avgConf = confidenceData?.length
-        ? (confidenceData.reduce((sum, r) => sum + (r.confidence || 0), 0) / confidenceData.length).toFixed(1)
-        : "0";
+    // Waitlist
+    setWaitlistEntries(d.waitlist || []);
 
-      // ----- Today's predictions count -----
-      const todayStart = new Date().toISOString().split("T")[0] + "T00:00:00";
-      const todayEnd = new Date().toISOString().split("T")[0] + "T23:59:59";
-      const { count: todayPreds } = await supabase
-        .from("predictions")
-        .select("*", { count: "exact", head: true })
-        .gte("created_at", todayStart)
-        .lte("created_at", todayEnd);
+    // Win Rate for sidebar
+    setOverviewData({ winRate: d.winRate });
 
-      // ----- Quick stats -----
-           setRealQuickStats([
-        { label: "Today's Predictions", value: String(todayPreds), change: "", icon: BarChart3 },
-        { label: "Win Rate", value: `${winRate}%`, change: "", icon: TrendingUp },
-        { label: "Pending", value: String(pending), change: "", icon: Eye },
-        { label: "Avg Confidence", value: `${avgConf}%`, change: "", icon: TrendingUp },
-      ]);
+  } catch (err) {
+    console.error("Admin data fetch error", err);
+  }
+  setLoading(false);
+};
 
-      // ----- Pie chart (predictions by sport) -----
-      const { data: sportData } = await supabase.from("predictions").select("sport");
-      const sportCounts: Record<string, number> = {};
-      sportData?.forEach((p) => {
-        const s = p.sport || "Other";
-        sportCounts[s] = (sportCounts[s] || 0) + 1;
-      });
-      const colors = ["#D4AF37", "#22C55E", "#3B82F6", "#EF4444", "#8B5CF6", "#6B7280"];
-      const pie = Object.entries(sportCounts).map(([name, value], idx) => ({
-        name,
-        value,
-        color: colors[idx % colors.length],
-      }));
-      setRealPieData(pie.length > 0 ? pie : pieDataFallback);
-
-      // ----- Performance trend (last 7 days) -----
-      const last7Days = [];
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        last7Days.push(d.toISOString().split("T")[0]);
-      }
-      const perf = [];
-      for (const date of last7Days) {
-        const start = `${date}T00:00:00`;
-        const end = `${date}T23:59:59`;
-        const { data: dayResults } = await supabase
-          .from("predictions")
-          .select("result")
-          .gte("created_at", start)
-          .lte("created_at", end)
-          .not("result", "is", null)
-          .neq("result", "Pending");
-        const dayWins = dayResults?.filter((r) => r.result === "Win").length || 0;
-        const dayTotal = dayResults?.length || 1;
-        const dayWinRate = Math.round((dayWins / dayTotal) * 100);
-        const roi = dayWinRate > 70 ? 20 : dayWinRate > 50 ? 10 : 0;
-        perf.push({ date, winRate: dayWinRate, roi });
-      }
-      setRealPerformanceData(perf);
-
-      // ----- Recent activity (latest predictions) -----
-      const { data: recentPreds } = await supabase
-        .from("predictions")
-        .select("match_name, prediction, created_at")
-        .order("created_at", { ascending: false })
-        .limit(5);
-      const activities = recentPreds?.map((p) => ({
-        icon: TrendingUp,
-        title: "New prediction added",
-        desc: `${p.match_name} – ${p.prediction || "TBD"}`,
-        time: new Date(p.created_at).toLocaleString(),
-      })) || activityFeedFallback;
-      setRealActivityFeed(activities);
-
-      // ---- Quick Overview ----
-      setOverviewData({ winRate: winRate });
-    } catch (err) {
-      console.error("Analytics fetch error:", err);
-    }
-
-    // ----- Total visitors (unique visitor IDs) -----
-const { data: uniqueVisitors } = await supabase
-  .from("analytics_events")
-  .select("visitor_id");
-
-const uniqueCount = uniqueVisitors
-  ? new Set(uniqueVisitors.map((r: any) => r.visitor_id)).size
-  : 0;
-
-    // Fetch waitlist sign‑ups
-    const { data: waitlistData } = await supabase
-      .from("waitlist")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(10);
-    setWaitlistEntries(waitlistData || []);
-  };
-
-  useEffect(() => {
-    const hour = new Date().getHours();
-    if (hour < 12) setGreeting("Good morning");
-    else if (hour < 18) setGreeting("Good afternoon");
-    else setGreeting("Good evening");
-    fetchDashboardData();
-    fetchAnalytics();
-  }, []);
+useEffect(() => {
+  const hour = new Date().getHours();
+  if (hour < 12) setGreeting("Good morning");
+  else if (hour < 18) setGreeting("Good afternoon");
+  else setGreeting("Good evening");
+  fetchDashboardData();
+}, []);
 
   // ----- Action Handlers -----
   const handleAddPick = async (e: React.FormEvent) => {
@@ -457,7 +341,6 @@ const uniqueCount = uniqueVisitors
     setNewPick({ sport: "Football", match_name: "", team_a: "", team_b: "", time: "", prediction: "", confidence: 70, is_premium: false });
     setShowForm(false);
     fetchDashboardData();
-    fetchAnalytics();
   };
 
   const handleDelete = async (id: string) => {
@@ -466,7 +349,6 @@ const uniqueCount = uniqueVisitors
     if (error) { toast.error("Delete failed"); return; }
     toast.success("Prediction deleted");
     fetchDashboardData();
-    fetchAnalytics();
   };
 
   const handleUpdateResult = async (id: string, result: string) => {
@@ -474,7 +356,6 @@ const uniqueCount = uniqueVisitors
     if (error) { toast.error("Update failed"); return; }
     toast.success("Result updated");
     fetchDashboardData();
-    fetchAnalytics();
   };
 
   const openEditModal = (prediction: any) => {
@@ -500,7 +381,6 @@ const uniqueCount = uniqueVisitors
     toast.success("Prediction updated");
     setEditingPrediction(null);
     fetchDashboardData();
-    fetchAnalytics();
   };
 
 const handleGenerateAI = async (match: any) => {
@@ -533,7 +413,6 @@ const handleGenerateAI = async (match: any) => {
 
     toast.success("AI prediction generated!");
     fetchDashboardData();
-    fetchAnalytics();
   } catch (err) {
     toast.error("AI generation failed");
   } finally {
@@ -581,7 +460,6 @@ const handleGenerateAll = async () => {
   }
   toast.success("All predictions generated!");
   fetchDashboardData();
-  fetchAnalytics();
 };
 
   const handleEnrich = async () => {
@@ -599,7 +477,6 @@ const handleGenerateAll = async () => {
         toast.success("Enrichment complete");
       }
       fetchDashboardData();
-      fetchAnalytics();
     } else {
       toast.error(data.error || "Enrichment failed");
     }
@@ -618,7 +495,6 @@ const handleGenerateAll = async () => {
       if (data.success) {
         toast.success(`Added ${data.inserted} matches, enriched ${data.enriched}`);
         fetchDashboardData();
-        fetchAnalytics();
       } else { toast.error(data.error || "Update failed"); }
     } catch { toast.error("Network error"); }
     finally { setUpdating(false); }

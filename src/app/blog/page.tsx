@@ -1,6 +1,5 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/lib/supabase";
 import PublicHeader from "@/components/PublicHeader";
 import Footer from "@/components/Footer";
 import Link from "next/link";
@@ -19,21 +18,23 @@ export default function BlogPage() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  const fetchData = useCallback(async () => {
-    const { data: allPosts } = await supabase
-      .from("blog_posts")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (allPosts) {
-      setPosts(allPosts);
+const fetchData = useCallback(async () => {
+  try {
+    const res = await fetch("/api/get-blog-posts");
+    const data = await res.json();
+    if (data.posts) {
+      setPosts(data.posts);
       const now = new Date();
-      const top = allPosts.filter(
-        (p) => p.top_story_until && new Date(p.top_story_until) > now
+      const top = data.posts.filter(
+        (p: any) => p.top_story_until && new Date(p.top_story_until) > now
       );
       setTopStories(top.slice(0, 3));
     }
-    setLoading(false);
-  }, []);
+  } catch (err) {
+    console.error("Failed to fetch blog posts", err);
+  }
+  setLoading(false);
+}, []);
 
   useEffect(() => {
     fetchData();
