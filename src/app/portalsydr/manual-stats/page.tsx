@@ -82,14 +82,7 @@ export default function ManualStatsPage() {
     setTimeout(() => setCopiedId(null), 3000);
   };
 
-  // ---------- EARLY RETURN (only after all hooks are declared) ----------
-  if (!sessionReady) {
-    return (
-      <div className="flex min-h-screen bg-[#050505] text-white items-center justify-center">
-        <div className="text-xl text-gold-400">Verifying session…</div>
-      </div>
-    );
-  }
+ 
 
   // ---------- NORMAL RENDER ----------
   return (
