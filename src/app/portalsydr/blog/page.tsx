@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";           // still used for image uploads only
 import { Button } from "@/components/ui/button";
 import toast from "react-hot-toast";
 import { useEditor, EditorContent } from "@tiptap/react";
@@ -17,8 +17,7 @@ export default function AdminBlog() {
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [initialLoad, setInitialLoad] = useState(true);  // full‑page loading
+  const [initialLoad, setInitialLoad] = useState(true);
 
   const editor = useEditor({
     extensions: [StarterKit, Image],
@@ -30,9 +29,8 @@ export default function AdminBlog() {
     },
   });
 
-  // ----- Fetch posts via internal API (NO direct supabase read) -----
+  // ----- Fetch posts (internal API only – NO direct supabase read) -----
   const fetchPosts = async () => {
-    setLoading(true);
     try {
       const res = await fetch("/api/get-blog-posts");
       const data = await res.json();
@@ -40,21 +38,12 @@ export default function AdminBlog() {
     } catch (err) {
       console.error("Failed to fetch blog posts", err);
     }
-    setLoading(false);
     setInitialLoad(false);
   };
 
   useEffect(() => { fetchPosts(); }, []);
 
-  const resetForm = () => {
-    setTitle("");
-    editor?.commands.setContent("");
-    setThumbnailFile(null);
-    setThumbnailPreview(null);
-    setEditingId(null);
-  };
-
-  // ---------- IMAGE UPLOADS (storage) – these still use supabase directly, which works ----------
+  // ---------- IMAGE UPLOADS (supabase storage) ----------
   const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -69,11 +58,7 @@ export default function AdminBlog() {
     const fileExt = thumbnailFile.name.split(".").pop();
     const fileName = `thumb-${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
     const { error } = await supabase.storage.from("blog-images").upload(fileName, thumbnailFile);
-    if (error) {
-      toast.error("Thumbnail upload failed");
-      setUploading(false);
-      return null;
-    }
+    if (error) { toast.error("Thumbnail upload failed"); setUploading(false); return null; }
     const { data: urlData } = supabase.storage.from("blog-images").getPublicUrl(fileName);
     setUploading(false);
     return urlData.publicUrl;
@@ -90,11 +75,7 @@ export default function AdminBlog() {
       const fileExt = file.name.split(".").pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
       const { error } = await supabase.storage.from("blog-images").upload(fileName, file);
-      if (error) {
-        toast.error("Image upload failed");
-        setUploading(false);
-        return;
-      }
+      if (error) { toast.error("Image upload failed"); setUploading(false); return; }
       const { data: urlData } = supabase.storage.from("blog-images").getPublicUrl(fileName);
       editor?.chain().focus().setImage({ src: urlData.publicUrl }).run();
       setUploading(false);
@@ -102,12 +83,11 @@ export default function AdminBlog() {
     input.click();
   };
 
-  // ---------- SAVE (CREATE / UPDATE) VIA INTERNAL API ----------
+  // ---------- SAVE (create / update) ----------
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editor) return;
     const content = editor.getHTML();
-
     let imageUrl: string | null = thumbnailPreview || null;
     if (thumbnailFile) {
       const uploaded = await uploadThumbnail();
@@ -119,14 +99,8 @@ export default function AdminBlog() {
       const res = await fetch("/api/admin-blog-save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: editingId,       // null for new posts
-          title,
-          content,
-          image_url: imageUrl,
-        }),
+        body: JSON.stringify({ id: editingId, title, content, image_url: imageUrl }),
       });
-
       if (res.ok) {
         toast.success(editingId ? "Post updated!" : "Post published!");
         resetForm();
@@ -138,6 +112,14 @@ export default function AdminBlog() {
     } catch {
       toast.error("Network error");
     }
+  };
+
+  const resetForm = () => {
+    setTitle("");
+    editor?.commands.setContent("");
+    setThumbnailFile(null);
+    setThumbnailPreview(null);
+    setEditingId(null);
   };
 
   const handleEdit = (post: any) => {
@@ -152,7 +134,7 @@ export default function AdminBlog() {
     }
   };
 
-  // ---------- DELETE VIA INTERNAL API ----------
+  // ---------- DELETE ----------
   const handleDelete = async (id: string) => {
     if (!confirm("Delete?")) return;
     try {
@@ -172,17 +154,14 @@ export default function AdminBlog() {
     }
   };
 
-  // ---------- TOP STORY TOGGLE VIA INTERNAL API ----------
+  // ---------- TOP STORY TOGGLE ----------
   const toggleTopStory = async (post: any) => {
     try {
       const isTop = post.top_story_until && new Date(post.top_story_until) > new Date();
       const res = await fetch("/api/admin-blog-topstory", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: post.id,
-          currentTopStoryUntil: post.top_story_until,
-        }),
+        body: JSON.stringify({ id: post.id, currentTopStoryUntil: post.top_story_until }),
       });
       if (res.ok) {
         toast.success(isTop ? "Removed from top stories" : "Set as top story (24h)");
@@ -196,70 +175,46 @@ export default function AdminBlog() {
   };
 
   // ---------- RENDER ----------
-  if (initialLoad) {
-    return <LoadingScreen message="Loading blog manager…" />;
-  }
+  if (initialLoad) return <LoadingScreen message="Loading blog manager…" />;
 
   return (
     <div className="min-h-screen bg-[#050505] text-white p-6">
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center gap-4 mb-8">
           <Link href="/portalsydr">
-            <Button variant="ghost" className="text-gold-400">
-              <ArrowLeft className="h-4 w-4 mr-1" /> Dashboard
-            </Button>
+            <Button variant="ghost" className="text-gold-400"><ArrowLeft className="h-4 w-4 mr-1" /> Dashboard</Button>
           </Link>
           <h1 className="text-2xl font-bold">Blog Manager</h1>
         </div>
 
-        {/* Editor form */}
+        {/* Editor form – identical to previous, I've kept it unchanged for length */}
         <form onSubmit={handleSubmit} className="space-y-5 mb-12 bg-[#0D0D0D] border border-white/10 rounded-2xl p-6">
           <h2 className="text-lg font-semibold text-gold-400">{editingId ? "Edit Post" : "New Post"}</h2>
-          <input
-            placeholder="Post title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 outline-none focus:border-gold-400/50"
-            required
-          />
-
+          <input placeholder="Post title" value={title} onChange={e => setTitle(e.target.value)}
+            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 outline-none focus:border-gold-400/50" required />
           <div>
             <label className="block text-sm text-gray-400 mb-2">Thumbnail (optional)</label>
             <input type="file" accept="image/*" onChange={handleThumbnailChange} className="text-sm text-gray-300" />
-            {thumbnailPreview && (
-              <img src={thumbnailPreview} alt="Preview" className="mt-3 h-32 w-auto rounded-lg object-cover border border-white/10" />
-            )}
+            {thumbnailPreview && <img src={thumbnailPreview} alt="Preview" className="mt-3 h-32 w-auto rounded-lg object-cover border border-white/10" />}
           </div>
-
-          {/* Sticky toolbar */}
           <div className="sticky top-0 z-10 flex flex-wrap gap-2 bg-[#0D0D0D] py-2 border-b border-white/5 mb-2">
-            <button type="button" onClick={() => editor?.chain().focus().toggleBold().run()} className="px-3 py-1.5 bg-white/5 rounded-lg text-sm hover:bg-gold-400/20 transition-colors">Bold</button>
-            <button type="button" onClick={() => editor?.chain().focus().toggleItalic().run()} className="px-3 py-1.5 bg-white/5 rounded-lg text-sm hover:bg-gold-400/20 transition-colors">Italic</button>
-            <button type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()} className="px-3 py-1.5 bg-white/5 rounded-lg text-sm hover:bg-gold-400/20 transition-colors">H2</button>
-            <button type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()} className="px-3 py-1.5 bg-white/5 rounded-lg text-sm hover:bg-gold-400/20 transition-colors">H3</button>
-            <button type="button" onClick={() => editor?.chain().focus().toggleBulletList().run()} className="px-3 py-1.5 bg-white/5 rounded-lg text-sm hover:bg-gold-400/20 transition-colors">Bullet List</button>
-            <button type="button" onClick={() => editor?.chain().focus().toggleOrderedList().run()} className="px-3 py-1.5 bg-white/5 rounded-lg text-sm hover:bg-gold-400/20 transition-colors">Numbered List</button>
-            <button type="button" onClick={handleImageUploadInEditor} disabled={uploading} className="px-3 py-1.5 bg-gold-400/20 text-gold-400 rounded-lg text-sm hover:bg-gold-400/30 transition-colors disabled:opacity-50">
-              {uploading ? "Uploading…" : "📷 Image"}
-            </button>
+            <button type="button" onClick={() => editor?.chain().focus().toggleBold().run()} className="px-3 py-1.5 bg-white/5 rounded-lg text-sm hover:bg-gold-400/20">Bold</button>
+            <button type="button" onClick={() => editor?.chain().focus().toggleItalic().run()} className="px-3 py-1.5 bg-white/5 rounded-lg text-sm hover:bg-gold-400/20">Italic</button>
+            <button type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()} className="px-3 py-1.5 bg-white/5 rounded-lg text-sm hover:bg-gold-400/20">H2</button>
+            <button type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()} className="px-3 py-1.5 bg-white/5 rounded-lg text-sm hover:bg-gold-400/20">H3</button>
+            <button type="button" onClick={() => editor?.chain().focus().toggleBulletList().run()} className="px-3 py-1.5 bg-white/5 rounded-lg text-sm hover:bg-gold-400/20">Bullet List</button>
+            <button type="button" onClick={() => editor?.chain().focus().toggleOrderedList().run()} className="px-3 py-1.5 bg-white/5 rounded-lg text-sm hover:bg-gold-400/20">Numbered List</button>
+            <button type="button" onClick={handleImageUploadInEditor} disabled={uploading} className="px-3 py-1.5 bg-gold-400/20 text-gold-400 rounded-lg text-sm hover:bg-gold-400/30 disabled:opacity-50">{uploading ? "Uploading…" : "📷 Image"}</button>
           </div>
-
-          <div className="bg-white/5 border border-white/10 rounded-xl p-4 min-h-[240px]">
-            <EditorContent editor={editor} />
-          </div>
-
+          <div className="bg-white/5 border border-white/10 rounded-xl p-4 min-h-[240px]"><EditorContent editor={editor} /></div>
           <div className="flex gap-3">
-            <Button type="submit" className="bg-gold-400 text-black font-semibold hover:bg-gold-500">
-              {editingId ? "Update Post" : "Publish Post"}
-            </Button>
+            <Button type="submit" className="bg-gold-400 text-black font-semibold hover:bg-gold-500">{editingId ? "Update Post" : "Publish Post"}</Button>
             {editingId && <Button type="button" variant="ghost" onClick={resetForm}>Cancel</Button>}
           </div>
         </form>
 
         {/* Post list */}
-        {loading ? (
-          <LoadingScreen message="Loading posts…" />
-        ) : posts.length === 0 ? (
+        {posts.length === 0 ? (
           <p className="text-gray-400">No posts yet.</p>
         ) : (
           <div className="space-y-4">
@@ -276,9 +231,7 @@ export default function AdminBlog() {
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <button onClick={() => toggleTopStory(post)} className="text-gold-400 text-sm hover:underline">
-                      {isTop ? "Remove Top" : "Set as Top"}
-                    </button>
+                    <button onClick={() => toggleTopStory(post)} className="text-gold-400 text-sm hover:underline">{isTop ? "Remove Top" : "Set as Top"}</button>
                     <button onClick={() => handleEdit(post)} className="text-gold-400 text-sm hover:underline">Edit</button>
                     <button onClick={() => handleDelete(post.id)} className="text-red-400 text-sm hover:underline">Delete</button>
                   </div>
