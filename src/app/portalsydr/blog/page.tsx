@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";           // still used for image uploads only
+import { supabase } from "@/lib/supabase";           // still used for image uploads
 import { Button } from "@/components/ui/button";
 import toast from "react-hot-toast";
 import { useEditor, EditorContent } from "@tiptap/react";
@@ -29,7 +29,7 @@ export default function AdminBlog() {
     },
   });
 
-  // ----- Fetch posts (internal API only – NO direct supabase read) -----
+  // ----- Fetch posts via internal API -----
   const fetchPosts = async () => {
     try {
       const res = await fetch("/api/get-blog-posts");
@@ -43,7 +43,7 @@ export default function AdminBlog() {
 
   useEffect(() => { fetchPosts(); }, []);
 
-  // ---------- IMAGE UPLOADS (supabase storage) ----------
+  // ---------- IMAGE UPLOADS ----------
   const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -83,7 +83,7 @@ export default function AdminBlog() {
     input.click();
   };
 
-  // ---------- SAVE (create / update) ----------
+  // ---------- SAVE (create / update) via internal API ----------
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editor) return;
@@ -105,6 +105,7 @@ export default function AdminBlog() {
         toast.success(editingId ? "Post updated!" : "Post published!");
         resetForm();
         fetchPosts();
+        window.location.reload();  // force refresh to show changes
       } else {
         const errData = await res.json().catch(() => ({}));
         toast.error(errData.error || "Failed to save post");
@@ -134,7 +135,7 @@ export default function AdminBlog() {
     }
   };
 
-  // ---------- DELETE ----------
+  // ---------- DELETE via internal API ----------
   const handleDelete = async (id: string) => {
     if (!confirm("Delete?")) return;
     try {
@@ -146,6 +147,7 @@ export default function AdminBlog() {
       if (res.ok) {
         toast.success("Deleted");
         fetchPosts();
+        window.location.reload();  // force refresh
       } else {
         toast.error("Delete failed");
       }
@@ -166,6 +168,7 @@ export default function AdminBlog() {
       if (res.ok) {
         toast.success(isTop ? "Removed from top stories" : "Set as top story (24h)");
         fetchPosts();
+        window.location.reload();
       } else {
         toast.error("Failed");
       }
@@ -187,7 +190,7 @@ export default function AdminBlog() {
           <h1 className="text-2xl font-bold">Blog Manager</h1>
         </div>
 
-        {/* Editor form – identical to previous, I've kept it unchanged for length */}
+        {/* Editor form */}
         <form onSubmit={handleSubmit} className="space-y-5 mb-12 bg-[#0D0D0D] border border-white/10 rounded-2xl p-6">
           <h2 className="text-lg font-semibold text-gold-400">{editingId ? "Edit Post" : "New Post"}</h2>
           <input placeholder="Post title" value={title} onChange={e => setTitle(e.target.value)}
