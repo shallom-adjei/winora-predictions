@@ -1,44 +1,30 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-export async function middleware(request: NextRequest) {
-  // Always allow access to the login page, the login API, and the change‑password API
+export function middleware(request: NextRequest) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+  const host = supabaseUrl.split("//")[1]?.split(".")[0]; // e.g., "qvoauycyibdfxzspjgpb"
+  const cookieName = host ? `sb-${host}-auth-token` : "";
+
+  // Check if the Supabase session cookie exists
+  const hasSession = request.cookies.has(cookieName);
+
+  // Allow login page and API routes
   if (
-    request.nextUrl.pathname === "/portalsydr/login" ||
-    request.nextUrl.pathname === "/api/admin-login" ||
-    request.nextUrl.pathname === "/api/admin-change-password"
+    request.nextUrl.pathname.startsWith("/portalsydr/login") ||
+    request.nextUrl.pathname.startsWith("/api/")
   ) {
     return NextResponse.next();
   }
 
-  const token = request.cookies.get("admin_token")?.value;
-
-  if (!token) {
+  // Redirect to login if no session cookie
+  if (!hasSession) {
     return NextResponse.redirect(new URL("/portalsydr/login", request.url));
   }
 
-  try {
-    const decoded = Buffer.from(token, "base64").toString("utf-8");
-
-    const { supabase } = await import("@/lib/supabase");
-    const { data } = await supabase
-      .from("admin_settings")
-      .select("value")
-      .eq("key", "admin_password")
-      .single();
-
-    if (!data || decoded !== data.value) {
-      throw new Error("Invalid token");
-    }
-
-    return NextResponse.next();
-  } catch {
-    const response = NextResponse.redirect(new URL("/portalsydr/login", request.url));
-    response.cookies.delete("admin_token");
-    return response;
-  }
+  return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/portalsydr", "/portalsydr/:path*"],
+  matcher: ["/portalsydr/:path*"],
 };
