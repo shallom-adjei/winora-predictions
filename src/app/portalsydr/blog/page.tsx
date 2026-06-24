@@ -29,8 +29,7 @@ export default function AdminBlog() {
     },
   });
 
-  // ----- Fetch posts via internal API (bypasses RLS) -----
-  const fetchPosts = async () => {
+const fetchPosts = async () => {
   try {
     const res = await fetch(`/api/get-blog-posts?t=${Date.now()}`);
     const data = await res.json();
@@ -40,8 +39,6 @@ export default function AdminBlog() {
   }
   setLoading(false);
 };
-
-  useEffect(() => { fetchPosts(); }, []);
 
   // ---------- IMAGE UPLOADS (storage) – this works fine ----------
   const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -83,36 +80,36 @@ export default function AdminBlog() {
     input.click();
   };
 
-  // ---------- SAVE (create / update) via internal API ----------
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editor) return;
-    const content = editor.getHTML();
-    let imageUrl: string | null = thumbnailPreview || null;
-    if (thumbnailFile) {
-      const uploaded = await uploadThumbnail();
-      if (!uploaded) return;
-      imageUrl = uploaded;
-    }
+// ---------- SAVE (create / update) via internal API ----------
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!editor) return;
+  const content = editor.getHTML();
+  let imageUrl: string | null = thumbnailPreview || null;
+  if (thumbnailFile) {
+    const uploaded = await uploadThumbnail();
+    if (!uploaded) return;
+    imageUrl = uploaded;
+  }
 
-    try {
-      const res = await fetch("/api/admin-blog-save", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: editingId, title, content, image_url: imageUrl }),
-      });
-      if (res.ok) {
-  toast.success(editingId ? "Post updated!" : "Post published!");
-  resetForm();
-  window.location.reload();   // force full refresh to show new post
-} else {
-        const errData = await res.json().catch(() => ({}));
-        toast.error(errData.error || "Failed to save post");
-      }
-    } catch {
-      toast.error("Network error");
+  try {
+    const res = await fetch("/api/admin-blog-save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: editingId, title, content, image_url: imageUrl }),
+    });
+    if (res.ok) {
+      toast.success(editingId ? "Post updated!" : "Post published!");
+      resetForm();
+      window.location.reload();
+    } else {
+      const errData = await res.json().catch(() => ({}));
+      toast.error(errData.error || "Failed to save post");
     }
-  };
+  } catch {
+    toast.error("Network error");
+  }
+};
 
   const resetForm = () => {
     setTitle("");
@@ -134,25 +131,25 @@ export default function AdminBlog() {
     }
   };
 
-  // ---------- DELETE via internal API ----------
-  const handleDelete = async (id: string) => {
-    if (!confirm("Delete?")) return;
-    try {
-      const res = await fetch("/api/admin-blog-delete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
-      });
-      if (res.ok) {
-  toast.success("Deleted");
-  window.location.reload();   // force full refresh
-} else {
-        toast.error("Delete failed");
-      }
-    } catch {
-      toast.error("Network error");
+// ---------- DELETE via internal API ----------
+const handleDelete = async (id: string) => {
+  if (!confirm("Delete?")) return;
+  try {
+    const res = await fetch("/api/admin-blog-delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    if (res.ok) {
+      toast.success("Deleted");
+      window.location.reload();
+    } else {
+      toast.error("Delete failed");
     }
-  };
+  } catch {
+    toast.error("Network error");
+  }
+};
 
   // ---------- TOP STORY TOGGLE ----------
   const toggleTopStory = async (post: any) => {
