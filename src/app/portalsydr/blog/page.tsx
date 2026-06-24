@@ -17,7 +17,6 @@ export default function AdminBlog() {
   const [uploading, setUploading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [version, setVersion] = useState(0);   // cache buster
 
   const editor = useEditor({
     extensions: [StarterKit, Image],
@@ -29,13 +28,10 @@ export default function AdminBlog() {
     },
   });
 
-  // ----- Fetch posts – completely unique URL every time -----
+  // ----- Fetch posts (just once on mount) -----
   const fetchPosts = useCallback(async () => {
     try {
-      const res = await fetch(
-        `/api/get-blog-posts?t=${Date.now()}&v=${version}&r=${Math.random()}`,
-        { cache: "no-store" }
-      );
+      const res = await fetch(`/api/get-blog-posts?t=${Date.now()}&r=${Math.random()}`, { cache: "no-store" });
       const data = await res.json();
       setPosts(data.posts || []);
     } catch (err) {
@@ -43,7 +39,7 @@ export default function AdminBlog() {
     } finally {
       setLoading(false);
     }
-  }, [version]);
+  }, []);
 
   useEffect(() => { fetchPosts(); }, [fetchPosts]);
 
@@ -87,7 +83,7 @@ export default function AdminBlog() {
     input.click();
   };
 
-  // ---------- SAVE ----------
+  // ---------- SAVE (optimistic) ----------
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editor) return;
@@ -99,6 +95,16 @@ export default function AdminBlog() {
       imageUrl = uploaded;
     }
 
+    const tempId = editingId || crypto.randomUUID?.() || Math.random().toString(36).substring(2);
+    const newPost = { id: tempId, title, content, image_url: imageUrl, created_at: new Date().toISOString() };
+    // Optimistic update
+    if (editingId) {
+      setPosts(prev => prev.map(p => p.id === editingId ? { ...p, ...newPost } : p));
+    } else {
+      setPosts(prev => [newPost, ...prev]);
+    }
+    resetForm();
+
     try {
       const res = await fetch("/api/admin-blog-save", {
         method: "POST",
@@ -107,15 +113,15 @@ export default function AdminBlog() {
       });
       if (res.ok) {
         toast.success(editingId ? "Post updated!" : "Post published!");
-        resetForm();
-        fetchPosts();
-        setVersion(prev => prev + 1);   // break cache for next fetch
+        // fetchPosts();   // not needed, UI already updated
       } else {
         const errData = await res.json().catch(() => ({}));
         toast.error(errData.error || "Failed to save post");
+        fetchPosts();   // revert to server state if failed
       }
     } catch {
       toast.error("Network error");
+      fetchPosts();
     }
   };
 
@@ -139,45 +145,48 @@ export default function AdminBlog() {
     }
   };
 
-  // ---------- DELETE ----------
+  // ---------- DELETE (optimistic) ----------
   const handleDelete = async (id: string) => {
     if (!confirm("Delete?")) return;
+    // Optimistic: remove immediately
+    setPosts(prev => prev.filter(p => p.id !== id));
+    toast.success("Deleted");
     try {
       const res = await fetch("/api/admin-blog-delete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
       });
-      if (res.ok) {
-        toast.success("Deleted");
-        fetchPosts();
-        setVersion(prev => prev + 1);   // break cache
-      } else {
+      if (!res.ok) {
         toast.error("Delete failed");
+        fetchPosts();   // revert if failed
       }
     } catch {
       toast.error("Network error");
+      fetchPosts();
     }
   };
 
-  // ---------- TOP STORY TOGGLE ----------
+  // ---------- TOP STORY TOGGLE (optimistic) ----------
   const toggleTopStory = async (post: any) => {
+    const isTop = post.top_story_until && new Date(post.top_story_until) > new Date();
+    const newValue = isTop ? null : new Date(new Date().getTime() + 24 * 60 * 60 * 1000).toISOString();
+    // Optimistic update
+    setPosts(prev => prev.map(p => p.id === post.id ? { ...p, top_story_until: newValue } : p));
+    toast.success(isTop ? "Removed from top stories" : "Set as top story (24h)");
     try {
-      const isTop = post.top_story_until && new Date(post.top_story_until) > new Date();
       const res = await fetch("/api/admin-blog-topstory", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: post.id, currentTopStoryUntil: post.top_story_until }),
       });
-      if (res.ok) {
-        toast.success(isTop ? "Removed from top stories" : "Set as top story (24h)");
-        fetchPosts();
-        setVersion(prev => prev + 1);   // break cache
-      } else {
+      if (!res.ok) {
         toast.error("Failed");
+        fetchPosts();   // revert
       }
     } catch {
       toast.error("Network error");
+      fetchPosts();
     }
   };
 
@@ -200,7 +209,7 @@ export default function AdminBlog() {
           <h1 className="text-2xl font-bold">Blog Manager</h1>
         </div>
 
-        {/* Editor form – identical to your previous version, unchanged for brevity */}
+        {/* Editor form – same as before, omitted for brevity */}
         <form onSubmit={handleSubmit} className="space-y-5 mb-12 bg-[#0D0D0D] border border-white/10 rounded-2xl p-6">
           <h2 className="text-lg font-semibold text-gold-400">{editingId ? "Edit Post" : "New Post"}</h2>
           <input placeholder="Post title" value={title} onChange={e => setTitle(e.target.value)}
