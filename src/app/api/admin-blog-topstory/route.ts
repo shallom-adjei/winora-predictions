@@ -9,11 +9,9 @@ export async function POST(req: NextRequest) {
   const newValue = isTop ? null : new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
 
   const { supabase } = await import("@/lib/supabase");
-  const { error } = await supabase
-    .from("blog_posts")
-    .update({ top_story_until: newValue })
-    .eq("id", id);
+  await supabase.from("blog_posts").update({ top_story_until: newValue }).eq("id", id);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ success: true });
+  const response = NextResponse.json({ success: true });
+  response.headers.set("Cache-Control", "no-store");
+  return response;
 }

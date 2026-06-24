@@ -9,12 +9,12 @@ export async function POST(req: NextRequest) {
   if (id) {
     const updateData: any = { title, content };
     if (image_url) updateData.image_url = image_url;
-    const { error } = await supabase.from("blog_posts").update(updateData).eq("id", id);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await supabase.from("blog_posts").update(updateData).eq("id", id);
   } else {
-    const { error } = await supabase.from("blog_posts").insert([{ title, content, image_url }]);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await supabase.from("blog_posts").insert([{ title, content, image_url }]);
   }
 
-  return NextResponse.json({ success: true });
+  const response = NextResponse.json({ success: true });
+  response.headers.set("Cache-Control", "no-store");
+  return response;
 }

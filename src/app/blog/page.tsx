@@ -45,7 +45,7 @@ export default function BlogPage() {
 
   // Auto‑refresh every 10 seconds
   useEffect(() => {
-    const interval = setInterval(fetchData, 10000);
+    const interval = setInterval(fetchData, 5000);
     return () => clearInterval(interval);
   }, [fetchData]);
 

@@ -5,7 +5,9 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   const { id } = await req.json();
   const { supabase } = await import("@/lib/supabase");
-  const { error } = await supabase.from("blog_posts").delete().eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ success: true });
+  await supabase.from("blog_posts").delete().eq("id", id);
+
+  const response = NextResponse.json({ success: true });
+  response.headers.set("Cache-Control", "no-store");
+  return response;
 }
