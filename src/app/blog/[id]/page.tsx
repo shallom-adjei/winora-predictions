@@ -18,7 +18,7 @@ export default function BlogPostPage() {
       .select("*")
       .eq("id", id)
       .single()
-      .then(({ data }) => setPost(data));
+      .then((res: any) => setPost(res.data));
   }, [id]);
 
   if (!post) {

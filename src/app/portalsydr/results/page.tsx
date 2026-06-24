@@ -33,19 +33,6 @@ export default function AdminResultsPage() {
   const [dateTo, setDateTo] = useState("");
   const [sessionReady, setSessionReady] = useState(false);
 
-  const router = useRouter();
-
-  // Session guard – redirect to login if not signed in
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) {
-        router.replace("/portalsydr/login");
-      } else {
-        setSessionReady(true);
-      }
-    });
-  }, [router]);
-
   // Fetch results with date filtering, wrapped in useCallback for stable reference
   const fetchResults = useCallback(() => {
     setLoading(true);

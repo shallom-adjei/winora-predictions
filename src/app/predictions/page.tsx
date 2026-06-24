@@ -9,6 +9,7 @@ import { AnalysisModal } from "@/components/AnalysisModal";
 import { useLivePredictions } from "@/hooks/useLivePredictions";
 import DateFilter from "@/components/DateFilter";
 import AffiliateCta from "@/components/AffiliateCta";
+import { supabase } from "@/lib/supabase";
 
 export default function PredictionsPage() {
   const [analysisModalOpen, setAnalysisModalOpen] = useState(false);

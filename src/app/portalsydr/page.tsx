@@ -165,6 +165,7 @@ export default function AdminDashboard() {
   const [recentPredictions, setRecentPredictions] = useState<any[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
   const [newPick, setNewPick] = useState({
     sport: "Football",
     match_name: "",
@@ -199,18 +200,7 @@ export default function AdminDashboard() {
   const [passwordError, setPasswordError] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
 
- const router = useRouter();
-const [sessionReady, setSessionReady] = useState(false);
 
-useEffect(() => {
-  supabase.auth.getSession().then(({ data }) => {
-    if (!data.session) {
-      router.replace("/portalsydr/login");
-    } else {
-      setSessionReady(true);
-    }
-  });
-}, [router]);
 
 const handleLogout = async () => {
   await supabase.auth.signOut();
@@ -632,14 +622,6 @@ const handleGenerateAll = async () => {
     } catch { toast.error("Network error"); }
     finally { setUpdating(false); }
   };
-
-    if (!sessionReady) {
-    return (
-      <div className="flex min-h-screen bg-[#050505] text-white items-center justify-center">
-        <div className="text-xl text-gold-400">Verifying session…</div>
-      </div>
-    );
-  }
 
   if (loading) {
     return (
