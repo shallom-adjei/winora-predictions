@@ -145,38 +145,40 @@ export default function AdminBlog() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
       });
-      if (res.ok) {
-        toast.success("Deleted");
-        fetchPosts();
-      } else {
-        toast.error("Delete failed");
-      }
+     if (res.ok) {
+  toast.success(editingId ? "Post updated!" : "Post published!");
+  resetForm();
+  fetchPosts();
+} else {
+  const errData = await res.json().catch(() => ({}));
+  toast.error(errData.error || "Failed to save post");
+}
     } catch {
       toast.error("Network error");
     }
   };
 
-  // ----- Toggle top story via internal API -----
-  const toggleTopStory = async (post: any) => {
-    try {
-      const res = await fetch("/api/admin-blog-topstory", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: post.id,
-          currentTopStoryUntil: post.top_story_until,
-        }),
-      });
-      if (res.ok) {
-        toast.success(post.top_story_until ? "Removed from top stories" : "Set as top story (24h)");
-        fetchPosts();
-      } else {
-        toast.error("Failed");
-      }
-    } catch {
-      toast.error("Network error");
+const toggleTopStory = async (post: any) => {
+  try {
+    const isTop = post.top_story_until && new Date(post.top_story_until) > new Date();
+    const res = await fetch("/api/admin-blog-topstory", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: post.id,
+        currentTopStoryUntil: post.top_story_until,
+      }),
+    });
+    if (res.ok) {
+      toast.success(isTop ? "Removed from top stories" : "Set as top story (24h)");
+      fetchPosts();
+    } else {
+      toast.error("Failed");
     }
-  };
+  } catch {
+    toast.error("Network error");
+  }
+};
 
   return (
     <div className="min-h-screen bg-[#050505] text-white p-6">
