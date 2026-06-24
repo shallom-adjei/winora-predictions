@@ -19,9 +19,10 @@ export default function BlogPage() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [loading, setLoading] = useState(true);
 
+  // Single fetch function, cache‑busted
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch("/api/get-blog-posts");
+      const res = await fetch(`/api/get-blog-posts?t=${Date.now()}`);
       const data = await res.json();
       if (data.posts) {
         setPosts(data.posts);
@@ -37,13 +38,18 @@ export default function BlogPage() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  // Initial fetch
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
+  // Auto‑refresh every 10 seconds
   useEffect(() => {
     const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
   }, [fetchData]);
 
+  // Top stories slider
   useEffect(() => {
     if (topStories.length === 0) return;
     const interval = setInterval(() => {
