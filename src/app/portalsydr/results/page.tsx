@@ -31,7 +31,7 @@ export default function AdminResultsPage() {
   const [loading, setLoading] = useState(true);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [sessionReady, setSessionReady] = useState(false);
+
 
   // Fetch results with date filtering, wrapped in useCallback for stable reference
   const fetchResults = useCallback(() => {
@@ -52,11 +52,7 @@ export default function AdminResultsPage() {
     });
   }, [dateFrom, dateTo]);
 
-  useEffect(() => {
-    if (sessionReady) {
-      fetchResults();
-    }
-  }, [sessionReady, fetchResults]);
+
 
   // Group by date – must be before early return
   const grouped = useMemo(() => {

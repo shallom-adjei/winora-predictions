@@ -43,7 +43,7 @@ export default function ManualStatsPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [hideWithStats, setHideWithStats] = useState(true);
   const [fullJson, setFullJson] = useState("");
-  const [sessionReady, setSessionReady] = useState(false);
+ 
 
 
   // Fetch upcoming matches
@@ -60,11 +60,7 @@ export default function ManualStatsPage() {
     setLoading(false);
   }, []);
 
-  useEffect(() => {
-    if (sessionReady) {
-      fetchMatches();
-    }
-  }, [sessionReady, fetchMatches]);
+ 
 
   // Derived state (hook, so it must stay before early return)
   const matchesToShow = useMemo(() => {
