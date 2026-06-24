@@ -31,15 +31,15 @@ export default function AdminBlog() {
 
   // ----- Fetch posts via internal API (bypasses RLS) -----
   const fetchPosts = async () => {
-    try {
-      const res = await fetch(`/api/get-blog-posts?t=${Date.now()}`);
-      const data = await res.json();
-      setPosts(data.posts || []);
-    } catch (err) {
-      console.error("Failed to fetch blog posts", err);
-    }
-    setLoading(false);
-  };
+  try {
+    const res = await fetch(`/api/get-blog-posts?t=${Date.now()}`);
+    const data = await res.json();
+    setPosts(data.posts || []);
+  } catch (err) {
+    console.error("Failed to fetch blog posts", err);
+  }
+  setLoading(false);
+};
 
   useEffect(() => { fetchPosts(); }, []);
 
