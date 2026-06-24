@@ -4,11 +4,10 @@ import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import { ArrowLeft, BarChart3, TrendingUp, Users, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useRouter } from "next/navigation";
 import {
   LineChart,
   Line,
-  BarChart,
+  BarChart as ReBarChart,
   Bar,
   XAxis,
   YAxis,
@@ -194,7 +193,7 @@ export default function AnalyticsPage() {
               <div className="rounded-[20px] bg-[#0D0D0D] border border-white/5 p-6">
                 <h3 className="text-lg font-semibold mb-4">Top 5 Pages</h3>
                 <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={topPages} layout="vertical">
+                  <ReBarChart data={topPages} layout="vertical">
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                     <XAxis type="number" tick={{ fill: "#9CA3AF", fontSize: 12 }} />
                     <YAxis
@@ -211,7 +210,7 @@ export default function AnalyticsPage() {
                       }}
                     />
                     <Bar dataKey="value" fill="#D4AF37" radius={[0, 4, 4, 0]} />
-                  </BarChart>
+                  </ReBarChart>
                 </ResponsiveContainer>
               </div>
 
