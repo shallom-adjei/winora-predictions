@@ -87,30 +87,38 @@ export default function AdminBlog() {
     input.click();
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editor) return;
-    const content = editor.getHTML();
-    let imageUrl: string | null = null;
-    if (thumbnailFile) {
-      imageUrl = await uploadThumbnail();
-      if (!imageUrl) return;
-    }
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!editor) return;
+  const content = editor.getHTML();
+  let imageUrl: string | null = null;
+  if (thumbnailFile) {
+    imageUrl = await uploadThumbnail();
+    if (!imageUrl) return;
+  }
 
-    if (editingId) {
-      const updateData: any = { title, content };
-      if (imageUrl) updateData.image_url = imageUrl;
-      const { error } = await supabase.from("blog_posts").update(updateData).eq("id", editingId);
-      if (error) { toast.error("Failed to update post"); return; }
-      toast.success("Post updated!");
-    } else {
-      const { error } = await supabase.from("blog_posts").insert([{ title, content, image_url: imageUrl }]);
-      if (error) { toast.error("Failed to create post"); return; }
-      toast.success("Post published!");
+  if (editingId) {
+    const updateData: any = { title, content };
+    if (imageUrl) updateData.image_url = imageUrl;
+    const { error } = await supabase.from("blog_posts").update(updateData).eq("id", editingId);
+    if (error) {
+      console.error("Update error:", error);
+      toast.error(`Failed to update: ${error.message}`);
+      return;
     }
-    resetForm();
-    fetchPosts();
-  };
+    toast.success("Post updated!");
+  } else {
+    const { error } = await supabase.from("blog_posts").insert([{ title, content, image_url: imageUrl }]);
+    if (error) {
+      console.error("Insert error:", error);
+      toast.error(`Failed to create: ${error.message}`);
+      return;
+    }
+    toast.success("Post published!");
+  }
+  resetForm();
+  fetchPosts();
+};
 
   const handleEdit = (post: any) => {
     setEditingId(post.id);

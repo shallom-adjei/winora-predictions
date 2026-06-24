@@ -5,20 +5,20 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const { supabase } = await import("@/lib/supabase");
 
-  // ----- total views (exclude admin pages) -----
+  // ----- total views (exclude admin) -----
   const { count: total } = await supabase
     .from("analytics_events")
     .select("*", { count: "exact", head: true })
     .not("path", "ilike", "/portalsydr%");
 
-  // ----- unique visitors (distinct visitor_id, exclude admin) -----
+  // ----- unique visitors -----
   const { data: allVisitors } = await supabase
     .from("analytics_events")
     .select("visitor_id")
     .not("path", "ilike", "/portalsydr%");
   const uniqueSet = new Set(allVisitors?.map((v: any) => v.visitor_id));
 
-  // ----- today's views (exclude admin) -----
+  // ----- today's views -----
   const todayStart = new Date().toISOString().split("T")[0] + "T00:00:00";
   const todayEnd = new Date().toISOString().split("T")[0] + "T23:59:59";
   const { count: today } = await supabase
@@ -28,7 +28,7 @@ export async function GET() {
     .gte("created_at", todayStart)
     .lte("created_at", todayEnd);
 
-  // ----- last 7 days trend (exclude admin) -----
+  // ----- last 7 days -----
   const last7Days: { date: string; views: number }[] = [];
   for (let i = 6; i >= 0; i--) {
     const d = new Date();
@@ -51,7 +51,7 @@ export async function GET() {
     });
   }
 
-  // ----- top pages (exclude admin) -----
+  // ----- top pages -----
   const { data: pathData } = await supabase
     .from("analytics_events")
     .select("path")
@@ -60,12 +60,12 @@ export async function GET() {
   pathData?.forEach((r: any) => {
     pathCounts[r.path] = (pathCounts[r.path] || 0) + 1;
   });
-  const sortedPaths = Object.entries(pathCounts)
-    .map(([path, count]) => ({ name: path, value: count }))
+  const topPages = Object.entries(pathCounts)
+    .map(([name, value]) => ({ name, value }))
     .sort((a, b) => b.value - a.value)
     .slice(0, 5);
 
-  // ----- device breakdown (exclude admin) -----
+  // ----- device breakdown -----
   const { data: deviceData } = await supabase
     .from("analytics_events")
     .select("device")
@@ -76,7 +76,7 @@ export async function GET() {
   });
   const deviceBreakdown = Object.entries(deviceCounts).map(([name, value]) => ({ name, value }));
 
-  // ----- browser breakdown (exclude admin) -----
+  // ----- browser breakdown -----
   const { data: browserData } = await supabase
     .from("analytics_events")
     .select("browser")
@@ -92,7 +92,7 @@ export async function GET() {
     uniqueVisitors: uniqueSet.size,
     todayViews: today || 0,
     viewsOverTime: last7Days,
-    topPages: sortedPaths,
+    topPages,
     deviceBreakdown,
     browserBreakdown,
   });
