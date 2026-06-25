@@ -6,33 +6,71 @@ import { Button } from "@/components/ui/button";
 import toast from "react-hot-toast";
 import LoadingScreen from "@/components/LoadingScreen";
 
-const PROMPT_TEMPLATE = (teamA: string, teamB: string) => `
-You are a football data assistant. Search the web for the most recent competitive matches for **${teamA}** and **${teamB}** (World Cup, qualifiers, continental championships, friendlies against strong opponents) played before today (use current date for context). Also find their current FIFA ranking and the last 5 head‑to‑head meetings between them.
+const PROMPT_TEMPLATE = (teamA: string, teamB: string) => {
+  const todayStr = new Date().toISOString().split("T")[0]; // e.g. "2026-06-25"
+  return `
+You are a football data assistant with access to live web search.  
+Your task is to retrieve **real, verified data** about **${teamA}** and **${teamB}**.  
+Search the web for their **most recent competitive matches** (World Cup, qualifiers, continental championships, friendlies leagues against strong opponents) played **before ${todayStr}**.  
 
-Return ONLY a valid JSON object with exactly this structure:
+Also find their **current ranking** and the **last 5 head‑to‑head meetings** between them.
+
+🔴 **CRITICAL RULES** – Follow these exactly or the response will be rejected:
+
+1. **Search the web** – do not rely on your training data. Use real sources (Flashscore, ESPN, FIFA.com, Sofascore etc.).
+2. **Only return data you can verify from a specific source.** If a piece of information is unavailable, set its value to \`null\` – DO NOT guess.
+3. **Matches must be competitive and recent** (within the last 2 years). Do not include matches older than 2 years unless they are part of the head‑to‑head history.
+4. **For each match, include:**
+   - \`date\` (YYYY‑MM‑DD)
+   - \`opponent\` (team name)
+   - \`competition\` (e.g., "World Cup", "Friendly", "UEFA Nations League")
+   - \`home\` (true if ${teamA} played at home)
+   - \`goalsFor\`, \`goalsAgainst\`
+   - \`opponentRank\` (Ranking of the opponent (e.g., "FIFA", "Premier League", "La Liga") at the time of the match, or null if unknown)
+   - If you cannot verify a match result, do not include it.
+5. **Head‑to‑head:** Return the last 5 meetings between ${teamA} and ${teamB}. If fewer than 5 exist, include all available. If none exist, return an empty array.
+6. **Rankings:** Use the most recent official ranking (e.g., "FIFA", "Premier League", "La Liga"). If you cannot find it, set \`null\`.
+7. **Do not hallucinate, do not make up data.** I will verify the response against real databases.
+
+Return **only** a valid JSON object with exactly this structure:
 
 {
   "matches_A": [
-    { "date": "YYYY-MM-DD", "opponent": "Team name", "home": true, "goalsFor": 2, "goalsAgainst": 1 }
+    {
+      "date": "YYYY-MM-DD",
+      "opponent": "Team name",
+      "competition": "Competition name",
+      "home": true,
+      "goalsFor": 2,
+      "goalsAgainst": 1,
+      "opponentFifaRank": 45
+    }
   ],
-  "matches_B": [
-    { "date": "YYYY-MM-DD", "opponent": "Team name", "home": false, "goalsFor": 1, "goalsAgainst": 3 }
-  ],
+  "matches_B": [ ... ],
   "h2h_matches": [
-    { "date": "YYYY-MM-DD", "homeTeam": "${teamA}", "awayTeam": "${teamB}", "homeScore": 2, "awayScore": 0 }
+    {
+      "date": "YYYY-MM-DD",
+      "competition": "Competition name",
+      "homeTeam": "${teamA}",
+      "awayTeam": "${teamB}",
+      "homeScore": 2,
+      "awayScore": 0
+    }
   ],
-  "fifa_ranking_A": <CURRENT_FIFA_RANKING_FOR_TEAM_A>,
-  "fifa_ranking_B": <CURRENT_FIFA_RANKING_FOR_TEAM_B>
+"ranking_A": current rank,
+"ranking_B": current rank,
+"ranking_system": "FIFA"  (or "Premier League", etc.)
 }
 
-- "matches_A": last 10 matches for ${teamA} (include at least 10 if possible)
-- "matches_B": last 10 matches for ${teamB}
-- "h2h_matches": last 5 head to head meetings between ${teamA} and ${teamB} (if fewer than 5, include all available)
-- "fifa_ranking_A": current FIFA world ranking for ${teamA}
-- "fifa_ranking_B": current FIFA world ranking for ${teamB}
+- \`matches_A\`: last 10 matches for ${teamA} (include at least 10 if possible)
+- \`matches_B\`: last 10 matches for ${teamB}
+- \`h2h_matches\`: last 5 head‑to‑head meetings between ${teamA} and ${teamB} (if fewer than 5, include all available; if none, empty array)
+- \`ranking_A\`: current ranking for ${teamA}
+- \`ranking_B\`: current ranking for ${teamB}
 
-Return only the JSON object, nothing else.
+Return **only** the JSON object, nothing else. No explanations, no markdown. Just pure JSON.
 `;
+};
 
 export default function ManualStatsPage() {
   // ---------- ALL HOOKS AT THE TOP (no early returns before them) ----------
