@@ -1,6 +1,6 @@
 export default function LoadingScreen({ message = "Loading…" }: { message?: string }) {
   return (
-    <div className="relative flex min-h-[50vh] items-center justify-center overflow-hidden bg-neutral-950">
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-neutral-950">
       <style>{`
         @keyframes float {
           0%, 100% { transform: translateY(0px); }
