@@ -9,21 +9,9 @@ export async function POST(req: NextRequest) {
   const os = parser.getOS().name || "Unknown";
   const device = parser.getDevice().type || "desktop";
 
-  // Simple country detection via Vercel's geo header (available on Edge)
-  const country = req.headers.get("x-vercel-ip-country") || "Unknown";
-
   const { supabase } = await import("@/lib/supabase");
   await supabase.from("analytics_events").insert([
-    {
-      visitor_id: visitorId || "anonymous",
-      path: path || "/",
-      referrer: referrer || "",
-      browser,
-      os,
-      device,
-      country,
-    },
+    { visitor_id: visitorId || "anonymous", path: path || "/", referrer: referrer || "", browser, os, device }
   ]);
-
   return NextResponse.json({ success: true });
 }
