@@ -5,22 +5,25 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const { supabase } = await import("@/lib/supabase");
 
-  // Total predictions
+  // Total predictions (all rows)
   const { count: total } = await supabase
     .from("predictions")
     .select("*", { count: "exact", head: true });
 
-  // Win rate
+  // Fetch all results that are finalized (not null, not Pending)
   const { data: results } = await supabase
     .from("predictions")
     .select("result")
     .not("result", "is", null)
     .neq("result", "Pending");
-  const wins = results?.filter((r) => r.result === "Win").length || 0;
-  const totalWithResult = results?.length || 1;
-  const winRate = ((wins / totalWithResult) * 100).toFixed(1);
 
-  // Current streak
+  const wins = results?.filter((r) => r.result === "Win").length || 0;
+  const losses = results?.filter((r) => r.result === "Loss").length || 0;
+  const draws = results?.filter((r) => r.result === "Draw" || r.result === "Push").length || 0;
+  const totalFinished = wins + losses + draws;
+  const winRate = totalFinished > 0 ? ((wins / totalFinished) * 100).toFixed(1) : "0";
+
+  // Current streak (only counting Win results)
   const { data: recent } = await supabase
     .from("predictions")
     .select("result")
@@ -49,5 +52,14 @@ export async function GET() {
     ? (confData.reduce((sum, r) => sum + (r.confidence || 0), 0) / confData.length).toFixed(1)
     : "0";
 
-  return NextResponse.json({ total, winRate, streak, pending, avgConf });
+  return NextResponse.json({
+    total,
+    winRate,
+    wins,
+    losses,
+    draws,
+    streak,
+    pending,
+    avgConf,
+  });
 }

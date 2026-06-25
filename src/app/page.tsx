@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Crown, ArrowRight, BarChart3, TrendingUp, Activity } from "lucide-react";
+import { Crown, ArrowRight, BarChart3, TrendingUp, Activity, ShieldCheck } from "lucide-react";
 import PublicHeader from "@/components/PublicHeader";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import Link from "next/link";
@@ -13,32 +13,36 @@ import AffiliateCta from "@/components/AffiliateCta";
 import ComboPicks from "@/components/ComboPicks";
 
 export default function Home() {
-  const [overview, setOverview] = useState({
-    totalPredictions: 0,
-    winRate: "0",
-    streak: 0,
-    roi: "—",
-    pending: 0,
-    avgConfidence: "0",
-  });
+const [overview, setOverview] = useState({
+  totalPredictions: 0,
+  winRate: "0",
+  wins: 0,
+  losses: 0,
+  draws: 0,
+  streak: 0,
+  pending: 0,
+  avgConfidence: "0",
+});
   const [analysisModalOpen, setAnalysisModalOpen] = useState(false);
   const [selectedAnalysis, setSelectedAnalysis] = useState<any>(null);
   const [livePredictions, setLivePredictions] = useState<any[]>([]);
 
   // Fetch KPIs
   useEffect(() => {
-    fetch("/api/kpi-overview")
-      .then((r) => r.json())
-      .then((d) => {
-        setOverview({
-          totalPredictions: d.total || 0,
-          winRate: d.winRate || "0",
-          streak: d.streak || 0,
-          roi: "—",
-          pending: d.pending || 0,
-          avgConfidence: d.avgConf || "0",
-        });
-      })
+fetch("/api/kpi-overview")
+  .then((r) => r.json())
+  .then((d) => {
+    setOverview({
+      totalPredictions: d.total || 0,
+      winRate: d.winRate || "0",
+      wins: d.wins || 0,
+      losses: d.losses || 0,
+      draws: d.draws || 0,
+      streak: d.streak || 0,
+      pending: d.pending || 0,
+      avgConfidence: d.avgConf || "0",
+    });
+  })
       .catch((err) => console.error("KPI fetch failed", err));
   }, []);
 
@@ -160,20 +164,24 @@ export default function Home() {
                   <span className="text-xs text-gray-400">Predictions Made</span>
                   <span className="text-lg font-bold text-white tabular-nums">{overview.totalPredictions}</span>
                 </div>
-                <div className="rounded-xl bg-white/[0.03] px-4 py-3 flex items-center justify-between">
-                  <span className="text-xs text-gray-400">Win Rate</span>
-                  <span className="text-lg font-bold text-green-400 tabular-nums">{overview.winRate}%</span>
-                </div>
+<div className="rounded-xl bg-white/[0.03] px-4 py-3 flex items-center justify-between">
+  <span className="text-xs text-gray-400">Verified Record</span>
+  <div className="text-right">
+    <span className="text-lg font-bold text-green-400 tabular-nums">{overview.winRate}%</span>
+    <div className="text-[10px] text-gray-500 mt-0.5">
+      W: {overview.wins} · L: {overview.losses}{overview.draws > 0 ? ` · D: ${overview.draws}` : ""}
+    </div>
+  </div>
+</div>
+<Link href="/results" className="text-[10px] text-gold-400 hover:underline mt-2 inline-block">
+  See all verified picks →
+</Link>
                 <div className="rounded-xl bg-white/[0.03] px-4 py-3 flex items-center justify-between">
                   <span className="text-xs text-gray-400">Current Streak</span>
                   <div className="flex items-center gap-1">
                     <span className="text-lg font-bold text-green-400 tabular-nums">{overview.streak}</span>
                     <span className="text-xs text-green-400/70">W</span>
                   </div>
-                </div>
-                <div className="rounded-xl bg-white/[0.03] px-4 py-3 flex items-center justify-between">
-                  <span className="text-xs text-gray-400">ROI Monthly</span>
-                  <span className="text-lg font-bold text-gold-400 tabular-nums">{overview.roi}</span>
                 </div>
               </div>
 
@@ -196,39 +204,41 @@ export default function Home() {
       <section className="mx-auto max-w-[1280px] px-6 lg:px-8 mt-16 mb-16 lg:mb-24">
         <div className="hidden lg:grid grid-cols-4 gap-4 rounded-2xl border border-white/10 bg-[#0D0D0D] p-8 h-[130px]">
           {[
-            { icon: BarChart3, title: "Total Predictions", value: overview.totalPredictions },
-            { icon: TrendingUp, title: "Win Rate", value: `${overview.winRate}%` },
-            { icon: Activity, title: "Pending", value: overview.pending },
-            { icon: TrendingUp, title: "Avg Confidence", value: `${overview.avgConfidence}%` },
+ { icon: BarChart3, title: "Total Predictions", value: overview.totalPredictions },
+  { icon: ShieldCheck, title: "Verified Accuracy", value: `${overview.winRate}%`, subtitle: `W:${overview.wins} L:${overview.losses}${overview.draws > 0 ? ` D:${overview.draws}` : ""}` },
+  { icon: Activity, title: "Pending", value: overview.pending },
+  { icon: TrendingUp, title: "Avg Confidence", value: `${overview.avgConfidence}%` },
           ].map((item) => (
-            <div key={item.title} className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-full bg-gold-400/20 flex items-center justify-center">
-                <item.icon className="h-6 w-6 text-gold-400" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-400">{item.title}</p>
-                <p className="text-xl font-bold">{item.value}</p>
-              </div>
-            </div>
+<div key={item.title} className="flex items-center gap-4">
+  <div className="h-12 w-12 rounded-full bg-gold-400/20 flex items-center justify-center">
+    <item.icon className="h-6 w-6 text-gold-400" />
+  </div>
+  <div>
+    <p className="text-xs text-gray-400">{item.title}</p>
+    <p className="text-xl font-bold">{item.value}</p>
+    {item.subtitle && <p className="text-[10px] text-gray-500">{item.subtitle}</p>}
+  </div>
+</div>
           ))}
         </div>
 
-        <div className="lg:hidden grid grid-cols-2 gap-4">
-          {[
-            { icon: BarChart3, title: "Total Predictions", value: overview.totalPredictions },
-            { icon: TrendingUp, title: "Win Rate", value: `${overview.winRate}%` },
-            { icon: Activity, title: "Pending", value: overview.pending },
-            { icon: TrendingUp, title: "Avg Confidence", value: `${overview.avgConfidence}%` },
-          ].map((item, idx) => (
-            <div key={idx} className="rounded-2xl border border-white/5 bg-[#0D0D0D] p-5 flex flex-col items-start">
-              <div className="h-10 w-10 rounded-full bg-gold-400/20 flex items-center justify-center mb-3">
-                <item.icon className="h-5 w-5 text-gold-400" />
-              </div>
-              <p className="text-xs text-gray-400">{item.title}</p>
-              <p className="text-2xl font-bold mt-1">{item.value}</p>
-            </div>
-          ))}
-        </div>
+<div className="lg:hidden grid grid-cols-2 gap-4">
+  {[
+    { icon: BarChart3, title: "Total Predictions", value: overview.totalPredictions },
+    { icon: ShieldCheck, title: "Verified Accuracy", value: `${overview.winRate}%`, subtitle: `W:${overview.wins} L:${overview.losses}${overview.draws > 0 ? ` D:${overview.draws}` : ""}` },
+    { icon: Activity, title: "Pending", value: overview.pending },
+    { icon: TrendingUp, title: "Avg Confidence", value: `${overview.avgConfidence}%` },
+  ].map((item, idx) => (
+    <div key={idx} className="rounded-2xl border border-white/5 bg-[#0D0D0D] p-5 flex flex-col items-start">
+      <div className="h-10 w-10 rounded-full bg-gold-400/20 flex items-center justify-center mb-3">
+        <item.icon className="h-5 w-5 text-gold-400" />
+      </div>
+      <p className="text-xs text-gray-400">{item.title}</p>
+      <p className="text-2xl font-bold mt-1">{item.value}</p>
+      {item.subtitle && <p className="text-[10px] text-gray-500 mt-0.5">{item.subtitle}</p>}
+    </div>
+  ))}
+</div>
         <div className="lg:hidden mx-auto max-w-[1280px] px-6 mb-8">
           <AdBanner variant="banner" />
         </div>
