@@ -9,7 +9,8 @@ export async function GET() {
     .select("*")
     .order("created_at", { ascending: false });
 
-  const response = NextResponse.json({ posts: data || [] });
-  response.headers.set("Cache-Control", "no-store, max-age=0, must-revalidate");
-  return response;
+  return NextResponse.json({
+    posts: data || [],
+    _ts: Date.now()        // ← forces fresh response every call
+  });
 }
