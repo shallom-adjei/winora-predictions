@@ -20,10 +20,21 @@ export async function GET() {
         `https://api.football-data.org/v4/matches?dateFrom=${dateFrom}&dateTo=${dateTo}&status=${status}`,
         { headers: { "X-Auth-Token": apiKey } }
       );
+      if (!res.ok) {
+        results[status] = { ok: false, status: res.status };
+        continue;
+      }
+      const data = await res.json();
       results[status] = {
-        ok: res.ok,
+        ok: true,
         status: res.status,
-        count: res.ok ? (await res.json()).count : `HTTP ${res.status}`,
+        count: data.count || 0,
+        matches: (data.matches || []).slice(0, 3).map((m: any) => ({
+          id: m.id,
+          match: `${m.homeTeam?.name} vs ${m.awayTeam?.name}`,
+          utcDate: m.utcDate,
+          status: m.status,
+        })),
       };
     } catch (err: any) {
       results[status] = { error: err.message };
