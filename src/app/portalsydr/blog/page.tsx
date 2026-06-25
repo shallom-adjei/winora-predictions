@@ -8,6 +8,10 @@ import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import LoadingScreen from "@/components/LoadingScreen";
+import ConfirmModal from "@/components/ConfirmModal";
+
+
 
 export default function AdminBlog() {
   const [title, setTitle] = useState("");
@@ -17,6 +21,7 @@ export default function AdminBlog() {
   const [uploading, setUploading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  
 
   const editor = useEditor({
     extensions: [StarterKit, Image],
@@ -145,27 +150,31 @@ export default function AdminBlog() {
     }
   };
 
-  // ---------- DELETE (optimistic) ----------
-  const handleDelete = async (id: string) => {
-    if (!confirm("Delete?")) return;
-    // Optimistic: remove immediately
-    setPosts(prev => prev.filter(p => p.id !== id));
-    toast.success("Deleted");
-    try {
-      const res = await fetch("/api/admin-blog-delete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
-      });
-      if (!res.ok) {
-        toast.error("Delete failed");
-        fetchPosts();   // revert if failed
-      }
-    } catch {
-      toast.error("Network error");
+  const [postToDelete, setPostToDelete] = useState<string | null>(null);
+
+const handleDelete = (id: string) => {
+  setPostToDelete(id);
+};
+
+const confirmDelete = async () => {
+  if (!postToDelete) return;
+  try {
+    const res = await fetch("/api/admin-blog-delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: postToDelete }),
+    });
+    if (res.ok) {
+      toast.success("Deleted");
       fetchPosts();
+    } else {
+      toast.error("Delete failed");
     }
-  };
+  } catch {
+    toast.error("Network error");
+  }
+  setPostToDelete(null);
+};
 
   // ---------- TOP STORY TOGGLE (optimistic) ----------
   const toggleTopStory = async (post: any) => {
@@ -191,13 +200,9 @@ export default function AdminBlog() {
   };
 
   // ---------- RENDER ----------
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#050505]">
-        <div className="text-gold-400 text-lg">Loading blog manager…</div>
-      </div>
-    );
-  }
+ if (loading) {
+  return <LoadingScreen message="Loading blog manager…" />;
+}
 
   return (
     <div className="min-h-screen bg-[#050505] text-white p-6">
@@ -263,6 +268,13 @@ export default function AdminBlog() {
           </div>
         )}
       </div>
+      <ConfirmModal
+  isOpen={!!postToDelete}
+  onConfirm={confirmDelete}
+  onCancel={() => setPostToDelete(null)}
+  title="Delete Blog Post"
+  message="This action cannot be undone. Are you sure you want to delete this post?"
+/>
     </div>
   );
 }
