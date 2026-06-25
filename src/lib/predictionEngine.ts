@@ -77,12 +77,25 @@ const defB = rawDefB ? clamp(rawDefB) : null;
     expectedAway = (awayScored * 0.4 + homeConceded * 0.6) * 0.95;
   }
 
-  // ----- Elo modifier -----
+  // ----- Elo modifier + sanity check -----
   const eloA = Number(match.elo_a) || 1500;
   const eloB = Number(match.elo_b) || 1500;
   const eloDiff = eloA - eloB;
-  const eloFactorA = eloFactor(eloDiff);
-  const eloFactorB = 1 / eloFactorA;   // symmetrical
+  const ABSOLUTE_ELO_GAP = 200;
+
+  let eloFactorA = eloFactor(eloDiff);
+  let eloFactorB = 1 / eloFactorA;
+
+  // Sanity check: if one team is vastly stronger, push expected goals accordingly
+  if (eloDiff > ABSOLUTE_ELO_GAP) {
+    // Home team much stronger → boost their attack
+    eloFactorA *= 1.15;
+    eloFactorB *= 0.85;
+  } else if (eloDiff < -ABSOLUTE_ELO_GAP) {
+    // Away team much stronger → boost their attack
+    eloFactorA *= 0.85;
+    eloFactorB *= 1.15;
+  }
 
   expectedHome *= eloFactorA;
   expectedAway *= eloFactorB;
