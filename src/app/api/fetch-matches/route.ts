@@ -6,7 +6,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const today = new Date();
-    const future = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);   // 7‑day window for free plan
+    const future = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);   // 7‑day window
     const dateFrom = today.toISOString().split("T")[0];
     const dateTo = future.toISOString().split("T")[0];
 
@@ -18,14 +18,14 @@ export async function POST(req: NextRequest) {
     ]);
 
     let allMatches: any[] = [];
-    const responses = [scheduled, postponed, timed, inplay];
-    for (const res of responses) {
+    for (const res of [scheduled, postponed, timed, inplay]) {
       if (res.ok) {
         const data = await res.json();
         if (data.matches) allMatches = allMatches.concat(data.matches);
       }
     }
 
+    // Remove duplicates
     const unique = new Map<number, any>();
     allMatches.forEach(m => unique.set(m.id, m));
     const matches = Array.from(unique.values());
@@ -35,6 +35,7 @@ export async function POST(req: NextRequest) {
 
     for (const m of matches) {
       const matchName = `${m.homeTeam.name} vs ${m.awayTeam.name}`;
+      // Avoid duplicates by match_api_id
       const { data: existing } = await supabase
         .from("predictions")
         .select("id")
