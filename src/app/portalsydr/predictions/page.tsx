@@ -35,15 +35,36 @@ const handleDelete = (id: string) => {
 
 const confirmDelete = async () => {
   if (!deleteConfirmId) return;
-  const { error } = await supabase
-    .from("predictions")
-    .delete()
-    .eq("id", deleteConfirmId);
-  if (error) { toast.error("Delete failed"); return; }
-  toast.success("Prediction deleted");
-  setDeleteConfirmId(null);
-  // Re‑fetch the predictions list (adjust function name to match your page)
-  fetchPredictions();
+
+  const supabaseUrl = "https://qvoauycyibdfxzspjgpb.supabase.co";
+  const anonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF2b2F1eWN5aWJkZnh6c3BqZ3BiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5MTAyMzEsImV4cCI6MjA5NTQ4NjIzMX0.WK7yPZnBh4qzqMOYx1q7768mMp58gPiEI-1zdjU40Kk";
+
+  try {
+    const response = await fetch(
+      `${supabaseUrl}/rest/v1/predictions?id=eq.${encodeURIComponent(deleteConfirmId)}`,
+      {
+        method: "DELETE",
+        headers: {
+          "apikey": anonKey,
+          "Authorization": `Bearer ${anonKey}`,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      toast.error("Delete failed: " + errorText);
+      return;
+    }
+
+    toast.success("Prediction deleted");
+    setDeleteConfirmId(null);
+    fetchPredictions();   // predictions page refresh
+  } catch (err) {
+    toast.error("Network error – please try again.");
+    console.error(err);
+  }
 };
 
   const handleGenerateAI = async (match: any) => {
