@@ -65,15 +65,30 @@ export async function POST(request: Request) {
     (scores[current] as number) > (scores[best] as number) ? current : best,
   "Draw" as keyof PredictionScores);
 
-  const totalGoals = scores.expectedHomeGoals + scores.expectedAwayGoals;
+   // --- Predicted score (constrained to the main pick) ---
+  const expectedScore = getConstrainedMostProbableScore(
+    scores.rawExpectedHome,
+    scores.rawExpectedAway,
+    mainPick as "Home Win" | "Draw" | "Away Win"
+  );
+
+  // Goals pick – from the predicted exact score
+  const [predHome, predAway] = expectedScore.split("-").map(Number);
+  const totalGoals = predHome + predAway;
   const goalsPick = totalGoals > 2.5 ? "Over 2.5 Goals" : "Under 2.5 Goals";
-  const bttsPick = scores.expectedHomeGoals > 0 && scores.expectedAwayGoals > 0
+
+  // BTTS pick – from the predicted exact score
+  const bttsPick = predHome > 0 && predAway > 0
     ? "Both Teams to Score"
     : "BTTS No";
 
-  const safePick = (["1X", "X2"] as (keyof PredictionScores)[]).reduce((prev, curr) =>
-    (scores[curr] as number) > (scores[prev] as number) ? curr : prev
-  );
+      const marketsSafe: (keyof PredictionScores)[] = ["1X", "X2"];
+  const best = (marketList: (keyof PredictionScores)[]) =>
+    marketList.reduce((prev, curr) =>
+      (scores[curr] as number) > (scores[prev] as number) ? curr : prev
+    );
+
+  const safePick = best(marketsSafe);
 
   const totalMatchesUsed = Math.max(
     Number(match.matches_used_a) || 0,
@@ -92,11 +107,6 @@ export async function POST(request: Request) {
     edge > 15 && dataQuality > 70 ? "Low" : edge > 8 ? "Medium" : "High";
 
   const stake = confidence >= 88 ? "2/5" : confidence >= 78 ? "1.5/5" : "1/5";
-    const expectedScore = getConstrainedMostProbableScore(
-    scores.rawExpectedHome,
-    scores.rawExpectedAway,
-    mainPick as "Home Win" | "Draw" | "Away Win"
-  );
 
   const analysis = generateAnalysis(match, mainPick, scores, confidence, risk, stake, expectedScore);
   

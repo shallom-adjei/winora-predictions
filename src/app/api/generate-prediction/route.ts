@@ -49,12 +49,20 @@ export async function POST(req: NextRequest) {
     (scores[current] as number) > (scores[best] as number) ? current : best
   , "Draw" as keyof PredictionScores);
 
-  // Goals pick – derived from predicted score total
-  const totalGoals = scores.expectedHomeGoals + scores.expectedAwayGoals;
+  // --- Predicted score (constrained to the main pick) ---
+  const expectedScore = getConstrainedMostProbableScore(
+    scores.rawExpectedHome,
+    scores.rawExpectedAway,
+    mainPick as "Home Win" | "Draw" | "Away Win"
+  );
+
+  // Goals pick – from the predicted exact score
+  const [predHome, predAway] = expectedScore.split("-").map(Number);
+  const totalGoals = predHome + predAway;
   const goalsPick = totalGoals > 2.5 ? "Over 2.5 Goals" : "Under 2.5 Goals";
 
-  // BTTS pick – derived from predicted score
-  const bttsPick = scores.expectedHomeGoals > 0 && scores.expectedAwayGoals > 0
+  // BTTS pick – from the predicted exact score
+  const bttsPick = predHome > 0 && predAway > 0
     ? "Both Teams to Score"
     : "BTTS No";
 
@@ -80,12 +88,6 @@ const confidence = calculateConfidence(scores, mainPick, dataQuality, totalMatch
 
   const stake =
     confidence >= 88 ? "2/5" : confidence >= 78 ? "1.5/5" : "1/5";
-
-    const expectedScore = getConstrainedMostProbableScore(
-    scores.rawExpectedHome,
-    scores.rawExpectedAway,
-    mainPick as "Home Win" | "Draw" | "Away Win"
-  );
 
   const analysis = generateAnalysis(
     match,
