@@ -241,7 +241,7 @@ const handleLogout = async () => {
 const fetchDashboardData = async () => {
   setLoading(true);
   try {
-    const res = await fetch("/api/admin-data", { cache: "no-store" })
+    const res = await fetch("/api/admin-data?t=" + Date.now(), { cache: "no-store" })
     const d = await res.json();
 
     // Quick Stats

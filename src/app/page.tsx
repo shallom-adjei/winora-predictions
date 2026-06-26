@@ -29,7 +29,7 @@ const [overview, setOverview] = useState({
 
   // Fetch KPIs
   useEffect(() => {
-fetch("/api/kpi-overview", { cache: "no-store" })
+fetch("/api/kpi-overview?t=" + Date.now(), { cache: "no-store" })
   .then((r) => r.json())
   .then((d) => {
     setOverview({
@@ -48,7 +48,7 @@ fetch("/api/kpi-overview", { cache: "no-store" })
 
 useEffect(() => {
   const fetchPredictions = () => {
-    fetch("/api/get-predictions", { cache: "no-store" })
+fetch("/api/get-predictions?t=" + Date.now(), { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => setLivePredictions(data.predictions || []))
       .catch(() => {});
