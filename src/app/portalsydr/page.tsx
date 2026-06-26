@@ -338,6 +338,8 @@ useEffect(() => {
   else if (hour < 18) setGreeting("Good afternoon");
   else setGreeting("Good evening");
   fetchDashboardData();
+  const interval = setInterval(fetchDashboardData, 60_000);
+  return () => clearInterval(interval);
 }, []);
 
   // ----- Action Handlers -----

@@ -46,13 +46,17 @@ fetch("/api/kpi-overview", { cache: "no-store" })
       .catch((err) => console.error("KPI fetch failed", err));
   }, []);
 
-  // Fetch live predictions (non-finished)
-  useEffect(() => {
-fetch("/api/get-predictions", { cache: "no-store" })
-  .then((r) => r.json())
-  .then((data) => setLivePredictions(data.predictions || []))
-  .catch(() => {});
-  }, []);
+useEffect(() => {
+  const fetchPredictions = () => {
+    fetch("/api/get-predictions", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((data) => setLivePredictions(data.predictions || []))
+      .catch(() => {});
+  };
+  fetchPredictions(); // initial fetch
+  const interval = setInterval(fetchPredictions, 60_000); // every 60 seconds
+  return () => clearInterval(interval); // cleanup on unmount
+}, []);
 
   const topPicks = useMemo(() => {
     return livePredictions
