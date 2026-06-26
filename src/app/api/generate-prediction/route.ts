@@ -19,6 +19,18 @@ function calculateDataQuality(match: any) {
 
 export async function POST(req: NextRequest) {
   const { match } = await req.json();
+
+  // If Elo not set, try to fetch from team_elos
+  if (match.elo_a == null || match.elo_b == null) {
+    const { supabase } = await import("@/lib/supabase");
+    const [eloResA, eloResB] = await Promise.all([
+      supabase.from("team_elos").select("elo_rating").eq("team_name", match.team_a).maybeSingle(),
+      supabase.from("team_elos").select("elo_rating").eq("team_name", match.team_b).maybeSingle(),
+    ]);
+    match.elo_a = match.elo_a ?? eloResA?.data?.elo_rating ?? 1500;
+    match.elo_b = match.elo_b ?? eloResB?.data?.elo_rating ?? 1500;
+  }
+
   const dataQuality = calculateDataQuality(match);
   const scores = computePrediction(match);
 
@@ -30,13 +42,12 @@ export async function POST(req: NextRequest) {
       (scores[curr] as number) > (scores[prev] as number) ? curr : prev
     );
 
-  // Main pick – based on expected score (matches predicted score)
-  const mainPick =
-    scores.expectedHomeGoals > scores.expectedAwayGoals
-      ? "Home Win"
-      : scores.expectedAwayGoals > scores.expectedHomeGoals
-      ? "Away Win"
-      : "Draw";
+  // Main pick – highest probability 1X2 outcome
+  const mainPick = (
+    ["Home Win", "Draw", "Away Win"] as (keyof PredictionScores)[]
+  ).reduce((best, current) =>
+    (scores[current] as number) > (scores[best] as number) ? current : best
+  , "Draw" as keyof PredictionScores);
 
   // Goals pick – derived from predicted score total
   const totalGoals = scores.expectedHomeGoals + scores.expectedAwayGoals;
@@ -80,6 +91,23 @@ const confidence = calculateConfidence(scores, mainPick, dataQuality, totalMatch
     risk,
     stake
   );
+
+    // Log probabilities for calibration
+  const { supabase } = await import("@/lib/supabase");
+  await supabase.from("prediction_logs").insert({
+    prediction_id: match.id,
+    prob_home_win: scores["Home Win"],
+    prob_draw: scores["Draw"],
+    prob_away_win: scores["Away Win"],
+    prob_over25: scores["Over 2.5 Goals"],
+    prob_under25: scores["Under 2.5 Goals"],
+    prob_btts: scores["Both Teams to Score"],
+    prob_btts_no: scores["BTTS No"],
+    main_pick: mainPick,
+    safe_pick: safePick,
+    goals_pick: goalsPick,
+    btts_pick: bttsPick,
+  });
 
   return NextResponse.json({
     prediction: mainPick,

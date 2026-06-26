@@ -35,38 +35,59 @@ function fatigueFactor(restDays: number | null): number {
 }
 
 export function computePrediction(match: any): PredictionScores {
-  // ----- Dixon‑Coles expected goals (if available) -----
-const rawAttA = Number(match.att_a);
-const rawDefA = Number(match.def_a);
-const rawAttB = Number(match.att_b);
-const rawDefB = Number(match.def_b);
+  // ----- Helper to clamp Dixon‑Coles parameters -----
+  const clamp = (v: number) => Math.min(2.5, Math.max(0.3, v));
 
-const clamp = (v: number) => Math.min(2.5, Math.max(0.3, v));
-const attA = rawAttA ? clamp(rawAttA) : null;
-const defA = rawDefA ? clamp(rawDefA) : null;
-const attB = rawAttB ? clamp(rawAttB) : null;
-const defB = rawDefB ? clamp(rawDefB) : null;
+  // ----- NEW: Home/Away Dixon‑Coles (most accurate) -----
+  const rawAttHomeA = Number(match.att_home_a);
+  const rawDefHomeA = Number(match.def_home_a);
+  const rawAttAwayB = Number(match.att_away_b);
+  const rawDefAwayB = Number(match.def_away_b);
+
+  const attHomeA = rawAttHomeA ? clamp(rawAttHomeA) : null;
+  const defHomeA = rawDefHomeA ? clamp(rawDefHomeA) : null;
+  const attAwayB = rawAttAwayB ? clamp(rawAttAwayB) : null;
+  const defAwayB = rawDefAwayB ? clamp(rawDefAwayB) : null;
 
   let expectedHome: number;
   let expectedAway: number;
 
-  if (attA && defA && attB && defB) {
+  if (attHomeA && defHomeA && attAwayB && defAwayB) {
+    // Use home/away parameters
     const overallAvg = 2.5;
     const homeAdvantage = 1.15;
-    expectedHome = attA * defB * overallAvg * homeAdvantage;
-    expectedAway = attB * defA * overallAvg * (2 - homeAdvantage);
+    expectedHome = attHomeA * defAwayB * overallAvg * homeAdvantage;
+    expectedAway = attAwayB * defHomeA * overallAvg * (2 - homeAdvantage);
   } else {
-    // Fallback heuristic
-    const homeScored = Number(match.home_goals_scored) || 0;
-    const homeConceded = Number(match.home_goals_conceded) || 0;
-    const awayScored = Number(match.away_goals_scored) || 0;
-    const awayConceded = Number(match.away_goals_conceded) || 0;
+    // ----- Fallback to overall Dixon‑Coles (existing logic) -----
+    const rawAttA = Number(match.att_a);
+    const rawDefA = Number(match.def_a);
+    const rawAttB = Number(match.att_b);
+    const rawDefB = Number(match.def_b);
 
-    expectedHome = (homeScored * 0.6 + awayConceded * 0.4) * 1.05;
-    expectedAway = (awayScored * 0.4 + homeConceded * 0.6) * 0.95;
+    const attA = rawAttA ? clamp(rawAttA) : null;
+    const defA = rawDefA ? clamp(rawDefA) : null;
+    const attB = rawAttB ? clamp(rawAttB) : null;
+    const defB = rawDefB ? clamp(rawDefB) : null;
+
+    if (attA && defA && attB && defB) {
+      const overallAvg = 2.5;
+      const homeAdvantage = 1.15;
+      expectedHome = attA * defB * overallAvg * homeAdvantage;
+      expectedAway = attB * defA * overallAvg * (2 - homeAdvantage);
+    } else {
+      // ----- Heuristic fallback (if no Dixon‑Coles at all) -----
+      const homeScored = Number(match.home_goals_scored) || 0;
+      const homeConceded = Number(match.home_goals_conceded) || 0;
+      const awayScored = Number(match.away_goals_scored) || 0;
+      const awayConceded = Number(match.away_goals_conceded) || 0;
+
+      expectedHome = (homeScored * 0.6 + awayConceded * 0.4) * 1.05;
+      expectedAway = (awayScored * 0.4 + homeConceded * 0.6) * 0.95;
+    }
   }
 
-    // Safety check – if both expected goals are still unrealistically low, fall back to raw averages
+  // Safety check – if both expected goals are still unrealistically low, fall back to raw averages
   if (expectedHome < 0.5 && expectedAway < 0.5) {
     const homeScored = Number(match.home_goals_scored) || 0;
     const homeConceded = Number(match.home_goals_conceded) || 0;
@@ -77,7 +98,7 @@ const defB = rawDefB ? clamp(rawDefB) : null;
     expectedAway = (awayScored * 0.4 + homeConceded * 0.6) * 0.95;
   }
 
-  // ----- Elo modifier + sanity check -----
+  // ----- Elo modifier + sanity check (unchanged) -----
   const eloA = Number(match.elo_a) || 1500;
   const eloB = Number(match.elo_b) || 1500;
   const eloDiff = eloA - eloB;
@@ -86,13 +107,10 @@ const defB = rawDefB ? clamp(rawDefB) : null;
   let eloFactorA = eloFactor(eloDiff);
   let eloFactorB = 1 / eloFactorA;
 
-  // Sanity check: if one team is vastly stronger, push expected goals accordingly
   if (eloDiff > ABSOLUTE_ELO_GAP) {
-    // Home team much stronger → boost their attack
     eloFactorA *= 1.15;
     eloFactorB *= 0.85;
   } else if (eloDiff < -ABSOLUTE_ELO_GAP) {
-    // Away team much stronger → boost their attack
     eloFactorA *= 0.85;
     eloFactorB *= 1.15;
   }
@@ -100,7 +118,7 @@ const defB = rawDefB ? clamp(rawDefB) : null;
   expectedHome *= eloFactorA;
   expectedAway *= eloFactorB;
 
-  // ----- Competition weight (applied to xG to scale down friendlies) -----
+  // ----- Competition weight -----
   const weight = Number(match.competition_weight) || 1;
   expectedHome *= weight;
   expectedAway *= weight;
@@ -111,6 +129,15 @@ const defB = rawDefB ? clamp(rawDefB) : null;
   expectedHome *= fatigueFactor(restA);
   expectedAway *= fatigueFactor(restB);
 
+    // ----- H2H blending (if available) -----
+  const h2hHomeAvg = Number(match.h2h_home_goals_avg);
+  const h2hAwayAvg = Number(match.h2h_away_goals_avg);
+  if (!isNaN(h2hHomeAvg) && !isNaN(h2hAwayAvg) && (h2hHomeAvg > 0 || h2hAwayAvg > 0)) {
+    const h2hWeight = 0.12;   // 12% weight to H2H trend
+    expectedHome = expectedHome * (1 - h2hWeight) + h2hHomeAvg * h2hWeight;
+    expectedAway = expectedAway * (1 - h2hWeight) + h2hAwayAvg * h2hWeight;
+  }
+
   // ----- Goal floor -----
   const goalFloor = 0.5;
   if (expectedHome < goalFloor && expectedAway < goalFloor) {
@@ -118,7 +145,7 @@ const defB = rawDefB ? clamp(rawDefB) : null;
     expectedAway = Math.max(expectedAway, 0.3);
   }
 
-  // ----- Poisson probabilities -----
+  // ----- Poisson probabilities (unchanged) -----
   const maxGoals = 6;
   const probHomeGoals = Array.from({ length: maxGoals + 1 }, (_, k) =>
     poissonProb(expectedHome, k)
@@ -154,11 +181,6 @@ const defB = rawDefB ? clamp(rawDefB) : null;
   under25 = cap(Math.round(under25 * 100));
   btts = cap(Math.round(rawBtts * 100));
   const bttsNo = cap(Math.round((1 - rawBtts) * 100));
-
-  expectedHome += (Math.random() * 0.4 - 0.2);
-  expectedAway += (Math.random() * 0.4 - 0.2);
-  expectedHome = Math.max(0, expectedHome);
-  expectedAway = Math.max(0, expectedAway);
 
   return {
     "Home Win": homeWin,

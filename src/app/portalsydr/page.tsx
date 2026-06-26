@@ -191,6 +191,7 @@ export default function AdminDashboard() {
 
   // ---- OVERVIEW STATE ----
   const [overviewData, setOverviewData] = useState({ winRate: "0" });
+  const [realCalibrationGroups, setRealCalibrationGroups] = useState<any[]>([]);
 
   const [updating, setUpdating] = useState(false);
   const [waitlistEntries, setWaitlistEntries] = useState<any[]>([]);
@@ -318,6 +319,12 @@ const fetchDashboardData = async () => {
 
     // Win Rate for sidebar
     setOverviewData({ winRate: d.winRate });
+
+        // Calibration data
+    fetch("/api/admin-calibration")
+      .then(r => r.json())
+      .then(d => setRealCalibrationGroups(d.groups || []))
+      .catch(err => console.error("Calibration fetch error", err));
 
   } catch (err) {
     console.error("Admin data fetch error", err);
@@ -879,6 +886,31 @@ const handleGenerateAll = async () => {
                   <Bar dataKey="profit" fill="#6B7280" radius={[4,4,0,0]} />
                 </BarChart>
               </ResponsiveContainer>
+            </div>
+
+                        {/* Model Calibration */}
+            <div className="rounded-[20px] bg-[#0D0D0D] border border-white/5 p-6">
+              <h3 className="text-lg font-semibold mb-4">Model Calibration</h3>
+              {realCalibrationGroups.length === 0 ? (
+                <p className="text-sm text-gray-400">Not enough data yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {realCalibrationGroups.map((g: any) => (
+                    <div key={g.label} className="flex items-center justify-between text-sm">
+                      <span className="text-gray-400">{g.expectedWinRate}</span>
+                      <span
+                        className={`font-bold ${
+                          Math.abs(parseFloat(g.actualWinRate) - (g.min + g.max) / 2) <= 5
+                            ? "text-green-400"
+                            : "text-yellow-400"
+                        }`}
+                      >
+                        {g.actualWinRate}% ({g.wins}/{g.total})
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="rounded-[20px] bg-[#0D0D0D] border border-white/5 p-6">

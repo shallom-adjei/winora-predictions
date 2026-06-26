@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { computeDixonColes, computeDixonColesHomeAway } from "@/lib/statsUtils";
 
 // ----- Helpers -----
 
@@ -71,26 +72,6 @@ function calculateStatsFromMatches(matches: any[]) {
   };
 }
 
-// ----- Dixon‑Coles parameters -----
-function computeDixonColes(matchesA: any[], matchesB: any[]) {
-  const allMatches = [...matchesA, ...matchesB];
-  const totalMatches = allMatches.length;
-  if (totalMatches === 0) return { attA: null, defA: null, attB: null, defB: null, overallAvg: 1 };
-
-  const overallAvgGoals = allMatches.reduce((s, m) => s + m.goalsFor + m.goalsAgainst, 0) / totalMatches;
-
-  const avgScoredA = matchesA.length ? matchesA.reduce((s, m) => s + m.goalsFor, 0) / matchesA.length : overallAvgGoals;
-  const avgConcededA = matchesA.length ? matchesA.reduce((s, m) => s + m.goalsAgainst, 0) / matchesA.length : overallAvgGoals;
-  const avgScoredB = matchesB.length ? matchesB.reduce((s, m) => s + m.goalsFor, 0) / matchesB.length : overallAvgGoals;
-  const avgConcededB = matchesB.length ? matchesB.reduce((s, m) => s + m.goalsAgainst, 0) / matchesB.length : overallAvgGoals;
-
-  const attA = avgScoredA / overallAvgGoals;
-  const defA = avgConcededA / overallAvgGoals;
-  const attB = avgScoredB / overallAvgGoals;
-  const defB = avgConcededB / overallAvgGoals;
-
-  return { attA, defA, attB, defB, overallAvg: overallAvgGoals };
-}
 
 // ----- Main endpoint -----
 export async function POST(req: NextRequest) {
@@ -105,6 +86,41 @@ export async function POST(req: NextRequest) {
   const statsB = calculateStatsFromMatches(matchesB);
   const dc = computeDixonColes(matchesA, matchesB);
 
+  // Home/away Dixon‑Coles
+  const homeMatchesA = (matchesA || []).filter((m: any) => m.home === true);
+  const awayMatchesB = (matchesB || []).filter((m: any) => m.home === false);
+  const dcHA = computeDixonColesHomeAway(homeMatchesA, awayMatchesB);
+
+  // ----- H2H summary (NEW) -----
+  let h2hHomeWins: number | null = null;
+  let h2hDraws: number | null = null;
+  let h2hAwayWins: number | null = null;
+  let h2hHomeGoalsAvg: number | null = null;
+  let h2hAwayGoalsAvg: number | null = null;
+
+  if (h2hMatches && h2hMatches.length > 0) {
+    let homeWins = 0, draws = 0, awayWins = 0;
+    let homeGoalsTotal = 0, awayGoalsTotal = 0, count = 0;
+    for (const m of h2hMatches) {
+      const homeScore = Number(m.homeScore);
+      const awayScore = Number(m.awayScore);
+      if (isNaN(homeScore) || isNaN(awayScore)) continue;
+      if (homeScore > awayScore) homeWins++;
+      else if (homeScore === awayScore) draws++;
+      else awayWins++;
+      homeGoalsTotal += homeScore;
+      awayGoalsTotal += awayScore;
+      count++;
+    }
+    if (count > 0) {
+      h2hHomeWins = homeWins;
+      h2hDraws = draws;
+      h2hAwayWins = awayWins;
+      h2hHomeGoalsAvg = homeGoalsTotal / count;
+      h2hAwayGoalsAvg = awayGoalsTotal / count;
+    }
+  }
+
   // Rest days from the match lists
   const restA = calculateRestDays(matchesA);
   const restB = calculateRestDays(matchesB);
@@ -115,6 +131,12 @@ export async function POST(req: NextRequest) {
 
   const update: any = {
     enrichment_source: "manual",
+    // Overall Dixon‑Coles (NEW)
+    att_a: dc.attA,
+    def_a: dc.defA,
+    att_b: dc.attB,
+    def_b: dc.defB,
+    // Basic stats
     form_points_a: statsA.form_points,
     form_points_b: statsB.form_points,
     home_goals_scored: statsA.home_goals_scored,
@@ -133,8 +155,18 @@ export async function POST(req: NextRequest) {
     matches_used_b: statsB.matches_used,
     elo_a: finalEloA, elo_b: finalEloB,
     rest_days_a: restA, rest_days_b: restB,
+    // Home/Away Dixon‑Coles
+    att_home_a: dcHA.attHomeA,
+    def_home_a: dcHA.defHomeA,
+    att_away_b: dcHA.attAwayB,
+    def_away_b: dcHA.defAwayB,
+    // H2H summary (NEW)
+    h2h_home_wins: h2hHomeWins,
+    h2h_draws: h2hDraws,
+    h2h_away_wins: h2hAwayWins,
+    h2h_home_goals_avg: h2hHomeGoalsAvg,
+    h2h_away_goals_avg: h2hAwayGoalsAvg,
   };
-
   const { error } = await supabase
     .from("predictions")
     .update(update)

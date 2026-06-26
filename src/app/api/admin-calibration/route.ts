@@ -1,0 +1,57 @@
+import { NextResponse } from "next/server";
+
+export const dynamic = "force-dynamic";
+
+export async function GET() {
+  const { supabase } = await import("@/lib/supabase");
+
+  // Fetch all prediction logs where actual outcomes are known
+  const { data: logs } = await supabase
+    .from("prediction_logs")
+    .select("*")
+    .not("actual_home_score", "is", null);
+
+  if (!logs || logs.length === 0) {
+    return NextResponse.json({ groups: [], message: "No data yet" });
+  }
+
+  // Group by confidence range (derived from main_pick probability)
+  const groups = [
+    { label: "50-59%", min: 50, max: 59, total: 0, wins: 0 },
+    { label: "60-69%", min: 60, max: 69, total: 0, wins: 0 },
+    { label: "70-79%", min: 70, max: 79, total: 0, wins: 0 },
+    { label: "80-89%", min: 80, max: 89, total: 0, wins: 0 },
+    { label: "90-92%", min: 90, max: 92, total: 0, wins: 0 },
+  ];
+
+  for (const log of logs) {
+    // Determine which probability corresponds to the main pick
+    let prob: number;
+    switch (log.main_pick) {
+      case "Home Win": prob = log.prob_home_win; break;
+      case "Draw": prob = log.prob_draw; break;
+      case "Away Win": prob = log.prob_away_win; break;
+      default: continue;
+    }
+    const group = groups.find(g => prob >= g.min && prob <= g.max);
+    if (!group) continue;
+
+    group.total++;
+    // Did the prediction hit?
+    const success =
+      (log.main_pick === "Home Win" && log.result_home_win) ||
+      (log.main_pick === "Draw" && log.result_draw) ||
+      (log.main_pick === "Away Win" && log.result_away_win);
+    if (success) group.wins++;
+  }
+
+  const resultGroups = groups
+    .filter(g => g.total > 0)
+    .map(g => ({
+      ...g,
+      actualWinRate: ((g.wins / g.total) * 100).toFixed(1),
+      expectedWinRate: `${g.min}-${g.max}%`,
+    }));
+
+  return NextResponse.json({ groups: resultGroups });
+}

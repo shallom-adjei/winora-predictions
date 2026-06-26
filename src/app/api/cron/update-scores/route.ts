@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { updateElo } from "@/lib/eloUtils";
 
 export const dynamic = "force-dynamic";
 
@@ -81,7 +82,7 @@ export async function GET() {
 
   const { data: matches } = await supabase
     .from("predictions")
-    .select("id, fixture_id, team_a, team_b, kickoff_time, match_status, main_pick, actual_home_score, actual_away_score")
+        .select("id, fixture_id, team_a, team_b, kickoff_time, match_status, main_pick, actual_home_score, actual_away_score, sport, competition_id")
     .not("kickoff_time", "is", null)
     .lte("kickoff_time", nowISO)
     .neq("match_status", "FINISHED")
@@ -131,6 +132,63 @@ export async function GET() {
         if (newStatus === "FINISHED" && homeScore != null && awayScore != null) {
           const actualOutcome = homeScore > awayScore ? "Home Win" : homeScore === awayScore ? "Draw" : "Away Win";
           updateData.result = match.main_pick === actualOutcome ? "Win" : "Loss";
+
+                    // Update prediction_logs with actual outcomes
+          const totalGoals = (homeScore ?? 0) + (awayScore ?? 0);
+          const bothScored = (homeScore ?? 0) > 0 && (awayScore ?? 0) > 0;
+          await supabase
+            .from("prediction_logs")
+            .update({
+              actual_home_score: homeScore,
+              actual_away_score: awayScore,
+              result_home_win: homeScore > awayScore,
+              result_draw: homeScore === awayScore,
+              result_away_win: awayScore > homeScore,
+              result_over25: totalGoals > 2.5,
+              result_btts: bothScored,
+            })
+            .eq("prediction_id", match.id);
+
+          // ----- Update Elo ratings -----
+          try {
+            // Fetch current Elo (default 1500)
+            const { data: eloDataA } = await supabase
+              .from("team_elos")
+              .select("elo_rating")
+              .eq("team_name", match.team_a)
+              .maybeSingle();
+            const { data: eloDataB } = await supabase
+              .from("team_elos")
+              .select("elo_rating")
+              .eq("team_name", match.team_b)
+              .maybeSingle();
+
+            const currentEloA = eloDataA?.elo_rating ?? 1500;
+            const currentEloB = eloDataB?.elo_rating ?? 1500;
+
+            // Determine result from team A's perspective
+            let resultPerspective: "Win" | "Loss" | "Draw";
+            if (actualOutcome === "Home Win") resultPerspective = "Win";
+            else if (actualOutcome === "Draw") resultPerspective = "Draw";
+            else resultPerspective = "Loss";
+
+            const competition = match.sport || "Unknown";
+            const [newEloA, newEloB] = updateElo(currentEloA, currentEloB, resultPerspective, competition);
+
+            // Upsert both
+            await supabase.from("team_elos").upsert({
+              team_name: match.team_a,
+              elo_rating: newEloA,
+              updated_at: new Date().toISOString(),
+            });
+            await supabase.from("team_elos").upsert({
+              team_name: match.team_b,
+              elo_rating: newEloB,
+              updated_at: new Date().toISOString(),
+            });
+          } catch (eloErr) {
+            console.error("Elo update failed for", match.team_a, match.team_b, eloErr);
+          }
         }
 
         await supabase.from("predictions").update(updateData).eq("id", match.id);

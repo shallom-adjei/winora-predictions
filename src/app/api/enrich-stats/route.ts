@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { computeDixonColes, computeDixonColesHomeAway } from "@/lib/statsUtils";
 
 // ----- Team name normalisation -----
 function normaliseTeamName(name: string): string {
@@ -15,7 +16,6 @@ function normaliseTeamName(name: string): string {
   return map[name] || name;
 }
 
-// ----- TheSportsDB stats (up to 10 matches) -----
 async function getStatsFromTheSportsDB(teamName: string) {
   try {
     const normalised = normaliseTeamName(teamName);
@@ -49,9 +49,23 @@ async function getStatsFromTheSportsDB(teamName: string) {
     if (results.length === 0) return null;
 
     const recent = results.slice(0, 10);
+
+    // Build raw match data for Dixon‑Coles
+    const rawMatches = recent.map((match: any) => {
+      const isHome = match.idHomeTeam === team.idTeam;
+      const goalsFor = isHome
+        ? parseInt(match.intHomeScore) || 0
+        : parseInt(match.intAwayScore) || 0;
+      const goalsAgainst = isHome
+        ? parseInt(match.intAwayScore) || 0
+        : parseInt(match.intHomeScore) || 0;
+       return { goalsFor, goalsAgainst, home: isHome };
+    });
+
     return {
       stats: calculateStats(recent, team.idTeam),
       matchCount: recent.length,
+      rawMatches,  // <-- now we can compute Dixon‑Coles
     };
   } catch {
     return null;
@@ -140,7 +154,6 @@ export async function POST(req: NextRequest) {
         update.btts_last5_pct_a = tsdbA.stats.btts_last5_pct;
         update.matches_used_a = tsdbA.matchCount;
       } else {
-        // No stats found – still mark as processed so it doesn't loop forever
         update.form_points_a = 0;
         update.matches_used_a = 0;
       }
@@ -159,6 +172,26 @@ export async function POST(req: NextRequest) {
       } else {
         update.form_points_b = 0;
         update.matches_used_b = 0;
+      }
+
+      // ----- Compute Dixon‑Coles if we have raw match data for both teams -----
+      if (tsdbA?.rawMatches && tsdbB?.rawMatches) {
+        const dc = computeDixonColes(tsdbA.rawMatches, tsdbB.rawMatches);
+        update.att_a = dc.attA;
+        update.def_a = dc.defA;
+        update.att_b = dc.attB;
+        update.def_b = dc.defB;
+      }
+
+            // ----- Compute home/away Dixon‑Coles -----
+      if (tsdbA?.rawMatches && tsdbB?.rawMatches) {
+        const homeMatchesA = tsdbA.rawMatches.filter((m: any) => m.home === true);
+        const awayMatchesB = tsdbB.rawMatches.filter((m: any) => m.home === false);
+        const dcHA = computeDixonColesHomeAway(homeMatchesA, awayMatchesB);
+        update.att_home_a = dcHA.attHomeA;
+        update.def_home_a = dcHA.defHomeA;
+        update.att_away_b = dcHA.attAwayB;
+        update.def_away_b = dcHA.defAwayB;
       }
 
       await supabase.from("predictions").update(update).eq("id", match.id);
