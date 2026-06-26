@@ -52,14 +52,12 @@ export async function GET() {
     ? (confData.reduce((sum, r) => sum + (r.confidence || 0), 0) / confData.length).toFixed(1)
     : "0";
 
-  return NextResponse.json({
-    total,
-    winRate,
-    wins,
-    losses,
-    draws,
-    streak,
-    pending,
-    avgConf,
-  });
+   return NextResponse.json(
+    { total, winRate, wins, losses, draws, streak, pending, avgConf },
+    {
+      headers: {
+        "Cache-Control": "no-store, max-age=0",
+      },
+    }
+  );
 }

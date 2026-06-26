@@ -58,13 +58,20 @@ export async function GET() {
     .gte("created_at", todayStart)
     .lte("created_at", todayEnd);
 
-  return NextResponse.json({
-    upcoming: upcoming || [],
-    recent: recent || [],
-    waitlist: waitlist || [],
-    winRate,
-    pending,
-    avgConf,
-    todayPreds,
-  });
+   return NextResponse.json(
+    {
+      upcoming: upcoming || [],
+      recent: recent || [],
+      waitlist: waitlist || [],
+      winRate,
+      pending,
+      avgConf,
+      todayPreds,
+    },
+    {
+      headers: {
+        "Cache-Control": "no-store, max-age=0",
+      },
+    }
+  );
 }
