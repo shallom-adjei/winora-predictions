@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET() {
   const { supabase } = await import("@/lib/supabase");
@@ -58,8 +59,8 @@ export async function GET() {
     .gte("created_at", todayStart)
     .lte("created_at", todayEnd);
 
-   return NextResponse.json(
-    {
+  return new Response(
+    JSON.stringify({
       upcoming: upcoming || [],
       recent: recent || [],
       waitlist: waitlist || [],
@@ -67,12 +68,19 @@ export async function GET() {
       pending,
       avgConf,
       todayPreds,
-    },
+      _ts: Date.now()               // unique timestamp forces fresh response
+    }),
     {
+      status: 200,
       headers: {
-      "Cache-Control": "no-store, max-age=0",
-      "Vercel-CDN-Cache-Control": "no-cache",   // <-- add this
-    },
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-store, max-age=0, must-revalidate, private',
+        'CDN-Cache-Control': 'no-store',
+        'Vercel-CDN-Cache-Control': 'no-store',
+        'Surrogate-Control': 'no-store',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      },
     }
   );
 }
