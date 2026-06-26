@@ -15,7 +15,8 @@ export function generateAnalysis(
   scores: PredictionScores,
   confidence: number,
   risk: string,
-  stake: string
+  stake: string,
+  expectedScore: string 
 ): string {
   const home = match.team_a || "Home";
   const away = match.team_b || "Away";
@@ -37,7 +38,6 @@ export function generateAnalysis(
   const restB = safeNum(match.rest_days_b);
 
   const hasStats = homeForm > 0 || awayForm > 0;
-  const expectedScore = scores.mostProbableScore;
   const riskLower = risk.toLowerCase();
 
   const isHomePick = prediction === "Home Win";

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { computePrediction, calculateConfidence } from "@/lib/predictionEngine";
+import { computePrediction, calculateConfidence, getConstrainedMostProbableScore } from "@/lib/predictionEngine";
 import type { PredictionScores } from "@/lib/predictionEngine";
 import { generateAnalysis } from "@/lib/analysisTemplate";
 
@@ -81,7 +81,11 @@ const confidence = calculateConfidence(scores, mainPick, dataQuality, totalMatch
   const stake =
     confidence >= 88 ? "2/5" : confidence >= 78 ? "1.5/5" : "1/5";
 
-   const expectedScore = scores.mostProbableScore;
+    const expectedScore = getConstrainedMostProbableScore(
+    scores.rawExpectedHome,
+    scores.rawExpectedAway,
+    mainPick as "Home Win" | "Draw" | "Away Win"
+  );
 
   const analysis = generateAnalysis(
     match,
@@ -89,7 +93,8 @@ const confidence = calculateConfidence(scores, mainPick, dataQuality, totalMatch
     scores,
     confidence,
     risk,
-    stake
+    stake,
+    expectedScore
   );
 
     // Log probabilities for calibration

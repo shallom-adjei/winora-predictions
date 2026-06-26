@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { computePrediction, calculateConfidence } from "@/lib/predictionEngine";
+import { computePrediction, calculateConfidence, getConstrainedMostProbableScore } from "@/lib/predictionEngine";
 import type { PredictionScores } from "@/lib/predictionEngine";
 import { generateAnalysis } from "@/lib/analysisTemplate";
 
@@ -92,9 +92,14 @@ export async function POST(request: Request) {
     edge > 15 && dataQuality > 70 ? "Low" : edge > 8 ? "Medium" : "High";
 
   const stake = confidence >= 88 ? "2/5" : confidence >= 78 ? "1.5/5" : "1/5";
-    const expectedScore = scores.mostProbableScore;
+    const expectedScore = getConstrainedMostProbableScore(
+    scores.rawExpectedHome,
+    scores.rawExpectedAway,
+    mainPick as "Home Win" | "Draw" | "Away Win"
+  );
 
-  const analysis = generateAnalysis(match, mainPick, scores, confidence, risk, stake);
+  const analysis = generateAnalysis(match, mainPick, scores, confidence, risk, stake, expectedScore);
+  
 
   // Update the prediction in DB
   const { error: updateError } = await supabase
