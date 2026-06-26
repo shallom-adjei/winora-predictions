@@ -81,18 +81,18 @@ export async function POST(request: Request) {
   );
   const confidence = calculateConfidence(scores, mainPick, dataQuality, totalMatchesUsed);
 
-  const mainScore = scores[mainPick];
+  const mainScore = scores[mainPick] as number;
   const secondScore = Math.max(
     ...(["Home Win", "Draw", "Away Win"] as (keyof PredictionScores)[])
       .filter(m => m !== mainPick)
-      .map(m => scores[m])
+      .map(m => scores[m] as number)
   );
   const edge = mainScore - secondScore;
   const risk =
     edge > 15 && dataQuality > 70 ? "Low" : edge > 8 ? "Medium" : "High";
 
   const stake = confidence >= 88 ? "2/5" : confidence >= 78 ? "1.5/5" : "1/5";
-  const expectedScore = `${scores.expectedHomeGoals}-${scores.expectedAwayGoals}`;
+    const expectedScore = scores.mostProbableScore;
 
   const analysis = generateAnalysis(match, mainPick, scores, confidence, risk, stake);
 

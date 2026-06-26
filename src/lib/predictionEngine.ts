@@ -19,6 +19,7 @@ export interface PredictionScores {
   "BTTS No": number;
   expectedHomeGoals: number;
   expectedAwayGoals: number;
+  mostProbableScore: string;
 }
 
 // Elo → goal advantage factor (1 Elo point ≈ 0.0005 goals)
@@ -182,6 +183,21 @@ export function computePrediction(match: any): PredictionScores {
   btts = cap(Math.round(rawBtts * 100));
   const bttsNo = cap(Math.round((1 - rawBtts) * 100));
 
+    // ----- Most probable exact score -----
+  let maxProb = 0;
+  let bestHome = 0, bestAway = 0;
+  for (let i = 0; i <= maxGoals; i++) {
+    for (let j = 0; j <= maxGoals; j++) {
+      const prob = probHomeGoals[i] * probAwayGoals[j];
+      if (prob > maxProb) {
+        maxProb = prob;
+        bestHome = i;
+        bestAway = j;
+      }
+    }
+  }
+  const mostProbableScore = `${bestHome}-${bestAway}`;
+
   return {
     "Home Win": homeWin,
     "Draw": draw,
@@ -195,6 +211,7 @@ export function computePrediction(match: any): PredictionScores {
     "BTTS No": bttsNo,
     expectedHomeGoals: Math.round(expectedHome),
     expectedAwayGoals: Math.round(expectedAway),
+    mostProbableScore,
   };
 }
 

@@ -37,7 +37,7 @@ export function generateAnalysis(
   const restB = safeNum(match.rest_days_b);
 
   const hasStats = homeForm > 0 || awayForm > 0;
-  const expectedScore = `${scores.expectedHomeGoals}-${scores.expectedAwayGoals}`;
+  const expectedScore = scores.mostProbableScore;
   const riskLower = risk.toLowerCase();
 
   const isHomePick = prediction === "Home Win";
