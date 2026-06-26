@@ -82,17 +82,17 @@ export default function ManualStatsPage() {
   const [fullJson, setFullJson] = useState("");
 
   // Fetch upcoming matches via internal API
-  const fetchMatches = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/admin-upcoming-matches");
-      const data = await res.json();
-      if (data.matches) setAllMatches(data.matches);
-    } catch (err) {
-      console.error("Failed to fetch upcoming matches", err);
-    }
-    setLoading(false);
-  }, []);
+const fetchMatches = useCallback(async () => {
+  setLoading(true);
+  try {
+    const res = await fetch("/api/admin-data?t=" + Date.now(), { cache: "no-store" });
+    const data = await res.json();
+    if (data.upcoming) setAllMatches(data.upcoming);
+  } catch (err) {
+    console.error("Failed to fetch upcoming matches", err);
+  }
+  setLoading(false);
+}, []);
 
   useEffect(() => {
     fetchMatches();

@@ -202,6 +202,7 @@ export default function AdminDashboard() {
   const [passwordForm, setPasswordForm] = useState({ current: "", new: "" });
   const [passwordError, setPasswordError] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
 
 
@@ -353,13 +354,18 @@ useEffect(() => {
     fetchDashboardData();
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Delete this prediction?")) return;
-    const { error } = await supabase.from("predictions").delete().eq("id", id);
-    if (error) { toast.error("Delete failed"); return; }
-    toast.success("Prediction deleted");
-    fetchDashboardData();
-  };
+const handleDelete = async (id: string) => {
+  setDeleteConfirmId(id);
+};
+
+const confirmDelete = async () => {
+  if (!deleteConfirmId) return;
+  const { error } = await supabase.from("predictions").delete().eq("id", deleteConfirmId);
+  if (error) { toast.error("Delete failed"); return; }
+  toast.success("Prediction deleted");
+  setDeleteConfirmId(null);
+  fetchDashboardData();
+};
 
   const handleUpdateResult = async (id: string, result: string) => {
     const { error } = await supabase.from("predictions").update({ result }).eq("id", id);
@@ -968,6 +974,20 @@ const handleGenerateAll = async () => {
           </motion.div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+{deleteConfirmId && (
+  <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-[#0D0D0D] border border-white/10 rounded-2xl p-6 w-full max-w-sm">
+      <h3 className="text-lg font-semibold text-white mb-4">Delete Prediction</h3>
+      <p className="text-sm text-gray-400 mb-6">Are you sure you want to permanently delete this prediction? This action cannot be undone.</p>
+      <div className="flex justify-end gap-3">
+        <Button variant="ghost" onClick={() => setDeleteConfirmId(null)}>Cancel</Button>
+        <Button onClick={confirmDelete} className="bg-red-600 text-white hover:bg-red-700">Delete</Button>
+      </div>
+    </motion.div>
+  </div>
+)}
     </div>
   );
 }
