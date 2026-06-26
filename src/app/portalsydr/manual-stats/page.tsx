@@ -24,13 +24,14 @@ Also find their **current ranking** and the **last 5 head‑to‑head meetings**
    - \`date\` (YYYY‑MM‑DD)
    - \`opponent\` (team name)
    - \`competition\` (e.g., "World Cup", "Friendly", "UEFA Nations League")
-   - \`home\` (true if ${teamA} played at home)
+      - \`home\` (boolean: true if ${teamA} played at home, false if away) – **must be accurate for every match**.
    - \`goalsFor\`, \`goalsAgainst\`
    - \`opponentRank\` (Ranking of the opponent (e.g., "FIFA", "Premier League", "La Liga") at the time of the match, or null if unknown)
    - If you cannot verify a match result, do not include it.
-5. **Head‑to‑head:** Return the last 5 meetings between ${teamA} and ${teamB}. If fewer than 5 exist, include all available. If none exist, return an empty array.
-6. **Rankings:** Use the most recent official ranking (e.g., "FIFA", "Premier League", "La Liga"). If you cannot find it, set \`null\`.
-7. **Do not hallucinate, do not make up data.** I will verify the response against real databases.
+5. **Separate matches into home and away for each team.** For ${teamA}, list at least 5 home and 5 away matches. For ${teamB}, do the same.   
+6. **Head‑to‑head:** Return the last 5 meetings between ${teamA} and ${teamB}. If fewer than 5 exist, include all available. If none exist, return an empty array.
+7. **Rankings:** Use the most recent official ranking (e.g., "FIFA", "Premier League", "La Liga"). If you cannot find it, set \`null\`.
+8. **Do not hallucinate, do not make up data.** I will verify the response against real databases.
 
 Return **only** a valid JSON object with exactly this structure:
 

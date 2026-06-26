@@ -41,22 +41,22 @@ export function computePrediction(match: any): PredictionScores {
   // ----- Helper to clamp Dixon‑Coles parameters -----
   const clamp = (v: number) => Math.min(2.5, Math.max(0.3, v));
 
-  // ----- NEW: Home/Away Dixon‑Coles (most accurate) -----
+  // ----- Home/Away Dixon‑Coles (with fallback to overall if any parameter is zero) -----
   const rawAttHomeA = Number(match.att_home_a);
   const rawDefHomeA = Number(match.def_home_a);
   const rawAttAwayB = Number(match.att_away_b);
   const rawDefAwayB = Number(match.def_away_b);
 
-  const attHomeA = rawAttHomeA ? clamp(rawAttHomeA) : null;
-  const defHomeA = rawDefHomeA ? clamp(rawDefHomeA) : null;
-  const attAwayB = rawAttAwayB ? clamp(rawAttAwayB) : null;
-  const defAwayB = rawDefAwayB ? clamp(rawDefAwayB) : null;
+  const attHomeA = rawAttHomeA && rawAttHomeA > 0.1 ? clamp(rawAttHomeA) : null;
+  const defHomeA = rawDefHomeA && rawDefHomeA > 0.1 ? clamp(rawDefHomeA) : null;
+  const attAwayB = rawAttAwayB && rawAttAwayB > 0.1 ? clamp(rawAttAwayB) : null;
+  const defAwayB = rawDefAwayB && rawDefAwayB > 0.1 ? clamp(rawDefAwayB) : null;
 
   let expectedHome: number;
   let expectedAway: number;
 
   if (attHomeA && defHomeA && attAwayB && defAwayB) {
-    // Use home/away parameters
+    // All four valid – use home/away parameters
     const overallAvg = 2.5;
     const homeAdvantage = 1.15;
     expectedHome = attHomeA * defAwayB * overallAvg * homeAdvantage;
