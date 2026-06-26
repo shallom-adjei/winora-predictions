@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { computePrediction, calculateConfidence, getConstrainedMostProbableScore } from "@/lib/predictionEngine";
+import { computePrediction, calculateConfidence, selectConsistentScore } from "@/lib/predictionEngine";
 import type { PredictionScores } from "@/lib/predictionEngine";
 import { generateAnalysis } from "@/lib/analysisTemplate";
 
@@ -65,19 +65,22 @@ export async function POST(request: Request) {
     (scores[current] as number) > (scores[best] as number) ? current : best,
   "Draw" as keyof PredictionScores);
 
-   // --- Predicted score (constrained to the main pick) ---
-  const expectedScore = getConstrainedMostProbableScore(
+  // --- Model-driven consistent score selection ---
+  const preferOver25 = scores["Over 2.5 Goals"] > 50;
+  const preferBttsYes = scores["Both Teams to Score"] > 50;
+
+  const expectedScore = selectConsistentScore(
     scores.rawExpectedHome,
     scores.rawExpectedAway,
-    mainPick as "Home Win" | "Draw" | "Away Win"
+    mainPick as "Home Win" | "Draw" | "Away Win",
+    preferOver25,
+    preferBttsYes
   );
 
-  // Goals pick – from the predicted exact score
+  // Derive market picks from the chosen scoreline
   const [predHome, predAway] = expectedScore.split("-").map(Number);
   const totalGoals = predHome + predAway;
   const goalsPick = totalGoals > 2.5 ? "Over 2.5 Goals" : "Under 2.5 Goals";
-
-  // BTTS pick – from the predicted exact score
   const bttsPick = predHome > 0 && predAway > 0
     ? "Both Teams to Score"
     : "BTTS No";

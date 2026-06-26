@@ -213,9 +213,9 @@ export function computePrediction(match: any): PredictionScores {
     "BTTS No": bttsNo,
     expectedHomeGoals: Math.round(expectedHome),
     expectedAwayGoals: Math.round(expectedAway),
-    mostProbableScore,
     rawExpectedHome: expectedHome,
     rawExpectedAway: expectedAway,
+    mostProbableScore,
   };
 }
 
@@ -243,6 +243,60 @@ export function getConstrainedMostProbableScore(
     }
   }
   return `${bestHome}-${bestAway}`;
+}
+
+export function selectConsistentScore(
+  rawExpHome: number,
+  rawExpAway: number,
+  mainPick: "Home Win" | "Draw" | "Away Win",
+  preferOver25: boolean,
+  preferBttsYes: boolean
+): string {
+  const maxGoals = 6;
+  const probHome = Array.from({ length: maxGoals + 1 }, (_, k) =>
+    poissonProb(rawExpHome, k)
+  );
+  const probAway = Array.from({ length: maxGoals + 1 }, (_, k) =>
+    poissonProb(rawExpAway, k)
+  );
+
+  // Build all possible scorelines
+  interface ScoreEntry {
+    i: number; j: number; prob: number; outcome: string; total: number; btts: boolean;
+  }
+  const scoresList: ScoreEntry[] = [];
+  for (let i = 0; i <= maxGoals; i++) {
+    for (let j = 0; j <= maxGoals; j++) {
+      const prob = probHome[i] * probAway[j];
+      const outcome = i > j ? "Home Win" : i === j ? "Draw" : "Away Win";
+      const total = i + j;
+      const btts = i > 0 && j > 0;
+      scoresList.push({ i, j, prob, outcome, total, btts });
+    }
+  }
+
+  // Try full constraints
+  let candidates = scoresList.filter(
+    s =>
+      s.outcome === mainPick &&
+      (s.total > 2.5) === preferOver25 &&
+      s.btts === preferBttsYes
+  );
+
+  if (candidates.length === 0) {
+    // Relax BTTS requirement
+    candidates = scoresList.filter(
+      s => s.outcome === mainPick && (s.total > 2.5) === preferOver25
+    );
+  }
+  if (candidates.length === 0) {
+    // Relax Over 2.5 requirement too
+    candidates = scoresList.filter(s => s.outcome === mainPick);
+  }
+
+  // Pick the most probable remaining score
+  candidates.sort((a, b) => b.prob - a.prob);
+  return `${candidates[0].i}-${candidates[0].j}`;
 }
 
 // ----- Confidence (unchanged) -----
