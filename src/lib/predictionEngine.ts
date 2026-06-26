@@ -19,6 +19,8 @@ export interface PredictionScores {
   "BTTS No": number;
   expectedHomeGoals: number;
   expectedAwayGoals: number;
+  rawExpectedHome: number;
+  rawExpectedAway: number;
   mostProbableScore: string;
 }
 
@@ -212,7 +214,35 @@ export function computePrediction(match: any): PredictionScores {
     expectedHomeGoals: Math.round(expectedHome),
     expectedAwayGoals: Math.round(expectedAway),
     mostProbableScore,
+    rawExpectedHome: expectedHome,
+    rawExpectedAway: expectedAway,
   };
+}
+
+export function getConstrainedMostProbableScore(
+  rawExpHome: number,
+  rawExpAway: number,
+  pick: "Home Win" | "Draw" | "Away Win"
+): string {
+  const maxGoals = 6;
+  const probHome = Array.from({ length: maxGoals + 1 }, (_, k) => poissonProb(rawExpHome, k));
+  const probAway = Array.from({ length: maxGoals + 1 }, (_, k) => poissonProb(rawExpAway, k));
+
+  let bestProb = 0;
+  let bestHome = 0;
+  let bestAway = 0;
+  for (let i = 0; i <= maxGoals; i++) {
+    for (let j = 0; j <= maxGoals; j++) {
+      const prob = probHome[i] * probAway[j];
+      const outcome = i > j ? "Home Win" : i === j ? "Draw" : "Away Win";
+      if (outcome === pick && prob > bestProb) {
+        bestProb = prob;
+        bestHome = i;
+        bestAway = j;
+      }
+    }
+  }
+  return `${bestHome}-${bestAway}`;
 }
 
 // ----- Confidence (unchanged) -----
