@@ -5,13 +5,13 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const { supabase } = await import("@/lib/supabase");
 
-  // Upcoming matches (pending or null result)
+  // Upcoming matches – not finished
   const { data: upcoming } = await supabase
     .from("predictions")
     .select("*")
-    .or("result.eq.pending,result.is.null")
-    .order("created_at", { ascending: false })
-    .limit(20);
+    .neq("match_status", "FINISHED")
+    .order("kickoff_time", { ascending: true })
+    .limit(50);
 
   // Recent predictions
   const { data: recent } = await supabase
