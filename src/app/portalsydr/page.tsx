@@ -444,29 +444,43 @@ const handleGenerateAI = async (match: any) => {
 };
 
 const handleGenerateAll = async () => {
-  const { data: allMatches } = await supabase
-    .from("predictions")
-    .select("*")
-    .neq("match_status", "FINISHED");
+  try {
+    // 1. Get upcoming matches from the proven admin-data API (no client Supabase)
+    const res = await fetch("/api/admin-data?t=" + Date.now(), { cache: "no-store" });
+    const d = await res.json();
+    const matches = d.upcoming || [];
 
-  if (!allMatches?.length) { toast.success("No matches to predict."); return; }
+    if (!matches.length) {
+      toast.success("No matches to predict.");
+      return;
+    }
 
-  toast.loading(`Generating predictions for ${allMatches.length} matches...`);
-  for (const match of allMatches) {
-    setGeneratingId(match.id);
-    try {
-      const res = await fetch("/api/admin-generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ matchId: match.id }),
-      });
-      const aiData = await res.json();
-      if (!aiData.prediction) throw new Error("No prediction");
-    } catch { console.error("Failed for", match.match_name); }
-    finally { setGeneratingId(null); }
+    toast.loading(`Generating predictions for ${matches.length} matches...`);
+
+    // 2. Send each match to the secure admin-generate endpoint
+    for (const match of matches) {
+      setGeneratingId(match.id);
+      try {
+        const genRes = await fetch("/api/admin-generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ matchId: match.id }),
+        });
+        const genData = await genRes.json();
+        if (!genData.prediction) throw new Error("No prediction");
+      } catch (err) {
+        console.error("Failed for", match.match_name, err);
+      } finally {
+        setGeneratingId(null);
+      }
+    }
+
+    toast.success("All predictions generated!");
+    fetchDashboardData();
+  } catch (err) {
+    toast.error("Failed to fetch matches. Please try again.");
+    console.error(err);
   }
-  toast.success("All predictions generated!");
-  fetchDashboardData();
 };
 
   const handleEnrich = async () => {
