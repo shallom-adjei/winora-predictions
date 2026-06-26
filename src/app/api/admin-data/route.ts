@@ -4,7 +4,7 @@ export const revalidate = 0;
 export async function GET() {
   const { supabase } = await import("@/lib/supabase");
 
-  // Upcoming matches – not finished
+  // Upcoming matches – not finished (fixed query)
   const { data: upcoming } = await supabase
     .from("predictions")
     .select("*")
@@ -46,7 +46,10 @@ export async function GET() {
     .select("confidence")
     .not("confidence", "is", null);
   const avgConf = confidenceData?.length
-    ? (confidenceData.reduce((sum: number, r: any) => sum + (r.confidence || 0), 0) / confidenceData.length).toFixed(1)
+    ? (
+        confidenceData.reduce((sum: number, r: any) => sum + (r.confidence || 0), 0) /
+        confidenceData.length
+      ).toFixed(1)
     : "0";
 
   const todayStart = new Date().toISOString().split("T")[0] + "T00:00:00";
@@ -66,18 +69,18 @@ export async function GET() {
       pending,
       avgConf,
       todayPreds,
-      _ts: Date.now()               // unique timestamp forces fresh response
+      _ts: Date.now()
     }),
     {
       status: 200,
       headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-store, max-age=0, must-revalidate, private',
-        'CDN-Cache-Control': 'no-store',
-        'Vercel-CDN-Cache-Control': 'no-store',
-        'Surrogate-Control': 'no-store',
-        'Pragma': 'no-cache',
-        'Expires': '0',
+        "Content-Type": "application/json",
+        "Cache-Control": "no-store, max-age=0, must-revalidate, private",
+        "CDN-Cache-Control": "no-store",
+        "Vercel-CDN-Cache-Control": "no-store",
+        "Surrogate-Control": "no-store",
+        "Pragma": "no-cache",
+        "Expires": "0",
       },
     }
   );
