@@ -241,12 +241,8 @@ const handleLogout = async () => {
 const fetchDashboardData = async () => {
   setLoading(true);
   try {
-const [res, upcomingRes] = await Promise.all([
-  fetch("/api/admin-data?t=" + Date.now(), { cache: "no-store" }),
-  fetch("/api/admin-upcoming?t=" + Date.now(), { cache: "no-store" })
-]);
+const res = await fetch("/api/admin-data?t=" + Date.now(), { cache: "no-store" });
 const d = await res.json();
-const upcomingData = await upcomingRes.json();
 
     // Quick Stats
     setRealQuickStats([
@@ -258,7 +254,7 @@ const upcomingData = await upcomingRes.json();
 
     // Upcoming Matches – map all needed fields (copy the full mapping from your old setUpcomingMatches)
     setUpcomingMatches(
-      (upcomingData.upcoming || []).map((p: any) => ({
+      (d.upcoming.upcoming || []).map((p: any) => ({
         id: p.id,
         match: p.match_name,
         league: p.sport,
