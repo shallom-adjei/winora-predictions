@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 function calculateDataQuality(match: any) {
   let quality = 0;
   if (match.form_points_a != null && match.form_points_b != null) quality += 15;
-  if (match.form_points_a != null) quality += 15;
+  if (match.form_points_b != null) quality += 15;
   if (match.home_goals_scored != null) quality += 10;
   if (match.away_goals_scored != null) quality += 10;
   if (match.over25_last5_pct_a != null) quality += 15;

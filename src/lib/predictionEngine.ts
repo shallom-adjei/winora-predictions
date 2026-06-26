@@ -53,9 +53,11 @@ export function computePrediction(match: any): PredictionScores {
   const eloFactorA = 1 / (1 + Math.pow(10, -eloDiff / 400));
   const eloFactorB = 1 - eloFactorA;
 
-  // Prior expected goals for each team (before form)
-  let priorHome = leagueAvgGoals * 0.5 * homeAdvantage * (1 + eloFactorA);
-  let priorAway = leagueAvgGoals * 0.5 * (2 - homeAdvantage) * (1 + eloFactorB);
+  // Prior expected goals – normalised so total equals leagueAvgGoals
+  const homeShare = 1 / (1 + Math.pow(10, -eloDiff / 400)); // identical to eloFactorA
+  const totalPrior = leagueAvgGoals;
+  const priorHome = totalPrior * homeShare * (homeAdvantage / (homeAdvantage + (2 - homeAdvantage)) * 2);
+  const priorAway = totalPrior - priorHome;
 
   // ---------- 2. Actual stats (if available) ----------
   const homeScored = Number(match.home_goals_scored) || 0;
@@ -71,7 +73,7 @@ export function computePrediction(match: any): PredictionScores {
 
   // Form-based expected goals
   let formHome = (homeScored * 0.6 + awayConceded * 0.4) * homeAdvantage;
-  let formAway = (awayScored * 0.4 + homeConceded * 0.6) * (2 - homeAdvantage);
+  let formAway = (awayScored * 0.6 + homeConceded * 0.4) * (2 - homeAdvantage);
 
   // ---------- 3. Dixon‑Coles parameters (if available) ----------
   const rawAttA = Number(match.att_a);
@@ -116,16 +118,6 @@ export function computePrediction(match: any): PredictionScores {
     // No data – only prior
     expectedHome = priorHome;
     expectedAway = priorAway;
-  }
-
-  // ---------- 5. Elo sanity boost for large gaps ----------
-  const ABSOLUTE_ELO_GAP = 200;
-  if (eloDiff > ABSOLUTE_ELO_GAP) {
-    expectedHome *= 1.2;
-    expectedAway *= 0.8;
-  } else if (eloDiff < -ABSOLUTE_ELO_GAP) {
-    expectedHome *= 0.8;
-    expectedAway *= 1.2;
   }
 
   // ---------- 6. Competition weight ----------
