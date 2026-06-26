@@ -95,17 +95,25 @@ export function computePrediction(match: any): PredictionScores {
   let expectedHome: number;
   let expectedAway: number;
 
+  // Elo gap influence: the bigger the gap, the more we trust the prior
+  const eloGap = Math.abs(eloDiff);
+  const priorBoost = Math.min(1, eloGap / 300);   // 0 to 1, max at 300+ gap
+
   if (dcHome !== null && dcAway !== null) {
-    // If Dixon‑Coles is available, blend it with form and prior
+    // Blend Dixon‑Coles with form and prior, but prior gets extra weight for large Elo gaps
     const dcWeight = Math.min(0.6, (weightA + weightB) / 2);
-    expectedHome = dcHome * dcWeight + formHome * (1 - dcWeight) * 0.5 + priorHome * (1 - dcWeight) * 0.5;
-    expectedAway = dcAway * dcWeight + formAway * (1 - dcWeight) * 0.5 + priorAway * (1 - dcWeight) * 0.5;
+    const formWeight = (1 - dcWeight) * 0.5 * (1 - priorBoost);
+    const priorWeight = (1 - dcWeight) * 0.5 + (1 - dcWeight) * 0.5 * priorBoost;
+    expectedHome = dcHome * dcWeight + formHome * formWeight + priorHome * priorWeight;
+    expectedAway = dcAway * dcWeight + formAway * formWeight + priorAway * priorWeight;
   } else if (weightA > 0 || weightB > 0) {
-    // Use form and prior
-    expectedHome = formHome * weightA + priorHome * (1 - weightA);
-    expectedAway = formAway * weightB + priorAway * (1 - weightB);
+    // Form and prior with prior boost
+    const formWeight = Math.min(weightA, weightB) * (1 - priorBoost);
+    const priorWeight = 1 - formWeight;
+    expectedHome = formHome * formWeight + priorHome * priorWeight;
+    expectedAway = formAway * formWeight + priorAway * priorWeight;
   } else {
-    // No data at all – rely entirely on Elo prior
+    // No data – only prior
     expectedHome = priorHome;
     expectedAway = priorAway;
   }
