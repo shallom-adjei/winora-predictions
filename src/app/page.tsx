@@ -29,7 +29,7 @@ const [overview, setOverview] = useState({
 
   // Fetch KPIs
   useEffect(() => {
-fetch("/api/kpi-overview")
+fetch("/api/kpi-overview", { cache: "no-store" })
   .then((r) => r.json())
   .then((d) => {
     setOverview({
@@ -48,10 +48,10 @@ fetch("/api/kpi-overview")
 
   // Fetch live predictions (non-finished)
   useEffect(() => {
-    fetch("/api/get-predictions")
-      .then((r) => r.json())
-      .then((data) => setLivePredictions(data.predictions || []))
-      .catch(() => {});
+fetch("/api/get-predictions", { cache: "no-store" })
+  .then((r) => r.json())
+  .then((data) => setLivePredictions(data.predictions || []))
+  .catch(() => {});
   }, []);
 
   const topPicks = useMemo(() => {
