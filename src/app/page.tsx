@@ -48,7 +48,7 @@ fetch("/api/kpi-overview?t=" + Date.now(), { cache: "no-store" })
 
 useEffect(() => {
   const fetchPredictions = () => {
-fetch("/api/get-predictions?t=" + Date.now(), { cache: "no-store" })
+fetch("/api/public-predictions?t=" + Date.now(), { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => setLivePredictions(data.predictions || []))
       .catch(() => {});
