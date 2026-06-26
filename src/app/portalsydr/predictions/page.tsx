@@ -11,6 +11,7 @@ export default function AdminPredictionsPage() {
   const [predictions, setPredictions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [generatingId, setGeneratingId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const fetchPredictions = async () => {
     setLoading(true);
@@ -28,13 +29,22 @@ export default function AdminPredictionsPage() {
     fetchPredictions();
   }, []);
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Delete this prediction?")) return;
-    const { error } = await supabase.from("predictions").delete().eq("id", id);
-    if (error) { toast.error("Delete failed"); return; }
-    toast.success("Prediction deleted");
-    fetchPredictions();
-  };
+const handleDelete = (id: string) => {
+  setDeleteConfirmId(id);
+};
+
+const confirmDelete = async () => {
+  if (!deleteConfirmId) return;
+  const { error } = await supabase
+    .from("predictions")
+    .delete()
+    .eq("id", deleteConfirmId);
+  if (error) { toast.error("Delete failed"); return; }
+  toast.success("Prediction deleted");
+  setDeleteConfirmId(null);
+  // Re‑fetch the predictions list (adjust function name to match your page)
+  fetchPredictions();
+};
 
   const handleGenerateAI = async (match: any) => {
     setGeneratingId(match.id);
@@ -153,6 +163,19 @@ export default function AdminPredictionsPage() {
           </div>
         )}
       </div>
+            {/* Delete Confirmation Modal */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+          <div className="bg-[#0D0D0D] border border-white/10 rounded-2xl p-6 w-full max-w-sm">
+            <h3 className="text-lg font-semibold text-white mb-4">Delete Prediction</h3>
+            <p className="text-sm text-gray-400 mb-6">Are you sure you want to permanently delete this prediction? This action cannot be undone.</p>
+            <div className="flex justify-end gap-3">
+              <Button variant="ghost" onClick={() => setDeleteConfirmId(null)}>Cancel</Button>
+              <Button onClick={confirmDelete} className="bg-red-600 text-white hover:bg-red-700">Delete</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
