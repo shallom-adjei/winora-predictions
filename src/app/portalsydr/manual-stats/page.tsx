@@ -7,33 +7,39 @@ import toast from "react-hot-toast";
 import LoadingScreen from "@/components/LoadingScreen";
 
 const PROMPT_TEMPLATE = (teamA: string, teamB: string) => {
-  const todayStr = new Date().toISOString().split("T")[0]; // e.g. "2026-06-25"
+  const todayStr = new Date().toISOString().split("T")[0];
   return `
-You are a football data assistant with access to live web search.  
-Your task is to retrieve **real, verified data** about **${teamA}** and **${teamB}**.  
-Search the web for their **most recent competitive matches** (World Cup, qualifiers, continental championships, friendlies leagues against strong opponents) played **before ${todayStr}**.  
+You are a football data analyst with full web‑search capability.  
+Retrieve **real, verified statistics** for **${teamA}** and **${teamB}**.
 
-Also find their **current ranking** and the **last 5 head‑to‑head meetings** between them.
+Search the web for their **10 most recent competitive matches** (World Cup, qualifiers, continental championships, and official friendlies) played **before ${todayStr}**.  
+Also find their **current official ranking** and the **last 5 head‑to‑head meetings**.
 
-🔴 **CRITICAL RULES** – Follow these exactly or the response will be rejected:
+---
 
-1. **Search the web** – do not rely on your training data. Use real sources (Flashscore, ESPN, FIFA.com, Sofascore etc.).
-2. **Only return data you can verify from a specific source.** If a piece of information is unavailable, set its value to \`null\` – DO NOT guess.
-3. **Matches must be competitive and recent** (within the last 2 years). Do not include matches older than 2 years unless they are part of the head‑to‑head history.
-4. **For each match, include:**
-   - \`date\` (YYYY‑MM‑DD)
-   - \`opponent\` (team name)
-   - \`competition\` (e.g., "World Cup", "Friendly", "UEFA Nations League")
-      - \`home\` (boolean: true if ${teamA} played at home, false if away) – **must be accurate for every match**.
-   - \`goalsFor\`, \`goalsAgainst\`
-   - \`opponentRank\` (Ranking of the opponent (e.g., "FIFA", "Premier League", "La Liga") at the time of the match, or null if unknown)
-   - If you cannot verify a match result, do not include it.
-5. **Separate matches into home and away for each team.** For ${teamA}, list at least 5 home and 5 away matches. For ${teamB}, do the same.   
-6. **Head‑to‑head:** Return the last 5 meetings between ${teamA} and ${teamB}. If fewer than 5 exist, include all available. If none exist, return an empty array.
-7. **Rankings:** Use the most recent official ranking (e.g., "FIFA", "Premier League", "La Liga"). If you cannot find it, set \`null\`.
-8. **Do not hallucinate, do not make up data.** I will verify the response against real databases.
+🔴 **ABSOLUTE REQUIREMENTS – FAILURE TO FOLLOW ANY OF THESE WILL CAUSE THE RESPONSE TO BE REJECTED:**
 
-Return **only** a valid JSON object with exactly this structure:
+1. **Search the web.** Do not use training data. Use sources like Flashscore, ESPN, FIFA.com, Sofascore, 11v11.com.
+
+2. **Return EXACTLY 10 matches for each team.** Not 6, not 8 – exactly 10. If fewer than 10 exist, include all available. If more than 10 exist, use the 10 most recent.
+
+3. **Home/away balance is MANDATORY.** For each team, include at least 4 home and 4 away matches in the 10. If a team has fewer home or away matches, explain in a \`_warning\` field (see structure).
+
+4. **Every match MUST include the opponent's FIFA ranking at the time the match was played.**  
+   - Search for it specifically. If the exact ranking is unknown, use the most recent ranking available and mark it with \`"estimated": true\`.  
+   - The field is called \`opponentFifaRank\`. It is **not optional** – \`null\` is only acceptable for clubs where FIFA rankings don't apply.
+
+5. **Do not invent data.** If you can't verify it, either omit that match or mark unverifiable fields as \`null\` with a \`_warning\`.
+
+6. **Matches must be competitive and from the last 2 years.** Friendlies are acceptable if they were official (not training matches). Do not include club matches for national teams.
+
+7. **Head‑to‑head:** Return the last 5 meetings between ${teamA} and ${teamB}. If fewer than 5, include all available. If none, return an empty array \`[]\`.
+
+8. **Rankings:** The current ranking for each team, according to the most recent official system (e.g., FIFA for national teams). If unavailable, use \`null\`.
+
+---
+
+**Required JSON structure – return ONLY this JSON object, nothing else:**
 
 {
   "matches_A": [
@@ -61,15 +67,16 @@ Return **only** a valid JSON object with exactly this structure:
 "ranking_A": current rank,
 "ranking_B": current rank,
 "ranking_system": "FIFA"  (or "Premier League", etc.)
+"_warnings": ["any data quality issues, missing rankings, etc. – or empty array if perfect"]
 }
 
-- \`matches_A\`: last 10 matches for ${teamA} (include at least 10 if possible)
-- \`matches_B\`: last 10 matches for ${teamB}
-- \`h2h_matches\`: last 5 head‑to‑head meetings between ${teamA} and ${teamB} (if fewer than 5, include all available; if none, empty array)
-- \`ranking_A\`: current ranking for ${teamA}
-- \`ranking_B\`: current ranking for ${teamB}
+- \`matches_A\`: exactly 10 matches for ${teamA} (or all available if fewer), with at least 4 home and 4 away
+- \`matches_B\`: exactly 10 matches for ${teamB}, same balance requirement
+- \`h2h_matches\`: last 5 head‑to‑head meetings between ${teamA} and ${teamB}
+- \`ranking_A\`, \`ranking_B\`: current official ranking numbers (not strings)
+- \`_warnings\`: array of strings explaining any data gaps (e.g. "only 6 matches found for Team B", "opponent ranking estimated for March 2026 match")
 
-Return **only** the JSON object, nothing else. No explanations, no markdown. Just pure JSON.
+**Return ONLY the JSON object. No markdown, no explanations, no code fences. Pure JSON.**
 `;
 };
 
