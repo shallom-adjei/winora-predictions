@@ -159,7 +159,6 @@ export function generateAnalysis(
   }
   if (isAwayPick && awayClean >= 3) {
     observations.push(pick([
-      `${away} have matched that defensive steel with ${awayClean} shutouts of their own across the same period.`,
       `${away} also boast ${awayClean} clean sheets lately, making them hard to break down.`,
     ]));
   }
