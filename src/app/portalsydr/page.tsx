@@ -255,7 +255,7 @@ const d = await res.json();
 
     // Upcoming Matches – map all needed fields (copy the full mapping from your old setUpcomingMatches)
     setUpcomingMatches(
-      (d.upcoming.upcoming || []).map((p: any) => ({
+      (d.upcoming || []).map((p: any) => ({
         id: p.id,
         match: p.match_name,
         league: p.sport,
