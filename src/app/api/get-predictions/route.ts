@@ -8,15 +8,19 @@ export async function GET() {
     .from("predictions")
     .select("*")
     .neq("match_status", "FINISHED")
-    .order("kickoff_time", { ascending: true });
+    .order("kickoff_time", { ascending: true })
+    .limit(50);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-return NextResponse.json(
-  { predictions: data, _version: "2.0.1" },   // <-- version marker
-  {
-    headers: { "Cache-Control": "no-store, max-age=0" },
-  }
-);
+
+  return NextResponse.json(
+    { predictions: data || [] },
+    {
+      headers: {
+        "Cache-Control": "no-store, max-age=0",
+      },
+    }
+  );
 }
