@@ -19,7 +19,7 @@ Also find their **current official ranking** and the **last 5 head‑to‑head m
 
 🔴 **ABSOLUTE REQUIREMENTS – FAILURE TO FOLLOW ANY OF THESE WILL CAUSE THE RESPONSE TO BE REJECTED:**
 
-1. **Search the web.** Do not use training data. Use sources like Flashscore, ESPN, FIFA.com, Sofascore, 11v11.com.
+1. **Search the web.** Do not use training data. Use sources like Flashscore, ESPN, FIFA.com, Sofascore, 11v11.com etc.
 
 2. **Return EXACTLY 10 matches for each team.** Not 6, not 8 – exactly 10. If fewer than 10 exist, include all available. If more than 10 exist, use the 10 most recent.
 
