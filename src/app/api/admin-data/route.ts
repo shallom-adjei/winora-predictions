@@ -70,8 +70,9 @@ export async function GET() {
     },
     {
       headers: {
-        "Cache-Control": "no-store, max-age=0",
-      },
+      "Cache-Control": "no-store, max-age=0",
+      "Vercel-CDN-Cache-Control": "no-cache",   // <-- add this
+    },
     }
   );
 }

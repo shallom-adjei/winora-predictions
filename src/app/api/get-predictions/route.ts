@@ -18,9 +18,10 @@ export async function GET() {
   return NextResponse.json(
     { predictions: data || [] },
     {
-      headers: {
-        "Cache-Control": "no-store, max-age=0",
-      },
+     headers: {
+      "Cache-Control": "no-store, max-age=0",
+      "Vercel-CDN-Cache-Control": "no-cache",   // <-- add this
+    },
     }
   );
 }

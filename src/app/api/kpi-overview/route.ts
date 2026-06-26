@@ -55,9 +55,10 @@ export async function GET() {
    return NextResponse.json(
     { total, winRate, wins, losses, draws, streak, pending, avgConf },
     {
-      headers: {
-        "Cache-Control": "no-store, max-age=0",
-      },
+     headers: {
+      "Cache-Control": "no-store, max-age=0",
+      "Vercel-CDN-Cache-Control": "no-cache",   // <-- add this
+    },
     }
   );
 }
