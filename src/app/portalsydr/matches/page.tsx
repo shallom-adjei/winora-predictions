@@ -14,7 +14,7 @@ export default function UpcomingMatchesPage() {
   const fetchMatches = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin-upcoming-matches");
+       const res = await fetch("/api/admin-data?t=" + Date.now(), { cache: "no-store" });
       const data = await res.json();
       setMatches(data.matches || []);
     } catch (err) {

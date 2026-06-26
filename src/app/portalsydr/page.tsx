@@ -354,13 +354,16 @@ useEffect(() => {
     fetchDashboardData();
   };
 
-const handleDelete = async (id: string) => {
+const handleDelete = (id: string) => {
   setDeleteConfirmId(id);
 };
 
 const confirmDelete = async () => {
   if (!deleteConfirmId) return;
-  const { error } = await supabase.from("predictions").delete().eq("id", deleteConfirmId);
+  const { error } = await supabase
+    .from("predictions")
+    .delete()
+    .eq("id", deleteConfirmId);
   if (error) { toast.error("Delete failed"); return; }
   toast.success("Prediction deleted");
   setDeleteConfirmId(null);
