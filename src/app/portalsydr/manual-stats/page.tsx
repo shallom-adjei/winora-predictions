@@ -221,8 +221,8 @@ export default function ManualStatsPage() {
                                 matchesA: data.matches_A,
                                 matchesB: data.matches_B,
                                 h2hMatches: data.h2h_matches || [],
-                                fifaRankingA: data.fifa_ranking_A,
-                                fifaRankingB: data.fifa_ranking_B,
+                                fifaRankingA: data.ranking_A,
+                                fifaRankingB: data.ranking_B,
                               }),
                             });
                             const result = await res.json();
