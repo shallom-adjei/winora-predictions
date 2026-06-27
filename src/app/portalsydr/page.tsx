@@ -322,10 +322,10 @@ const d = await res.json();
     setOverviewData({ winRate: d.winRate });
 
         // Calibration data
-    fetch("/api/admin-calibration")
-      .then(r => r.json())
-      .then(d => setRealCalibrationGroups(d.groups || []))
-      .catch(err => console.error("Calibration fetch error", err));
+fetch("/api/admin-calibration")
+  .then(r => r.json())
+  .then(d => setRealCalibrationGroups(d.groups || []))
+  .catch(err => console.error("Calibration fetch error", err));
 
   } catch (err) {
     console.error("Admin data fetch error", err);
