@@ -335,6 +335,16 @@ const d = await res.json();
     console.error("Admin data fetch error", err);
   }
   setLoading(false);
+
+      // Performance chart data
+    fetch("/api/admin-performance")
+      .then(r => r.json())
+      .then(d => {
+        if (d.performance && d.performance.length > 0) {
+          setRealPerformanceData(d.performance);
+        }
+      })
+      .catch(err => console.error("Performance fetch error", err));
 };
 
 useEffect(() => {
