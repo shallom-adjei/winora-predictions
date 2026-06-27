@@ -193,6 +193,25 @@ export async function GET() {
 
         await supabase.from("predictions").update(updateData).eq("id", match.id);
         updated++;
+
+          // Update prediction_logs with actual outcomes (homeScore & awayScore are guaranteed non‑null here)
+          const hs = homeScore!;
+          const as = awayScore!;
+          const totalGoals = hs + as;
+          const bothScored = hs > 0 && as > 0;
+          await supabase
+            .from("prediction_logs")
+            .update({
+              actual_home_score: hs,
+              actual_away_score: as,
+              result_home_win: hs > as,
+              result_draw: hs === as,
+              result_away_win: as > hs,
+              result_over25: totalGoals > 2.5,
+              result_btts: bothScored,
+            })
+            .eq("prediction_id", match.id);
+
       }
     } catch (err) {
       console.error("Failed to update fixture", match.fixture_id || match.team_a, err);
