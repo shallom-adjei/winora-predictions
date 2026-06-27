@@ -105,7 +105,7 @@ export default function ComboPicks({ predictions }: { predictions: any[] }) {
       for (const c of pool) {
         if (selected.length >= 5) break;
         const m = c.valueMarket;
-        if ((marketCount[m] || 0) >= 2) continue; // max 2 of same market
+        if ((marketCount[m] || 0) >= 2) continue;
         selected.push(c);
         marketCount[m] = (marketCount[m] || 0) + 1;
       }
@@ -114,6 +114,19 @@ export default function ComboPicks({ predictions }: { predictions: any[] }) {
     addCandidates(tierIdeal);
     addCandidates(tierGood);
     addCandidates(tierMin);
+
+    // Safety net: if all tiers are empty, show the top 5 by edge regardless
+    if (selected.length === 0 && allCandidates.length > 0) {
+      const fallback = [...allCandidates]
+        .sort((a, b) => b.comboScore - a.comboScore);
+      for (const c of fallback) {
+        if (selected.length >= 5) break;
+        const m = c.valueMarket;
+        if ((marketCount[m] || 0) >= 2) continue;
+        selected.push(c);
+        marketCount[m] = (marketCount[m] || 0) + 1;
+      }
+    }
 
     return selected;
   }, [predictions]);
