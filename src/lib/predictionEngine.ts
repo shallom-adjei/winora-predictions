@@ -6,6 +6,46 @@ function poissonProb(lambda: number, k: number): number {
   return prob;
 }
 
+// ---------- Dixon-Coles low-score correction ----------
+function dcCorrection(
+  i: number, j: number, lambda: number, mu: number, rho = -0.13
+): number {
+  if (i === 0 && j === 0) return 1 - lambda * mu * rho;
+  if (i === 1 && j === 0) return 1 + mu * rho;
+  if (i === 0 && j === 1) return 1 + lambda * rho;
+  if (i === 1 && j === 1) return 1 - rho;
+  return 1;
+}
+
+// ---------- League-specific home advantage ----------
+const LEAGUE_HOME_ADVANTAGE: Record<string, number> = {
+  "Premier League": 1.18, "EFL Championship": 1.22, "Bundesliga": 1.20,
+  "La Liga": 1.12, "Serie A": 1.14, "Ligue 1": 1.16, "Eredivisie": 1.19,
+  "Primeira Liga": 1.20, "Scottish Premiership": 1.21,
+  "UEFA Champions League": 1.10, "UEFA Europa League": 1.10,
+  "FIFA World Cup": 1.00, "default": 1.15,
+};
+
+// ---------- League-specific average goals ----------
+const LEAGUE_AVG_GOALS: Record<string, number> = {
+  "Premier League": 2.65, "EFL Championship": 2.55, "Bundesliga": 3.05,
+  "La Liga": 2.55, "Serie A": 2.65, "Ligue 1": 2.55, "Eredivisie": 3.10,
+  "Scottish Premiership": 2.80, "UEFA Champions League": 2.70,
+  "UEFA Europa League": 2.65, "FIFA World Cup": 2.60, "default": 2.55,
+};
+
+function getHomeAdvantage(league: string | null, competitionId: number | null): number {
+  if (competitionId === 2000) return 1.00;
+  if (!league) return LEAGUE_HOME_ADVANTAGE["default"];
+  return LEAGUE_HOME_ADVANTAGE[league] ?? LEAGUE_HOME_ADVANTAGE["default"];
+}
+
+function getLeagueAvgGoals(league: string | null, competitionId: number | null): number {
+  if (competitionId === 2000) return 2.60;
+  if (!league) return LEAGUE_AVG_GOALS["default"];
+  return LEAGUE_AVG_GOALS[league] ?? LEAGUE_AVG_GOALS["default"];
+}
+
 export interface PredictionScores {
   "Home Win": number;
   "Draw": number;
@@ -44,10 +84,8 @@ export function computePrediction(match: any): PredictionScores {
   const eloB = Number(match.elo_b) || 1500;
   const eloDiff = eloA - eloB;
 
-  // Base expected goals per team (prior) – derived from Elo and competition
-  const isWorldCup = match.league === "FIFA World Cup" || match.competition_id === 2000;
-  const leagueAvgGoals = isWorldCup ? 2.8 : 2.5;
-  const homeAdvantage = 1.15;
+  const homeAdvantage  = getHomeAdvantage(match.league, match.competition_id);
+  const leagueAvgGoals = getLeagueAvgGoals(match.league, match.competition_id);
 
   // Elo-based expected goal ratio (how much stronger the home team is)
   const eloFactorA = 1 / (1 + Math.pow(10, -eloDiff / 400));
@@ -166,7 +204,8 @@ export function computePrediction(match: any): PredictionScores {
 
   for (let i = 0; i <= maxGoals; i++) {
     for (let j = 0; j <= maxGoals; j++) {
-      const prob = probHomeGoals[i] * probAwayGoals[j];
+      const correction = dcCorrection(i, j, expectedHome, expectedAway);
+      const prob = probHomeGoals[i] * probAwayGoals[j] * correction;
       if (i > j) homeWin += prob;
       else if (i === j) draw += prob;
       else awayWin += prob;
@@ -260,22 +299,26 @@ export function selectConsistentScore(
   return `${candidates[0].i}-${candidates[0].j}`;
 }
 
-// ----- Confidence (unchanged) -----
 export function calculateConfidence(
   scores: PredictionScores,
   targetMarket: keyof PredictionScores,
   dataQuality: number,
-  matchesUsed: number = 5
+  matchesUsed = 5
 ): number {
-  const prob = scores[targetMarket] as number;
-  let baseline = 33;
-  if (targetMarket === "1X" || targetMarket === "X2") baseline = 60;
-  if (["Over 2.5 Goals", "Under 2.5 Goals", "Both Teams to Score", "BTTS No"].includes(targetMarket)) baseline = 50;
-  if (targetMarket === "Over 1.5 Goals") baseline = 75;
+  const prob = (scores[targetMarket] as number) / 100;
 
-  const edge = prob - baseline;
+  const baselines: Partial<Record<keyof PredictionScores, number>> = {
+    "Home Win": 0.45, "Draw": 0.27, "Away Win": 0.28,
+    "1X": 0.67, "X2": 0.55,
+    "Over 2.5 Goals": 0.50, "Under 2.5 Goals": 0.50,
+    "Both Teams to Score": 0.50, "BTTS No": 0.50,
+    "Over 1.5 Goals": 0.75,
+  };
+
+  const baseline   = baselines[targetMarket] ?? 0.45;
   const dataFactor = Math.min(1, matchesUsed / 10);
-  const rawConfidence = 60 + edge * 0.6 + dataQuality * 0.15 * dataFactor;
+  const edge       = Math.max(0, (prob - baseline) / (1 - baseline));
+  const rawConfidence = 50 + edge * 38 + (dataQuality / 100) * 7 * dataFactor;
 
   return Math.min(Math.max(Math.round(rawConfidence), 50), 92);
 }
