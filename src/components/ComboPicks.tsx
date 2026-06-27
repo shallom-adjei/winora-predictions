@@ -131,12 +131,32 @@ export default function ComboPicks({ predictions }: { predictions: any[] }) {
 
                     {/* Combo pick – the highest edge market */}
                     <p className="text-sm font-semibold text-center text-gold-400">{match.comboMarket}</p>
-                    <div className="mt-2 flex items-center gap-2">
-                      <div className="h-1.5 flex-1 rounded-full bg-gray-800">
-                        <div className="h-full rounded-full bg-green-500" style={{ width: `${match.comboConfidence}%` }} />
-                      </div>
-                      <span className="text-xs font-bold text-green-500">{match.comboConfidence}%</span>
-                    </div>
+                    <div className="mt-2 space-y-1">
+  <div className="flex items-center gap-2 text-xs">
+    <span className="text-gray-400 w-4">1</span>
+    <div className="flex-1 h-1.5 rounded-full bg-gray-800 overflow-hidden">
+      <div className="h-full bg-blue-500 rounded-full" style={{ width: `${match.prob_home}%` }} />
+    </div>
+    <span className="text-blue-400 font-medium w-8 text-right">{match.prob_home}%</span>
+
+    <span className="text-gray-400 w-4">X</span>
+    <div className="flex-1 h-1.5 rounded-full bg-gray-800 overflow-hidden">
+      <div className="h-full bg-yellow-500 rounded-full" style={{ width: `${match.prob_draw}%` }} />
+    </div>
+    <span className="text-yellow-400 font-medium w-8 text-right">{match.prob_draw}%</span>
+
+    <span className="text-gray-400 w-4">2</span>
+    <div className="flex-1 h-1.5 rounded-full bg-gray-800 overflow-hidden">
+      <div className="h-full bg-red-500 rounded-full" style={{ width: `${match.prob_away}%` }} />
+    </div>
+    <span className="text-red-400 font-medium w-8 text-right">{match.prob_away}%</span>
+  </div>
+  <div className="flex items-center gap-2 text-[10px] text-gray-500">
+    <span>Stake: <span className="text-white">{match.stake}</span></span>
+    <span>•</span>
+    <span>Risk: <span className="text-white">{match.riskLevel}</span></span>
+  </div>
+</div>
 
                     {match.expected_score && (
                       <p className="mt-2 text-xs text-gold-400 text-center">

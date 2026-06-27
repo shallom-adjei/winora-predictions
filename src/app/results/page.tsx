@@ -33,7 +33,7 @@ export default function ResultsPage() {
 
   useEffect(() => {
     setLoading(true);
-    fetch("/api/get-results")
+    fetch("/api/get-results?t=" + Date.now(), { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => {
         let all = data.results || [];
@@ -174,18 +174,34 @@ export default function ResultsPage() {
                         </div>
                       </div>
 
-                      {/* Confidence & Expected Score */}
-                      <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/5">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-gray-400">Confidence</span>
-                          <span className="text-sm font-semibold">{match.confidence}%</span>
-                        </div>
-                        {match.expected_score && (
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-gray-400">Predicted</span>
-                            <span className="text-sm font-semibold text-gold-400">{match.expected_score}</span>
+                                           {/* Original Probability Breakdown */}
+                      <div className="mt-3 pt-3 border-t border-white/5 space-y-1">
+                        <div className="flex items-center gap-1 text-[10px] sm:text-xs">
+                          <span className="text-gray-400 w-3">1</span>
+                          <div className="flex-1 h-1.5 rounded-full bg-gray-800 overflow-hidden">
+                            <div className="h-full bg-blue-500 rounded-full" style={{ width: `${match.prob_home}%` }} />
                           </div>
-                        )}
+                          <span className="text-blue-400 font-medium w-7 text-right">{match.prob_home}%</span>
+
+                          <span className="text-gray-400 w-3">X</span>
+                          <div className="flex-1 h-1.5 rounded-full bg-gray-800 overflow-hidden">
+                            <div className="h-full bg-yellow-500 rounded-full" style={{ width: `${match.prob_draw}%` }} />
+                          </div>
+                          <span className="text-yellow-400 font-medium w-7 text-right">{match.prob_draw}%</span>
+
+                          <span className="text-gray-400 w-3">2</span>
+                          <div className="flex-1 h-1.5 rounded-full bg-gray-800 overflow-hidden">
+                            <div className="h-full bg-red-500 rounded-full" style={{ width: `${match.prob_away}%` }} />
+                          </div>
+                          <span className="text-red-400 font-medium w-7 text-right">{match.prob_away}%</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-[10px] text-gray-500">
+                          <span>Predicted: <span className="text-gold-400">{match.expected_score}</span></span>
+                          <span>•</span>
+                          <span>Stake: <span className="text-white">{match.recommended_stake}</span></span>
+                          <span>•</span>
+                          <span>Risk: <span className="text-white">{match.risk_level}</span></span>
+                        </div>
                       </div>
                     </motion.div>
                   );

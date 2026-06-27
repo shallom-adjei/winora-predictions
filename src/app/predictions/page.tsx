@@ -20,7 +20,7 @@ export default function PredictionsPage() {
 const [loading, setLoading] = useState(true);
 
 useEffect(() => {
-  fetch("/api/get-predictions")
+  fetch("/api/get-predictions?t=" + Date.now(), { cache: "no-store" })
     .then((r) => r.json())
     .then((data) => {
       setPredictions(data.predictions || []);
@@ -176,17 +176,35 @@ useEffect(() => {
                         <p className="text-xs font-medium">{p.team_b}</p>
                       </div>
                     </div>
-
-                    {/* Main Prediction + Confidence */}
+                                        {/* Main Prediction */}
                     <p className="text-sm font-semibold">{p.main_pick || p.prediction}</p>
-                    <div className="mt-2 flex items-center gap-2">
-                      <div className="h-1.5 flex-1 rounded-full bg-gray-800">
-                        <div
-                          className="h-full rounded-full bg-positive"
-                          style={{ width: `${p.confidence}%` }}
-                        />
+
+                    {/* Probability Bars */}
+                    <div className="mt-2 space-y-1">
+                      <div className="flex items-center gap-1 text-[10px] sm:text-xs">
+                        <span className="text-gray-400 w-3">1</span>
+                        <div className="flex-1 h-1.5 rounded-full bg-gray-800 overflow-hidden">
+                          <div className="h-full bg-blue-500 rounded-full" style={{ width: `${p.prob_home}%` }} />
+                        </div>
+                        <span className="text-blue-400 font-medium w-7 text-right">{p.prob_home}%</span>
+
+                        <span className="text-gray-400 w-3">X</span>
+                        <div className="flex-1 h-1.5 rounded-full bg-gray-800 overflow-hidden">
+                          <div className="h-full bg-yellow-500 rounded-full" style={{ width: `${p.prob_draw}%` }} />
+                        </div>
+                        <span className="text-yellow-400 font-medium w-7 text-right">{p.prob_draw}%</span>
+
+                        <span className="text-gray-400 w-3">2</span>
+                        <div className="flex-1 h-1.5 rounded-full bg-gray-800 overflow-hidden">
+                          <div className="h-full bg-red-500 rounded-full" style={{ width: `${p.prob_away}%` }} />
+                        </div>
+                        <span className="text-red-400 font-medium w-7 text-right">{p.prob_away}%</span>
                       </div>
-                      <span className="text-xs font-bold text-positive">{p.confidence}%</span>
+                      <div className="flex items-center gap-2 text-[10px] text-gray-500">
+                        <span>Stake: <span className="text-white">{p.recommended_stake || "—"}</span></span>
+                        <span>•</span>
+                        <span>Risk: <span className="text-white">{p.risk_level || "—"}</span></span>
+                      </div>
                     </div>
 
                     {/* Expected Score */}

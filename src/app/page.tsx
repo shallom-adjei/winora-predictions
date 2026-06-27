@@ -87,9 +87,9 @@ fetch("/api/get-predictions?t=" + Date.now(), { cache: "no-store" })
         matches_used_b: p.matches_used_b,
         form_points_a: p.form_points_a,
         form_points_b: p.form_points_b,
-        prob_home: p.prob_home,
-        prob_draw: p.prob_draw,
-        prob_away: p.prob_away,
+        prob_home: p.probHome,
+        prob_draw: p.probDraw,
+        prob_away: p.probAway,
       }));
   }, [livePredictions]);
 
@@ -252,7 +252,7 @@ fetch("/api/get-predictions?t=" + Date.now(), { cache: "no-store" })
       </section>
 
       {/* ===== DAILY COMBO ===== */}
-      <ComboPicks predictions={livePredictions} />
+      <ComboPicks predictions={topPicks} />
 
       {/* ===== TODAY'S TOP PICKS ===== */}
       <section className="mx-auto max-w-[1280px] px-6 lg:px-8 mb-12 lg:mb-24">
