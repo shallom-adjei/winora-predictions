@@ -111,7 +111,17 @@ export async function POST(request: Request) {
 
   const stake = confidence >= 88 ? "2/5" : confidence >= 78 ? "1.5/5" : "1/5";
 
-  const analysis = generateAnalysis(match, mainPick, scores, confidence, risk, stake, expectedScore);
+   const analysis = generateAnalysis(
+    match,
+    mainPick,
+    scores,
+    confidence,
+    risk,
+    stake,
+    expectedScore,
+    goalsPick,
+    bttsPick
+  );
   
 
   // Update the prediction in DB

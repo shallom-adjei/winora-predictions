@@ -16,7 +16,9 @@ export function generateAnalysis(
   confidence: number,
   risk: string,
   stake: string,
-  expectedScore: string
+  expectedScore: string,
+  goalsPick: string,
+  bttsPick: string
 ): string {
   const home = match.team_a || "Home";
   const away = match.team_b || "Away";
@@ -173,10 +175,8 @@ export function generateAnalysis(
   }
 
   // ----- 4. GOAL TRENDS -----
-  const goalsPick = match.goals_pick || "";
   const isOverPick = goalsPick === "Over 2.5 Goals";
   const isUnderPick = goalsPick === "Under 2.5 Goals";
-  const bttsPick = match.btts_pick || "";
   const isBttsYes = bttsPick === "Both Teams to Score";
 
   if (isOverPick) {

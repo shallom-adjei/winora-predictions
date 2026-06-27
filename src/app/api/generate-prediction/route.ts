@@ -98,7 +98,9 @@ export async function POST(req: NextRequest) {
     confidence,
     risk,
     stake,
-    expectedScore
+    expectedScore,
+    goalsPick,
+    bttsPick
   );
 
   // Log probabilities for calibration
