@@ -29,15 +29,15 @@ export default function ComboPicks({ predictions }: { predictions: any[] }) {
   const topFive = useMemo(() => {
     // ---------- 1. Build all candidates ----------
     const allCandidates = predictions
-      .filter(
-        (p: any) =>
-          p.main_pick &&
-          p.main_pick !== "No recommendation" &&
-          p.match_status !== "FINISHED" &&
-          p.probHome != null &&
-          p.probDraw != null &&
-          p.probAway != null
-      )
+  .filter(
+    (p: any) =>
+      p.main_pick &&
+      p.main_pick !== "No recommendation" &&
+      p.match_status !== "FINISHED" &&
+      p.prob_home != null &&
+      p.prob_draw != null &&
+      p.prob_away != null
+  )
       .map((p: any) => {
         const scores = computePrediction(p);
         let bestMarket: string | null = null;
