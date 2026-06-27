@@ -203,6 +203,7 @@ export default function AdminDashboard() {
   const [passwordError, setPasswordError] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [realCalibrationMeta, setRealCalibrationMeta] = useState<any>({});
 
 
 
@@ -322,10 +323,13 @@ const d = await res.json();
     setOverviewData({ winRate: d.winRate });
 
         // Calibration data
-fetch("/api/admin-calibration")
-  .then(r => r.json())
-  .then(d => setRealCalibrationGroups(d.groups || []))
-  .catch(err => console.error("Calibration fetch error", err));
+    fetch("/api/admin-calibration")
+      .then(r => r.json())
+      .then(d => {
+        setRealCalibrationGroups(d.groups || []);
+        setRealCalibrationMeta({ totalLogged: d.totalLogged, pendingCount: d.pendingCount });
+      })
+      .catch(err => console.error("Calibration fetch error", err));
 
   } catch (err) {
     console.error("Admin data fetch error", err);
@@ -901,11 +905,19 @@ const handleGenerateAll = async () => {
               </ResponsiveContainer>
             </div>
 
-                        {/* Model Calibration */}
+                          {/* Model Calibration */}
             <div className="rounded-[20px] bg-[#0D0D0D] border border-white/5 p-6">
               <h3 className="text-lg font-semibold mb-4">Model Calibration</h3>
               {realCalibrationGroups.length === 0 ? (
-                <p className="text-sm text-gray-400">Not enough data yet.</p>
+                <div className="space-y-1">
+                  <p className="text-sm text-gray-400">No finished predictions yet.</p>
+                  {realCalibrationMeta?.totalLogged > 0 && (
+                    <p className="text-xs text-gray-500">
+                      {realCalibrationMeta.totalLogged} predictions logged •{" "}
+                      {realCalibrationMeta.pendingCount} waiting for results
+                    </p>
+                  )}
+                </div>
               ) : (
                 <div className="space-y-2">
                   {realCalibrationGroups.map((g: any) => (

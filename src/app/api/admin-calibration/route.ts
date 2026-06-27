@@ -60,8 +60,13 @@ export async function GET() {
       total: g.total,
     }));
 
-  return NextResponse.json(
-    { groups: resultGroups },
+   return NextResponse.json(
+    {
+      groups: resultGroups,
+      totalLogged: logs.length,
+      pendingCount: logs.filter(l => l.actual_home_score == null).length,
+      message: resultGroups.length === 0 ? "Predictions are logged and waiting for match results." : undefined,
+    },
     {
       headers: {
         "Cache-Control": "no-store, max-age=0",
