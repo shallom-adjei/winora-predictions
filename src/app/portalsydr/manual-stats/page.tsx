@@ -19,23 +19,25 @@ Also find their **current official ranking** and the **last 5 head‑to‑head m
 
 🔴 **ABSOLUTE REQUIREMENTS – FAILURE TO FOLLOW ANY OF THESE WILL CAUSE THE RESPONSE TO BE REJECTED:**
 
-1. **Search the web.** Do not use training data. Use sources like Flashscore, ESPN, FIFA.com, Sofascore, 11v11.com etc.
+1. **Search the web.** Do not use training data. Use sources like Flashscore, ESPN, FIFA.com, Sofascore, 11v11.com.
 
 2. **Return EXACTLY 10 matches for each team.** Not 6, not 8 – exactly 10. If fewer than 10 exist, include all available. If more than 10 exist, use the 10 most recent.
 
-3. **Home/away balance is MANDATORY.** For each team, include at least 4 home and 4 away matches in the 10. If a team has fewer home or away matches, explain in a \`_warning\` field (see structure).
+3. **Home/away balance is MANDATORY.** For each team, include at least 4 home and 4 away matches in the 10. If a team has fewer home or away matches, explain in a \`_warnings\` field.
 
-4. **Every match MUST include the opponent's FIFA ranking at the time the match was played.**  
+4. **Every match MUST include the opponent's ranking at the time the match was played.**  
    - Search for it specifically. If the exact ranking is unknown, use the most recent ranking available and mark it with \`"estimated": true\`.  
    - The field is called \`opponentFifaRank\`. It is **not optional** – \`null\` is only acceptable for clubs where FIFA rankings don't apply.
 
-5. **Do not invent data.** If you can't verify it, either omit that match or mark unverifiable fields as \`null\` with a \`_warning\`.
+5. **Include matches where the team scored heavily or conceded heavily.** The selection must reflect the full range of their recent performances, not only tight, defensive games. If a team has won 4‑0 or lost 0‑3 in their last 10, those matches must be included.
 
-6. **Matches must be competitive and from the last 2 years.** Friendlies are acceptable if they were official (not training matches). Do not include club matches for national teams.
+6. **Do not invent data.** If you can't verify it, either omit that match or mark unverifiable fields as \`null\` with a \`_warning\`.
 
-7. **Head‑to‑head:** Return the last 5 meetings between ${teamA} and ${teamB}. If fewer than 5, include all available. If none, return an empty array \`[]\`.
+7. **Matches must be competitive and from the last 2 years.** Friendlies are acceptable if they were official (not training matches). Do not include club matches for national teams.
 
-8. **Rankings:** The current ranking for each team, according to the most recent official system (e.g., FIFA for national teams). If unavailable, use \`null\`.
+8. **Head‑to‑head:** Return the last 5 meetings between ${teamA} and ${teamB}. If fewer than 5, include all available. If none, return an empty array \`[]\`.
+
+9. **Rankings:** The current ranking for each team, according to the most recent official system (e.g., FIFA for national teams). If unavailable, use \`null\`.
 
 ---
 
@@ -64,10 +66,10 @@ Also find their **current official ranking** and the **last 5 head‑to‑head m
       "awayScore": 0
     }
   ],
-"ranking_A": current rank,
-"ranking_B": current rank,
-"ranking_system": "FIFA"  (or "Premier League", etc.)
-"_warnings": ["any data quality issues, missing rankings, etc. – or empty array if perfect"]
+  "ranking_A": current rank for ${teamA},
+  "ranking_B": current rank for ${teamB},
+  "ranking_system": "FIFA"  (or "Premier League", etc.)
+  "_warnings": ["any data quality issues, missing rankings, etc. – or empty array if perfect"]
 }
 
 - \`matches_A\`: exactly 10 matches for ${teamA} (or all available if fewer), with at least 4 home and 4 away
