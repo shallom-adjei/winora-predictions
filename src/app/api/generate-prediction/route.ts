@@ -57,6 +57,9 @@ export async function POST(req: NextRequest) {
     bttsPick,
     riskLevel:     risk,
     stake,
+    probHome:      scores["Home Win"],
+    probDraw:      scores["Draw"],
+    probAway:      scores["Away Win"],
     fullReport: {
       main_prediction:   mainPick,
       safe_pick:         safePick,

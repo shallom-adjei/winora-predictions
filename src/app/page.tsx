@@ -87,6 +87,9 @@ fetch("/api/get-predictions?t=" + Date.now(), { cache: "no-store" })
         matches_used_b: p.matches_used_b,
         form_points_a: p.form_points_a,
         form_points_b: p.form_points_b,
+        prob_home: p.prob_home,
+        prob_draw: p.prob_draw,
+        prob_away: p.prob_away,
       }));
   }, [livePredictions]);
 
@@ -327,12 +330,25 @@ fetch("/api/get-predictions?t=" + Date.now(), { cache: "no-store" })
                       </div>
                     </div>
                     <p className="text-sm font-semibold">{match.prediction}</p>
-                    <div className="mt-2 flex items-center gap-2">
-                      <div className="h-1.5 flex-1 rounded-full bg-gray-800">
-                        <div className="h-full rounded-full bg-green-500" style={{ width: `${match.confidence}%` }} />
-                      </div>
-                      <span className="text-xs font-bold text-green-500">{match.confidence}%</span>
-                    </div>
+                   <div className="mt-2 flex items-center gap-3 text-xs">
+  <span className="text-gray-400">1</span>
+  <div className="flex-1 h-1.5 rounded-full bg-gray-800 overflow-hidden">
+    <div className="h-full bg-blue-500 rounded-full" style={{ width: `${match.prob_home}%` }} />
+  </div>
+  <span className="text-blue-400 font-medium w-8 text-right">{match.prob_home}%</span>
+  
+  <span className="text-gray-400">X</span>
+  <div className="flex-1 h-1.5 rounded-full bg-gray-800 overflow-hidden">
+    <div className="h-full bg-yellow-500 rounded-full" style={{ width: `${match.prob_draw}%` }} />
+  </div>
+  <span className="text-yellow-400 font-medium w-8 text-right">{match.prob_draw}%</span>
+  
+  <span className="text-gray-400">2</span>
+  <div className="flex-1 h-1.5 rounded-full bg-gray-800 overflow-hidden">
+    <div className="h-full bg-red-500 rounded-full" style={{ width: `${match.prob_away}%` }} />
+  </div>
+  <span className="text-red-400 font-medium w-8 text-right">{match.prob_away}%</span>
+</div>
                     {match.analysis && (
                       <>
                         {match.expectedScore && (
@@ -346,9 +362,11 @@ fetch("/api/get-predictions?t=" + Date.now(), { cache: "no-store" })
                           <div><span className="text-gray-500">Goals:</span> <span className="text-white font-medium">{match.goalsPick}</span></div>
                           <div><span className="text-gray-500">BTTS:</span> <span className="text-white font-medium">{match.bttsPick}</span></div>
                         </div>
-                        <div className="mt-2 flex items-center gap-2 text-xs">
-                          <span className="text-gray-500">Risk: {match.riskLevel} | Stake: {match.stake}</span>
-                        </div>
+                        <div className="mt-2 flex items-center gap-3 text-xs">
+  <span className="text-gray-500">Stake: <span className="text-white font-medium">{match.stake}</span></span>
+  <span className="text-gray-500">•</span>
+  <span className="text-gray-500">Risk: <span className="text-white font-medium">{match.riskLevel}</span></span>
+</div>
                         <AffiliateCta matchId={match.id} />
                         <button
                           onClick={() => handleOpenAnalysis(match)}
@@ -426,12 +444,25 @@ fetch("/api/get-predictions?t=" + Date.now(), { cache: "no-store" })
                     </div>
                   </div>
                   <p className="text-sm font-semibold">{match.prediction}</p>
-                  <div className="mt-2 flex items-center gap-2">
-                    <div className="h-1.5 flex-1 rounded-full bg-gray-800">
-                      <div className="h-full rounded-full bg-green-500" style={{ width: `${match.confidence}%` }} />
-                    </div>
-                    <span className="text-xs font-bold text-green-500">{match.confidence}%</span>
-                  </div>
+                  <div className="mt-2 flex items-center gap-3 text-xs">
+  <span className="text-gray-400">1</span>
+  <div className="flex-1 h-1.5 rounded-full bg-gray-800 overflow-hidden">
+    <div className="h-full bg-blue-500 rounded-full" style={{ width: `${match.prob_home}%` }} />
+  </div>
+  <span className="text-blue-400 font-medium w-8 text-right">{match.prob_home}%</span>
+  
+  <span className="text-gray-400">X</span>
+  <div className="flex-1 h-1.5 rounded-full bg-gray-800 overflow-hidden">
+    <div className="h-full bg-yellow-500 rounded-full" style={{ width: `${match.prob_draw}%` }} />
+  </div>
+  <span className="text-yellow-400 font-medium w-8 text-right">{match.prob_draw}%</span>
+  
+  <span className="text-gray-400">2</span>
+  <div className="flex-1 h-1.5 rounded-full bg-gray-800 overflow-hidden">
+    <div className="h-full bg-red-500 rounded-full" style={{ width: `${match.prob_away}%` }} />
+  </div>
+  <span className="text-red-400 font-medium w-8 text-right">{match.prob_away}%</span>
+</div>
                   {match.expectedScore && (
                     <p className="mt-2 text-xs text-gold-400 font-semibold">Predicted Score: {match.expectedScore}</p>
                   )}
@@ -441,7 +472,11 @@ fetch("/api/get-predictions?t=" + Date.now(), { cache: "no-store" })
                     <div><span className="text-gray-500">Goals:</span> <span className="text-white font-medium">{match.goalsPick}</span></div>
                     <div><span className="text-gray-500">BTTS:</span> <span className="text-white font-medium">{match.bttsPick}</span></div>
                   </div>
-                  <div className="mt-2 text-xs text-gray-500">Risk: {match.riskLevel} | Stake: {match.stake}</div>
+                  <div className="mt-2 flex items-center gap-3 text-xs">
+  <span className="text-gray-500">Stake: <span className="text-white font-medium">{match.stake}</span></span>
+  <span className="text-gray-500">•</span>
+  <span className="text-gray-500">Risk: <span className="text-white font-medium">{match.riskLevel}</span></span>
+</div>
                   <AffiliateCta matchId={match.id} />
                   {match.analysis && (
                     <button

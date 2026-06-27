@@ -36,6 +36,9 @@ export interface PredictionResult {
   analysis:      string;
   scores:        PredictionScores;
   dataQuality:   number;
+  probHome: number;
+  probDraw: number;
+  probAway: number;
 }
 
 // ── Core shared logic ─────────────────────────────────────────
@@ -93,7 +96,7 @@ export function generatePredictionResult(match: any): PredictionResult {
     : edge > 8                    ? "Medium"
     :                               "High";
 
-  const stake = confidence >= 88 ? "2/5" : confidence >= 78 ? "1.5/5" : "1/5";
+  const stake = confidence >= 72 ? "2/5" : confidence >= 62 ? "1.5/5" : "1/5";
 
   // Analysis text
   const analysis = generateAnalysis(
@@ -101,9 +104,12 @@ export function generatePredictionResult(match: any): PredictionResult {
     goalsPick, bttsPick
   );
 
-  return {
+return {
     mainPick, safePick, goalsPick, bttsPick,
     expectedScore, confidence, risk, stake,
     analysis, scores, dataQuality,
-  };
+    probHome: scores["Home Win"],
+    probDraw: scores["Draw"],
+    probAway: scores["Away Win"],
+};
 }

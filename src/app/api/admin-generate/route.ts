@@ -61,6 +61,9 @@ export async function POST(request: Request) {
       btts_pick:         bttsPick,
       risk_level:        risk,
       recommended_stake: stake,
+      prob_home:         scores["Home Win"],
+      prob_draw:         scores["Draw"],
+      prob_away:         scores["Away Win"],
     })
     .eq("id", matchId);
 
@@ -95,5 +98,8 @@ export async function POST(request: Request) {
     bttsPick,
     riskLevel:     risk,
     stake,
+    probHome:      scores["Home Win"],
+    probDraw:      scores["Draw"],
+    probAway:      scores["Away Win"],
   });
 }
