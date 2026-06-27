@@ -135,26 +135,30 @@ export default function ComboPicks({ predictions }: { predictions: any[] }) {
   <div className="flex items-center gap-2 text-xs">
     <span className="text-gray-400 w-4">1</span>
     <div className="flex-1 h-1.5 rounded-full bg-gray-800 overflow-hidden">
-      <div className="h-full bg-blue-500 rounded-full" style={{ width: `${match.prob_home}%` }} />
+      <div className="h-full bg-blue-500 rounded-full" style={{ width: `${match.match.probHome}%` }} />
     </div>
-    <span className="text-blue-400 font-medium w-8 text-right">{match.prob_home}%</span>
+    <span className="text-blue-400 font-medium w-8 text-right">{match.match.probHome}%</span>
 
     <span className="text-gray-400 w-4">X</span>
     <div className="flex-1 h-1.5 rounded-full bg-gray-800 overflow-hidden">
-      <div className="h-full bg-yellow-500 rounded-full" style={{ width: `${match.prob_draw}%` }} />
+      <div className="h-full bg-yellow-500 rounded-full" style={{ width: `${match.match.probDraw
+
+}%` }} />
     </div>
-    <span className="text-yellow-400 font-medium w-8 text-right">{match.prob_draw}%</span>
+    <span className="text-yellow-400 font-medium w-8 text-right">{match.match.probDraw
+
+}%</span>
 
     <span className="text-gray-400 w-4">2</span>
     <div className="flex-1 h-1.5 rounded-full bg-gray-800 overflow-hidden">
-      <div className="h-full bg-red-500 rounded-full" style={{ width: `${match.prob_away}%` }} />
+      <div className="h-full bg-red-500 rounded-full" style={{ width: `${match.match.probAway}%` }} />
     </div>
-    <span className="text-red-400 font-medium w-8 text-right">{match.prob_away}%</span>
+    <span className="text-red-400 font-medium w-8 text-right">{match.match.probAway}%</span>
   </div>
   <div className="flex items-center gap-2 text-[10px] text-gray-500">
-    <span>Stake: <span className="text-white">{match.stake}</span></span>
+    <span>Stake: <span className="text-white">{match.recommended_stake}</span></span>
     <span>•</span>
-    <span>Risk: <span className="text-white">{match.riskLevel}</span></span>
+    <span>Risk: <span className="text-white">{match.risk_level}</span></span>
   </div>
 </div>
 
@@ -163,10 +167,6 @@ export default function ComboPicks({ predictions }: { predictions: any[] }) {
                         Predicted: {match.expected_score}
                       </p>
                     )}
-
-                    <div className="mt-2 text-xs text-gray-500 text-center">
-                      Risk: {match.risk_level} | Stake: {match.recommended_stake}
-                    </div>
                   </div>
 
                   {/* Affiliate CTA – only on these combo picks */}
