@@ -204,21 +204,21 @@ export default function ComboPicks({ predictions }: { predictions: any[] }) {
                         <div className="flex items-center gap-2 text-xs">
                           <span className="text-gray-400 w-4">1</span>
                           <div className="flex-1 h-1.5 rounded-full bg-gray-800 overflow-hidden">
-                            <div className="h-full bg-blue-500 rounded-full" style={{ width: `${match.probHome}%` }} />
+                            <div className="h-full bg-blue-500 rounded-full" style={{ width: `${match.prob_home}%` }} />
                           </div>
-                          <span className="text-blue-400 font-medium w-8 text-right">{match.probHome}%</span>
+                          <span className="text-blue-400 font-medium w-8 text-right">{match.prob_home}%</span>
 
                           <span className="text-gray-400 w-4">X</span>
                           <div className="flex-1 h-1.5 rounded-full bg-gray-800 overflow-hidden">
-                            <div className="h-full bg-yellow-500 rounded-full" style={{ width: `${match.probDraw}%` }} />
+                            <div className="h-full bg-yellow-500 rounded-full" style={{ width: `${match.prob_draw}%` }} />
                           </div>
-                          <span className="text-yellow-400 font-medium w-8 text-right">{match.probDraw}%</span>
+                          <span className="text-yellow-400 font-medium w-8 text-right">{match.prob_draw}%</span>
 
                           <span className="text-gray-400 w-4">2</span>
                           <div className="flex-1 h-1.5 rounded-full bg-gray-800 overflow-hidden">
-                            <div className="h-full bg-red-500 rounded-full" style={{ width: `${match.probAway}%` }} />
+                            <div className="h-full bg-red-500 rounded-full" style={{ width: `${match.prob_away}%` }} />
                           </div>
-                          <span className="text-red-400 font-medium w-8 text-right">{match.probAway}%</span>
+                          <span className="text-red-400 font-medium w-8 text-right">{match.prob_away}%</span>
                         </div>
                         <div className="flex items-center gap-2 text-[10px] text-gray-500">
                           <span>Stake: <span className="text-white">{match.recommended_stake}</span></span>
