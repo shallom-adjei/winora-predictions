@@ -9,6 +9,9 @@ import LoadingScreen from "@/components/LoadingScreen";
 const PROMPT_TEMPLATE = (teamA: string, teamB: string) => {
   const todayStr = new Date().toISOString().split("T")[0];
   return `
+  You are a football data analyst with full web‑search capability.  
+Retrieve **real, verified statistics** for **${teamA}** and **${teamB}**.
+
 Retrieve only historical matches that have actually been played and concluded in the real world prior to **${todayStr}**.  
 Do not simulate or invent future matches. This is Men's football.
 
