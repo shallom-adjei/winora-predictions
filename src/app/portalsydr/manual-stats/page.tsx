@@ -10,7 +10,7 @@ const PROMPT_TEMPLATE = (teamA: string, teamB: string) => {
   const todayStr = new Date().toISOString().split("T")[0];
   return `
 You are a football data analyst with full web‑search capability.  
-Retrieve **real, verified statistics** for **${teamA}** and **${teamB}**.
+Retrieve **real, verified statistics** for **${teamA}** and **${teamB}**. Return true realtime response, dont make things up. Deep search for true verifiable results, dont hallucinate.
 
 Search the web for their **10 most recent competitive matches** (World Cup, qualifiers, continental championships, and official friendlies) played **before ${todayStr}**.  
 Also find their **current official ranking** and the **last 5 head‑to‑head meetings**.
@@ -19,7 +19,7 @@ Also find their **current official ranking** and the **last 5 head‑to‑head m
 
 🔴 **ABSOLUTE REQUIREMENTS – FAILURE TO FOLLOW ANY OF THESE WILL CAUSE THE RESPONSE TO BE REJECTED:**
 
-1. **Search the web.** Do not use training data. Use sources like Flashscore, ESPN, FIFA.com, Sofascore, 11v11.com.
+1. **Search the web.** Do not use training data. Use sources like Flashscore, ESPN, FIFA.com, Sofascore,fotmob.com, 11v11.com etc.
 
 2. **Return EXACTLY 10 matches for each team.** Not 6, not 8 – exactly 10. If fewer than 10 exist, include all available. If more than 10 exist, use the 10 most recent.
 
@@ -66,8 +66,8 @@ Also find their **current official ranking** and the **last 5 head‑to‑head m
       "awayScore": 0
     }
   ],
-  "ranking_A": current rank for ${teamA},
-  "ranking_B": current rank for ${teamB},
+  "ranking_A": current real-time rank for ${teamA},
+  "ranking_B": current real-time rank for ${teamB},
   "ranking_system": "FIFA"  (or "Premier League", etc.)
   "_warnings": ["any data quality issues, missing rankings, etc. – or empty array if perfect"]
 }
