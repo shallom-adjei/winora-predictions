@@ -8,8 +8,14 @@ export async function GET() {
 
   const { data: logs } = await supabase
     .from("prediction_logs")
-    .select("created_at, main_pick, result_home_win, result_draw, result_away_win")
-    .not("result_home_win", "is", null);
+    .select("created_at, prediction_id, main_pick, result_home_win, result_draw, result_away_win")
+    .not("result_home_win", "is", null)
+    .order("created_at", { ascending: false });
+
+  // Deduplicate – keep only the latest log per prediction
+  const uniqueLogs = logs?.filter(
+    (log, index, self) => self.findIndex(l => l.prediction_id === log.prediction_id) === index
+  ) || [];
 
   if (!logs || logs.length === 0) {
     return NextResponse.json(
@@ -24,7 +30,7 @@ export async function GET() {
   }
 
   const dailyMap: Record<string, { total: number; wins: number }> = {};
-  for (const log of logs) {
+    for (const log of uniqueLogs) {
     const dateKey = new Date(log.created_at).toISOString().split("T")[0];
     if (!dailyMap[dateKey]) {
       dailyMap[dateKey] = { total: 0, wins: 0 };
