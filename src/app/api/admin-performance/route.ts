@@ -23,9 +23,7 @@ export async function GET() {
     );
   }
 
-  // Group by date (YYYY-MM-DD)
   const dailyMap: Record<string, { total: number; wins: number }> = {};
-
   for (const log of logs) {
     const dateKey = new Date(log.created_at).toISOString().split("T")[0];
     if (!dailyMap[dateKey]) {
@@ -40,12 +38,11 @@ export async function GET() {
     if (success) dailyMap[dateKey].wins++;
   }
 
-  // Convert to sorted array for the chart
   const performance = Object.entries(dailyMap)
     .map(([date, stats]) => ({
       date,
       winRate: Math.round((stats.wins / stats.total) * 100),
-      roi: 0, // placeholder until odds data is available
+      roi: 0,
     }))
     .sort((a, b) => a.date.localeCompare(b.date));
 

@@ -323,7 +323,7 @@ const d = await res.json();
     setOverviewData({ winRate: d.winRate });
 
         // Calibration data
-    fetch("/api/admin-calibration")
+   fetch("/api/admin-calibration?t=" + Date.now()) 
       .then(r => r.json())
       .then(d => {
         setRealCalibrationGroups(d.groups || []);
@@ -337,7 +337,7 @@ const d = await res.json();
   setLoading(false);
 
       // Performance chart data
-    fetch("/api/admin-performance")
+    fetch("/api/admin-performance?t=" + Date.now()) 
       .then(r => r.json())
       .then(d => {
         if (d.performance && d.performance.length > 0) {
