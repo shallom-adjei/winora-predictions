@@ -10,7 +10,7 @@ const PROMPT_TEMPLATE = (teamA: string, teamB: string) => {
   const todayStr = new Date().toISOString().split("T")[0];
   return `
 You are a football data analyst with full web‑search capability.  
-Retrieve **real, verified statistics** for **${teamA}** and **${teamB}**. Return true realtime response, dont make things up. Deep search for true verifiable results, dont hallucinate.
+Retrieve **real, verified statistics** for **${teamA}** and **${teamB}**. Return true real-time response, don't make things up. Deep search for true verifiable results, don't hallucinate. This is Men's football.
 
 Search the web for their **10 most recent competitive matches** (World Cup, qualifiers, continental championships, and official friendlies) played **before ${todayStr}**.  
 Also find their **current official ranking** and the **last 5 head‑to‑head meetings**.
