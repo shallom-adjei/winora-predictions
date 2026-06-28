@@ -6,10 +6,17 @@ export const revalidate = 0;
 export async function GET() {
   const { supabase } = await import("@/lib/supabase");
 
+  // Get the latest log for each prediction (deduplicate)
   const { data: logs } = await supabase
     .from("prediction_logs")
     .select("*")
-    .not("actual_home_score", "is", null);
+    .not("actual_home_score", "is", null)
+    .order("created_at", { ascending: false });
+
+  // Deduplicate – keep only the most recent log per prediction_id
+  const uniqueLogs = logs?.filter(
+    (log, index, self) => self.findIndex(l => l.prediction_id === log.prediction_id) === index
+  ) || [];
 
   if (!logs || logs.length === 0) {
     return NextResponse.json(
@@ -31,7 +38,7 @@ export async function GET() {
     { label: "90-92%", min: 90, max: 92, total: 0, wins: 0 },
   ];
 
-  for (const log of logs) {
+  for (const log of uniqueLogs) {
     let prob: number;
     switch (log.main_pick) {
       case "Home Win": prob = log.prob_home_win; break;
@@ -61,11 +68,10 @@ export async function GET() {
     }));
 
    return NextResponse.json(
-    {
+      {
       groups: resultGroups,
-      totalLogged: logs.length,
-      pendingCount: logs.filter(l => l.actual_home_score == null).length,
-      message: resultGroups.length === 0 ? "Predictions are logged and waiting for match results." : undefined,
+      totalLogged: uniqueLogs.length,
+      pendingCount: 0, 
     },
     {
       headers: {
