@@ -42,6 +42,20 @@ Also find their **current live ranking** and the **last 5 head‑to‑head meeti
 
 9. **Rankings:** The current live ranking for each team, according to the most recent official system (e.g., FIFA for national teams). If unavailable, use \`null\`.
 
+10. **Before returning the JSON, verify the following and include a \`_checklist\` object** with true/false answers:
+    - "exactly_10_matches_each": true if both teams have exactly 10 matches (or all available if fewer)
+    - "home_away_balance_A": true if Team A has at least 4 home and 4 away matches (or was extended to 14)
+    - "home_away_balance_B": true if Team B has at least 4 home and 4 away matches (or was extended to 14)
+    - "opponent_rankings_complete": true if every match has a non‑null opponentFifaRank
+    - "high_scoring_included": true if any 4‑0 or 0‑3 (or heavier) results were found and included
+    - "matches_are_prior_to_date": true if all match dates are before the requested date
+    - "competition_labels_accurate": true if World Cup matches are labelled with "World Cup", not "Friendly"
+    - "h2h_complete": true if 5 H2H meetings are returned (or all available if fewer)
+    - "rankings_from_live_source": true if rankings were looked up from a live source, not training data
+    - "no_invented_data": true if no data was fabricated to fill gaps
+
+The \`_checklist\` object must be included inside the final JSON response at the top level.
+
 ---
 
 **Required JSON structure – return ONLY this JSON object, nothing else:**
