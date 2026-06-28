@@ -45,6 +45,8 @@ Also find their **current live ranking** and the **last 5 head‑to‑head meeti
 ---
 
 **Required JSON structure – return ONLY this JSON object, nothing else:**
+Return ONLY the final result inside a single json code block.
+Do not include any explanation before or after the code block.
 
 {
   "matches_A": [
