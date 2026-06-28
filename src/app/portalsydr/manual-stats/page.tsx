@@ -241,8 +241,14 @@ const fetchMatches = useCallback(async () => {
                               }),
                             });
                             const result = await res.json();
-                            if (result.success) {
-                              toast.success("Enriched stats applied! All fields updated.");
+                                                        if (result.success) {
+                              const msg = result.warnings?.length
+                                ? `Stats applied with ${result.warnings.length} warning(s). Check console for details.`
+                                : "Enriched stats applied! All fields updated.";
+                              toast.success(msg);
+                              if (result.warnings) {
+                                console.warn("Manual stats warnings:", result.warnings);
+                              }
                               setExpandedMatch(null);
                               setFullJson("");
                               fetchMatches();

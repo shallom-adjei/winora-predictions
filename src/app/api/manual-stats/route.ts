@@ -5,7 +5,7 @@ import { computeDixonColes, computeDixonColesHomeAway } from "@/lib/statsUtils";
 
 function rankingToElo(rank: number): number {
   if (!rank || rank <= 0) return 1500;
-  return 2400 - (rank - 1) * 4;   // rough mapping, good enough for starting Elo
+  return 2400 - (rank - 1) * 4;
 }
 
 function calculateRestDays(matches: any[]): number | null {
@@ -16,7 +16,6 @@ function calculateRestDays(matches: any[]): number | null {
   return Math.round((d1.getTime() - d2.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-// ----- Original stats calculator (unchanged) -----
 function calculateStatsFromMatches(matches: any[]) {
   let formPoints = 0;
   let homeGoals = 0, homeConceded = 0, homeCount = 0;
@@ -72,12 +71,69 @@ function calculateStatsFromMatches(matches: any[]) {
   };
 }
 
-
 // ----- Main endpoint -----
 export async function POST(req: NextRequest) {
-  const { matchId, matchesA, matchesB, h2hMatches, fifaRankingA, fifaRankingB, eloA, eloB } = await req.json();
+  const body = await req.json().catch(() => null);
+  if (!body) {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  let { matchId, matchesA, matchesB, h2hMatches, fifaRankingA, fifaRankingB, eloA, eloB } = body;
+
   if (!matchId || !matchesA || !matchesB) {
-    return NextResponse.json({ error: "Missing required data" }, { status: 400 });
+    return NextResponse.json({ error: "matchId, matchesA, and matchesB are required" }, { status: 400 });
+  }
+
+  // ========== AI DATA VALIDATION ==========
+  const warnings: string[] = [];
+  const todayStr = new Date().toISOString().split("T")[0];
+
+  const worldCupStart = "2026-06-11";
+  const worldCupEnd   = "2026-07-19";
+
+  for (const match of [...(matchesA || []), ...(matchesB || [])]) {
+    if (match.date >= todayStr) {
+      warnings.push(`Removed match on ${match.date}: date is not before today.`);
+    }
+
+    if (
+      match.date >= worldCupStart &&
+      match.date <= worldCupEnd &&
+      match.competition &&
+      !match.competition.toLowerCase().includes("world cup")
+    ) {
+      warnings.push(
+        `Match on ${match.date} vs ${match.opponent} is labelled "${match.competition}" but falls during World Cup window.`
+      );
+    }
+
+    if (
+      match.opponentFifaRank === null ||
+      match.opponentFifaRank === undefined ||
+      match.opponentFifaRank === 0 ||
+      match.opponentFifaRank > 210
+    ) {
+      warnings.push(
+        `Missing or invalid opponentFifaRank for match vs ${match.opponent} on ${match.date}.`
+      );
+    }
+  }
+
+  matchesA = (matchesA || []).filter((m: any) => m.date < todayStr);
+  matchesB = (matchesB || []).filter((m: any) => m.date < todayStr);
+
+  for (const [label, list] of [["Team A", matchesA], ["Team B", matchesB]] as const) {
+    const homeCount = list.filter((m: any) => m.home === true).length;
+    const awayCount = list.filter((m: any) => m.home === false).length;
+    if (homeCount < 2) warnings.push(`${label} has only ${homeCount} home match(es) in the final data.`);
+    if (awayCount < 2) warnings.push(`${label} has only ${awayCount} away match(es) in the final data.`);
+  }
+
+  if (matchesA.length === 0 || matchesB.length === 0) {
+    return NextResponse.json(
+      { error: "No valid matches remaining after date filter. Please check the AI data." },
+      { status: 400 }
+    );
   }
 
   const { supabase } = await import("@/lib/supabase");
@@ -86,12 +142,10 @@ export async function POST(req: NextRequest) {
   const statsB = calculateStatsFromMatches(matchesB);
   const dc = computeDixonColes(matchesA, matchesB);
 
-  // Home/away Dixon‑Coles
   const homeMatchesA = (matchesA || []).filter((m: any) => m.home === true);
   const awayMatchesB = (matchesB || []).filter((m: any) => m.home === false);
   const dcHA = computeDixonColesHomeAway(homeMatchesA, awayMatchesB);
 
-  // ----- H2H summary (NEW) -----
   let h2hHomeWins: number | null = null;
   let h2hDraws: number | null = null;
   let h2hAwayWins: number | null = null;
@@ -121,22 +175,18 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Rest days from the match lists
   const restA = calculateRestDays(matchesA);
   const restB = calculateRestDays(matchesB);
 
-  // Elo ratings – use AI‑provided if available, else derive from FIFA ranking
   const finalEloA = eloA || (fifaRankingA ? rankingToElo(fifaRankingA) : null);
   const finalEloB = eloB || (fifaRankingB ? rankingToElo(fifaRankingB) : null);
 
   const update: any = {
     enrichment_source: "manual",
-    // Overall Dixon‑Coles (NEW)
     att_a: dc.attA,
     def_a: dc.defA,
     att_b: dc.attB,
     def_b: dc.defB,
-    // Basic stats
     form_points_a: statsA.form_points,
     form_points_b: statsB.form_points,
     home_goals_scored: statsA.home_goals_scored,
@@ -155,18 +205,17 @@ export async function POST(req: NextRequest) {
     matches_used_b: statsB.matches_used,
     elo_a: finalEloA, elo_b: finalEloB,
     rest_days_a: restA, rest_days_b: restB,
-    // Home/Away Dixon‑Coles
     att_home_a: dcHA.attHomeA,
     def_home_a: dcHA.defHomeA,
     att_away_b: dcHA.attAwayB,
     def_away_b: dcHA.defAwayB,
-    // H2H summary (NEW)
     h2h_home_wins: h2hHomeWins,
     h2h_draws: h2hDraws,
     h2h_away_wins: h2hAwayWins,
     h2h_home_goals_avg: h2hHomeGoalsAvg,
     h2h_away_goals_avg: h2hAwayGoalsAvg,
   };
+
   const { error } = await supabase
     .from("predictions")
     .update(update)
@@ -176,5 +225,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({
+    success: true,
+    warnings: warnings.length ? warnings : undefined,
+  });
 }
