@@ -60,6 +60,7 @@ export async function POST(req: NextRequest) {
     probHome:      scores["Home Win"],
     probDraw:      scores["Draw"],
     probAway:      scores["Away Win"],
+    mainEdge:      result.mainEdge,
     fullReport: {
       main_prediction:   mainPick,
       safe_pick:         safePick,

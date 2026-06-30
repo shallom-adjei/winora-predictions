@@ -174,7 +174,7 @@ export default function ResultsPage() {
                         </div>
                       </div>
 
-                                           {/* Original Probability Breakdown */}
+                                             {/* Original Probability Breakdown */}
                       <div className="mt-3 pt-3 border-t border-white/5 space-y-1">
                         <div className="flex items-center gap-1 text-[10px] sm:text-xs">
                           <span className="text-gray-400 w-3">1</span>
@@ -195,6 +195,12 @@ export default function ResultsPage() {
                           </div>
                           <span className="text-red-400 font-medium w-7 text-right">{match.prob_away}%</span>
                         </div>
+
+                        {/* Edge line */}
+                        <p className="text-[10px] text-gray-400">
+                          Edge: <span className="text-gold-400 font-medium">+{match.main_edge}%</span>
+                        </p>
+
                         <div className="flex items-center gap-2 text-[10px] text-gray-500">
                           <span>Predicted: <span className="text-gold-400">{match.expected_score}</span></span>
                           <span>•</span>

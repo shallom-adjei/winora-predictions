@@ -64,6 +64,7 @@ export async function POST(request: Request) {
       prob_home:         scores["Home Win"],
       prob_draw:         scores["Draw"],
       prob_away:         scores["Away Win"],
+      main_edge:         result.mainEdge,
     })
     .eq("id", matchId);
 
@@ -101,5 +102,6 @@ export async function POST(request: Request) {
     probHome:      scores["Home Win"],
     probDraw:      scores["Draw"],
     probAway:      scores["Away Win"],
+    mainEdge:      result.mainEdge,
   });
 }

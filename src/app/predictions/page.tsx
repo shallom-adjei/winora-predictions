@@ -179,7 +179,7 @@ useEffect(() => {
                                         {/* Main Prediction */}
                     <p className="text-sm font-semibold">{p.main_pick || p.prediction}</p>
 
-                    {/* Probability Bars */}
+                                        {/* Probability Bars */}
                     <div className="mt-2 space-y-1">
                       <div className="flex items-center gap-1 text-[10px] sm:text-xs">
                         <span className="text-gray-400 w-3">1</span>
@@ -200,6 +200,12 @@ useEffect(() => {
                         </div>
                         <span className="text-red-400 font-medium w-7 text-right">{p.prob_away}%</span>
                       </div>
+
+                      {/* Edge line – placed below the bars */}
+                      <p className="text-[10px] text-gray-400">
+                        Edge: <span className="text-gold-400 font-medium">+{p.main_edge}%</span>
+                      </p>
+
                       <div className="flex items-center gap-2 text-[10px] text-gray-500">
                         <span>Stake: <span className="text-white">{p.recommended_stake || "—"}</span></span>
                         <span>•</span>

@@ -26,6 +26,7 @@ export function calculateDataQuality(match: any): number {
 // ── Result type ───────────────────────────────────────────────
 export interface PredictionResult {
   mainPick:      keyof PredictionScores;
+  mainEdge: number;
   safePick:      keyof PredictionScores;
   goalsPick:     string;
   bttsPick:      string;
@@ -104,12 +105,13 @@ export function generatePredictionResult(match: any): PredictionResult {
     goalsPick, bttsPick
   );
 
-return {
+  return {
     mainPick, safePick, goalsPick, bttsPick,
     expectedScore, confidence, risk, stake,
     analysis, scores, dataQuality,
     probHome: scores["Home Win"],
     probDraw: scores["Draw"],
     probAway: scores["Away Win"],
-};
+    mainEdge: edge,
+  };
 }
