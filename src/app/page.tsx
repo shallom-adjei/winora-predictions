@@ -90,6 +90,7 @@ fetch("/api/get-predictions?t=" + Date.now(), { cache: "no-store" })
         prob_home: p.prob_home,
         prob_draw: p.prob_draw,
         prob_away: p.prob_away,
+        main_edge: p.main_edge,
       }));
   }, [livePredictions]);
 
@@ -362,6 +363,9 @@ fetch("/api/get-predictions?t=" + Date.now(), { cache: "no-store" })
                           <div><span className="text-gray-500">Goals:</span> <span className="text-white font-medium">{match.goalsPick}</span></div>
                           <div><span className="text-gray-500">BTTS:</span> <span className="text-white font-medium">{match.bttsPick}</span></div>
                         </div>
+                         <p className="text-[10px] text-gray-400">
+                        Edge: <span className="text-gold-400 font-medium">+{match.main_edge}%</span>
+                      </p>
                         <div className="mt-2 flex items-center gap-3 text-xs">
   <span className="text-gray-500">Stake: <span className="text-white font-medium">{match.stake}</span></span>
   <span className="text-gray-500">•</span>
@@ -472,6 +476,9 @@ fetch("/api/get-predictions?t=" + Date.now(), { cache: "no-store" })
                     <div><span className="text-gray-500">Goals:</span> <span className="text-white font-medium">{match.goalsPick}</span></div>
                     <div><span className="text-gray-500">BTTS:</span> <span className="text-white font-medium">{match.bttsPick}</span></div>
                   </div>
+                   <p className="text-[10px] text-gray-400">
+                        Edge: <span className="text-gold-400 font-medium">+{match.main_edge}%</span>
+                      </p>
                   <div className="mt-2 flex items-center gap-3 text-xs">
   <span className="text-gray-500">Stake: <span className="text-white font-medium">{match.stake}</span></span>
   <span className="text-gray-500">•</span>
