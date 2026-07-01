@@ -31,7 +31,7 @@ const LEAGUE_AVG_GOALS: Record<string, number> = {
   "Premier League": 2.65, "EFL Championship": 2.55, "Bundesliga": 3.05,
   "La Liga": 2.55, "Serie A": 2.65, "Ligue 1": 2.55, "Eredivisie": 3.10,
   "Scottish Premiership": 2.80, "UEFA Champions League": 2.70,
-  "UEFA Europa League": 2.65, "FIFA World Cup": 2.60, "default": 2.55,
+  "UEFA Europa League": 2.65, "FIFA World Cup": 2.80, "default": 2.55,
 };
 
 function getHomeAdvantage(league: string | null, competitionId: number | null): number {
@@ -61,19 +61,6 @@ export interface PredictionScores {
   expectedAwayGoals: number;
   rawExpectedHome: number;
   rawExpectedAway: number;
-}
-
-// Elo → goal advantage factor (1 Elo point ≈ 0.0005 goals)
-function eloFactor(eloDiff: number): number {
-  return 1 + eloDiff * 0.0005;
-}
-
-// Fatigue factor: <3 days rest penalises xG
-function fatigueFactor(restDays: number | null): number {
-  if (restDays === null) return 1;
-  if (restDays <= 2) return 0.92;
-  if (restDays === 3) return 0.96;
-  return 1;
 }
 
 export function computePrediction(match: any): PredictionScores {
@@ -203,7 +190,7 @@ export function computePrediction(match: any): PredictionScores {
   let over15 = 0, over25 = 0, under25 = 0, btts = 0;
 
   for (let i = 0; i <= maxGoals; i++) {
-    for (let j = 0; j <= maxGoals; j++) {
+        for (let j = 0; j <= maxGoals; j++) {
       const correction = dcCorrection(i, j, expectedHome, expectedAway);
       const prob = probHomeGoals[i] * probAwayGoals[j] * correction;
       if (i > j) homeWin += prob;
@@ -267,7 +254,8 @@ export function selectConsistentScore(
   const scoresList: ScoreEntry[] = [];
   for (let i = 0; i <= maxGoals; i++) {
     for (let j = 0; j <= maxGoals; j++) {
-      const prob = probHome[i] * probAway[j];
+      const correction = dcCorrection(i, j, rawExpHome, rawExpAway);
+      const prob = probHome[i] * probAway[j] * correction;
       const outcome = i > j ? "Home Win" : i === j ? "Draw" : "Away Win";
       const total = i + j;
       const btts = i > 0 && j > 0;
@@ -294,9 +282,31 @@ export function selectConsistentScore(
     candidates = scoresList.filter(s => s.outcome === mainPick);
   }
 
-  // Pick the most probable remaining score
+  
   candidates.sort((a, b) => b.prob - a.prob);
-  return `${candidates[0].i}-${candidates[0].j}`;
+
+  // Take the top 3 (or fewer) most probable scores
+  const top = candidates.slice(0, 3);
+
+  // Weighted random selection – use a simple deterministic seed from the raw xG values
+  // so the same match always produces the same result.
+  const seed = Math.round((rawExpHome + rawExpAway) * 1000);
+  const pseudoRandom = ((seed * 9301 + 49297) % 233280) / 233280;
+
+  // Build cumulative weights
+  const totalProb = top.reduce((sum, s) => sum + s.prob, 0);
+  let cumulative = 0;
+  const threshold = pseudoRandom * totalProb;
+
+  for (const s of top) {
+    cumulative += s.prob;
+    if (threshold <= cumulative) {
+      return `${s.i}-${s.j}`;
+    }
+  }
+
+  // Fallback (should never reach here)
+  return `${top[0].i}-${top[0].j}`;
 }
 
 export function calculateConfidence(
