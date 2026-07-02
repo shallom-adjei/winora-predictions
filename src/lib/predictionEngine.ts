@@ -31,7 +31,7 @@ const LEAGUE_AVG_GOALS: Record<string, number> = {
   "Premier League": 2.65, "EFL Championship": 2.55, "Bundesliga": 3.05,
   "La Liga": 2.55, "Serie A": 2.65, "Ligue 1": 2.55, "Eredivisie": 3.10,
   "Scottish Premiership": 2.80, "UEFA Champions League": 2.70,
-  "UEFA Europa League": 2.65, "FIFA World Cup": 2.80, "default": 2.55,
+  "UEFA Europa League": 2.65, "FIFA World Cup": 2.98, "default": 2.55,
 };
 
 function getHomeAdvantage(league: string | null, competitionId: number | null): number {
