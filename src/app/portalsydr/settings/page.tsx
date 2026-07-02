@@ -1,14 +1,30 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ArrowLeft, Save, Check, AlertCircle } from "lucide-react";
+import { motion } from "framer-motion";
+import {
+  ArrowLeft,
+  Database,
+  MessageCircle,
+  Shield,
+  Play,
+  RefreshCw,
+  Zap,
+  CheckCircle,
+  XCircle,
+  Loader2,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import toast from "react-hot-toast";
 
 export default function AdminSettingsPage() {
-  // Telegram settings
+  // Telegram
   const [botToken, setBotToken] = useState("");
   const [channelUsername, setChannelUsername] = useState("");
+  const [showToken, setShowToken] = useState(false);
+  const [telegramStatus, setTelegramStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
   const [savingTelegram, setSavingTelegram] = useState(false);
 
   // Password
@@ -16,13 +32,13 @@ export default function AdminSettingsPage() {
   const [newPassword, setNewPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
 
-  // Action button states
+  // Operations
   const [updating, setUpdating] = useState(false);
   const [enriching, setEnriching] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [postingTelegram, setPostingTelegram] = useState(false);
 
-  // Load saved settings
+  // Load settings
   useEffect(() => {
     fetch("/api/admin/settings", { credentials: "include" })
       .then((r) => r.json())
@@ -35,8 +51,8 @@ export default function AdminSettingsPage() {
       .catch(() => {});
   }, []);
 
-  // Save Telegram settings
-  const saveTelegram = useCallback(async () => {
+  // Save Telegram
+  const saveTelegram = async () => {
     setSavingTelegram(true);
     try {
       await fetch("/api/admin/settings", {
@@ -57,7 +73,31 @@ export default function AdminSettingsPage() {
     } finally {
       setSavingTelegram(false);
     }
-  }, [botToken, channelUsername]);
+  };
+
+  // Test Telegram connection
+  const testTelegram = async () => {
+    setTelegramStatus("testing");
+    try {
+      const res = await fetch("/api/admin/telegram-test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: botToken, channel: channelUsername }),
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (data.success) {
+        setTelegramStatus("success");
+        toast.success("Telegram connected successfully");
+      } else {
+        setTelegramStatus("error");
+        toast.error(data.error || "Connection failed");
+      }
+    } catch {
+      setTelegramStatus("error");
+      toast.error("Network error");
+    }
+  };
 
   // Change password
   const changePassword = async (e: React.FormEvent) => {
@@ -85,7 +125,7 @@ export default function AdminSettingsPage() {
     }
   };
 
-  // Action handlers
+  // Operations
   const handleUpdateMatches = async () => {
     setUpdating(true);
     try {
@@ -147,57 +187,111 @@ export default function AdminSettingsPage() {
 
   return (
     <div className="min-h-screen bg-[#050505] text-white p-6">
-      <div className="max-w-5xl mx-auto space-y-8">
-        <div className="flex items-center gap-4">
+      <div className="max-w-6xl mx-auto space-y-8">
+        {/* Header */}
+        <div className="flex items-center gap-4 mb-2">
           <Link href="/portalsydr">
             <Button variant="ghost" className="text-gold-400">
               <ArrowLeft className="h-4 w-4 mr-1" /> Dashboard
             </Button>
           </Link>
-          <h1 className="text-3xl font-bold">Settings</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Platform Settings</h1>
         </div>
 
-        {/* ── Data Operations ──────────────────────────────── */}
-        <section className="rounded-2xl bg-[#0D0D0D] border border-white/5 p-6">
-          <h2 className="text-xl font-semibold mb-4">Data Operations</h2>
+        {/* ── Operations Card ──────────────────────────────── */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="rounded-2xl bg-[#0D0D0D] border border-white/5 p-6"
+        >
+          <div className="flex items-center gap-3 mb-6">
+            <div className="h-10 w-10 rounded-full bg-gold-400/10 flex items-center justify-center">
+              <Zap className="h-5 w-5 text-gold-400" />
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold">Data Operations</h2>
+              <p className="text-xs text-gray-400">Update, enrich, and generate predictions</p>
+            </div>
+          </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            <Button onClick={handleUpdateMatches} disabled={updating} variant="outline" className="text-sm">
+            <Button onClick={handleUpdateMatches} disabled={updating} variant="outline" className="text-sm h-12">
+              <RefreshCw className="h-4 w-4 mr-2" />
               {updating ? "Updating..." : "Update Matches & Stats"}
             </Button>
-            <Button onClick={handleEnrich} disabled={enriching} variant="outline" className="text-sm">
+            <Button onClick={handleEnrich} disabled={enriching} variant="outline" className="text-sm h-12">
+              <Database className="h-4 w-4 mr-2" />
               {enriching ? "Enriching..." : "Enrich Stats"}
             </Button>
-            <Button onClick={async () => {
-              try {
-                const res = await fetch("/api/update-crests", { method: "POST", credentials: "include" });
-                const data = await res.json();
-                toast.success(data.message || "Crests updated");
-              } catch { toast.error("Crest update failed"); }
-            }} variant="outline" className="text-sm">
+            <Button
+              onClick={async () => {
+                try {
+                  const res = await fetch("/api/update-crests", { method: "POST", credentials: "include" });
+                  const data = await res.json();
+                  toast.success(data.message || "Crests updated");
+                } catch { toast.error("Crest update failed"); }
+              }}
+              variant="outline"
+              className="text-sm h-12"
+            >
+              <Play className="h-4 w-4 mr-2" />
               Update Crests
             </Button>
-            <Button onClick={handleGenerateAll} disabled={generating} className="text-sm bg-gold-400 text-black">
+            <Button onClick={handleGenerateAll} disabled={generating} className="text-sm h-12 bg-gold-400 text-black hover:bg-gold-500">
+              <Zap className="h-4 w-4 mr-2" />
               {generating ? "Generating..." : "Generate All Predictions"}
             </Button>
-            <Button onClick={handlePostTelegram} disabled={postingTelegram} variant="outline" className="text-sm">
+            <Button onClick={handlePostTelegram} disabled={postingTelegram} variant="outline" className="text-sm h-12">
+              <MessageCircle className="h-4 w-4 mr-2" />
               {postingTelegram ? "Posting..." : "Post to Telegram"}
             </Button>
           </div>
-        </section>
+        </motion.section>
 
         {/* ── Telegram Configuration ───────────────────────── */}
-        <section className="rounded-2xl bg-[#0D0D0D] border border-white/5 p-6">
-          <h2 className="text-xl font-semibold mb-4">Telegram Integration</h2>
-          <div className="space-y-4 max-w-md">
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="rounded-2xl bg-[#0D0D0D] border border-white/5 p-6"
+        >
+          <div className="flex items-center gap-3 mb-6">
+            <div className="h-10 w-10 rounded-full bg-blue-500/10 flex items-center justify-center">
+              <MessageCircle className="h-5 w-5 text-blue-400" />
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold">Telegram Integration</h2>
+              <p className="text-xs text-gray-400">Configure your bot token and channel username</p>
+            </div>
+            {telegramStatus === "success" && (
+              <span className="ml-auto flex items-center gap-1 text-xs text-green-400">
+                <CheckCircle className="h-4 w-4" /> Connected
+              </span>
+            )}
+            {telegramStatus === "error" && (
+              <span className="ml-auto flex items-center gap-1 text-xs text-red-400">
+                <XCircle className="h-4 w-4" /> Connection failed
+              </span>
+            )}
+          </div>
+          <div className="grid md:grid-cols-2 gap-4 max-w-2xl">
             <div>
               <label className="text-xs text-gray-400 block mb-1">Bot Token</label>
-              <input
-                type="password"
-                value={botToken}
-                onChange={(e) => setBotToken(e.target.value)}
-                placeholder="123456:ABC-DEF1234gh..."
-                className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-sm"
-              />
+              <div className="relative">
+                <input
+                  type={showToken ? "text" : "password"}
+                  value={botToken}
+                  onChange={(e) => setBotToken(e.target.value)}
+                  placeholder="123456:ABC-DEF1234gh..."
+                  className="w-full bg-white/5 border border-white/10 rounded-lg p-2.5 text-white text-sm pr-10"
+                />
+                <button
+                  onClick={() => setShowToken(!showToken)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                >
+                  {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
             <div>
               <label className="text-xs text-gray-400 block mb-1">Channel Username</label>
@@ -205,18 +299,42 @@ export default function AdminSettingsPage() {
                 value={channelUsername}
                 onChange={(e) => setChannelUsername(e.target.value)}
                 placeholder="@WinoraTips"
-                className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-sm"
+                className="w-full bg-white/5 border border-white/10 rounded-lg p-2.5 text-white text-sm"
               />
             </div>
+          </div>
+          <div className="flex gap-3 mt-4">
             <Button onClick={saveTelegram} disabled={savingTelegram} className="bg-gold-400 text-black text-sm gap-2">
-              <Save className="h-4 w-4" /> {savingTelegram ? "Saving..." : "Save Telegram Settings"}
+              {savingTelegram ? "Saving..." : "Save Settings"}
+            </Button>
+            <Button
+              onClick={testTelegram}
+              disabled={telegramStatus === "testing"}
+              variant="outline"
+              className="text-sm gap-2"
+            >
+              {telegramStatus === "testing" ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
+              Test Connection
             </Button>
           </div>
-        </section>
+        </motion.section>
 
         {/* ── Security ─────────────────────────────────────── */}
-        <section className="rounded-2xl bg-[#0D0D0D] border border-white/5 p-6">
-          <h2 className="text-xl font-semibold mb-4">Security</h2>
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="rounded-2xl bg-[#0D0D0D] border border-white/5 p-6"
+        >
+          <div className="flex items-center gap-3 mb-6">
+            <div className="h-10 w-10 rounded-full bg-red-500/10 flex items-center justify-center">
+              <Shield className="h-5 w-5 text-red-400" />
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold">Security</h2>
+              <p className="text-xs text-gray-400">Change your admin password</p>
+            </div>
+          </div>
           <form onSubmit={changePassword} className="max-w-md space-y-4">
             <div>
               <label className="text-xs text-gray-400 block mb-1">Current Password</label>
@@ -224,7 +342,7 @@ export default function AdminSettingsPage() {
                 type="password"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-sm"
+                className="w-full bg-white/5 border border-white/10 rounded-lg p-2.5 text-white text-sm"
                 required
               />
             </div>
@@ -234,15 +352,15 @@ export default function AdminSettingsPage() {
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-sm"
+                className="w-full bg-white/5 border border-white/10 rounded-lg p-2.5 text-white text-sm"
                 required
               />
             </div>
             <Button type="submit" disabled={changingPassword} className="bg-gold-400 text-black text-sm gap-2">
-              <Check className="h-4 w-4" /> {changingPassword ? "Changing..." : "Change Password"}
+              {changingPassword ? "Changing..." : "Change Password"}
             </Button>
           </form>
-        </section>
+        </motion.section>
       </div>
     </div>
   );
