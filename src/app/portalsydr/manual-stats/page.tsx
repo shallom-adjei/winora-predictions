@@ -10,39 +10,39 @@ const PROMPT_TEMPLATE = (teamA: string, teamB: string) => {
   const todayStr = new Date().toISOString().split("T")[0];
   return `
   You are a football data analyst with full web‑search capability.  
-Retrieve **real, verified statistics** for **${teamA}** and **${teamB}**.
+Retrieve real, verified statistics for ${teamA} and ${teamB}.
 
-Retrieve only historical matches that have actually been played and concluded in the real world prior to **${todayStr}**.  
+Retrieve only historical matches that have actually been played and concluded in the real world prior to ${todayStr}.  
 Do not simulate or invent future matches. This is Men's football.
 
-Search the web for their **10 most recent competitive matches** (World Cup, qualifiers, continental championships, and official friendlies) played **before ${todayStr}**.  
-Also find their **current live ranking** and the **last 5 head‑to‑head meetings** between them.
+Search the web for their 10 most recent competitive matches (World Cup, qualifiers, continental championships, and official friendlies) played before ${todayStr}.  
+Also find their current live ranking and the last 5 head‑to‑head meetings between them.
 
 ---
 
-🔴 **ABSOLUTE REQUIREMENTS – FAILURE TO FOLLOW ANY OF THESE WILL CAUSE THE RESPONSE TO BE REJECTED:**
+🔴 ABSOLUTE REQUIREMENTS – FAILURE TO FOLLOW ANY OF THESE WILL CAUSE THE RESPONSE TO BE REJECTED:
 
-1. **Search the web.** Do not use training data. Use sources like Flashscore, ESPN, FIFA.com, Sofascore,fotmob.com, 11v11.com etc.
+1. Search the web. Do not use training data. Use sources like Flashscore, ESPN, FIFA.com, Sofascore,fotmob.com, 11v11.com etc.
 
-2. **Return EXACTLY 10 matches for each team.** Not 6, not 8 – exactly 10. If fewer than 10 exist, include all available. If more than 10 exist, use the 10 most recent.
+2. Return EXACTLY 10 matches for each team. Not 6, not 8 – exactly 10. If fewer than 10 exist, include all available. If more than 10 exist, use the 10 most recent.
 
-3. **Home/away balance is MANDATORY.** Return the 10 most recent consecutive matches. If the 10 most recent matches do not contain at least 4 home and 4 away games, continue listing up to the last 14 matches until the balance is met, or note the discrepancy in the \`_warnings\` field.
+3. Home/away balance is MANDATORY. Return the 10 most recent consecutive matches. If the 10 most recent matches do not contain at least 4 home and 4 away games, continue listing up to the last 14 matches until the balance is met, or note the discrepancy in the \`_warnings\` field.
 
-4. **Every match MUST include the opponent's ranking at the time the match was played.**  
+4. Every match MUST include the opponent's ranking at the time the match was played. 
    - Search for it specifically. If the exact ranking is unknown, use the current live ranking available and mark it with \`"estimated": true\`.  
-   - The field is called \`opponentFifaRank\`. It is **not optional** – \`null\` is only acceptable for clubs where FIFA rankings don't apply.
+   - The field is called \`opponentFifaRank\`. It is not optional – \`null\` is only acceptable for clubs where FIFA rankings don't apply.
 
-5. **Include matches where the team scored heavily or conceded heavily.** The selection must reflect the full range of their recent performances, not only tight, defensive games. If a team has won 4‑0 or lost 0‑3 in their last 10, those matches must be included.
+5. Include matches where the team scored heavily or conceded heavily. The selection must reflect the full range of their recent performances, not only tight, defensive games. If a team has won 4‑0 or lost 0‑3 in their last 10, those matches must be included.
 
-6. **Do not invent data.** If a specific data point (like an opponent's ranking) cannot be found via web search, you must set it to \`null\` and document the exact reason in the \`_warnings\` array. Do not invent numbers to fill the fields.
+6. Do not invent data. If a specific data point (like an opponent's ranking) cannot be found via web search, you must set it to \`null\` and document the exact reason in the \`_warnings\` array. Do not invent numbers to fill the fields.
 
-7. **Matches must be competitive and from the last 2 years.** Friendlies are acceptable if they were official (not training matches). Do not include club matches for national teams.
+7. Matches must be competitive and from the last 2 years. Friendlies are acceptable if they were official (not training matches). Do not include club matches for national teams.
 
-8. **Head‑to‑head:** Return the last 5 meetings between ${teamA} and ${teamB}. If fewer than 5, include all available. If none, return an empty array \`[]\`.
+8. Head‑to‑head: Return the last 5 meetings between ${teamA} and ${teamB}. If fewer than 5, include all available. If none, return an empty array \`[]\`.
 
-9. **Rankings:** The current live ranking for each team, according to the most recent official system (e.g., FIFA for national teams). If unavailable, use \`null\`.
+9. Rankings: The current live ranking for each team, according to the most recent official system (e.g., FIFA for national teams). If unavailable, use \`null\`.
 
-10. **Before returning the JSON, verify the following and include a \`_checklist\` object** with true/false answers:
+10. Before returning the JSON, verify the following and include a \`_checklist\` object** with true/false answers:
     - "exactly_10_matches_each": true if both teams have exactly 10 matches (or all available if fewer)
     - "home_away_balance_A": true if Team A has at least 4 home and 4 away matches (or was extended to 14)
     - "home_away_balance_B": true if Team B has at least 4 home and 4 away matches (or was extended to 14)
@@ -104,7 +104,7 @@ Do not include any explanation before or after the code block.
 - \`ranking_A\`, \`ranking_B\`: current official ranking numbers (not strings)
 - \`_warnings\`: array of strings explaining any data gaps (e.g. "only 6 matches found for Team B", "opponent ranking estimated for March 2026 match")
 
-**Return ONLY the JSON object. No markdown, no explanations, no code fences. Pure JSON.**
+Return ONLY the JSON object. No markdown, no explanations, no code fences. Pure JSON.
 `;
 };
 
