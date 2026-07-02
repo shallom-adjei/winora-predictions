@@ -56,6 +56,13 @@ Also find their **current live ranking** and the **last 5 head‑to‑head meeti
 
 The \`_checklist\` object must be included inside the final JSON response at the top level.
 
+EXECUTION MODE: You must complete this task in phases, not all at once.
+Phase 1: Search for Team A’s 10 most recent matches only. For each match, provide the date, opponent, competition, home/away, score, and opponent’s FIFA rank (with source). Show me these results and wait for my confirmation before proceeding.
+Phase 2: Do the same for Team B.
+Phase 3: Search for the last 5 head‑to‑head meetings, with dates and scores.
+Phase 4: Return the final, complete JSON with the _checklist and _warnings.
+If you cannot find a data point, set it to null and note it in _warnings – do not invent.
+
 ---
 
 **Required JSON structure – return ONLY this JSON object, nothing else:**
