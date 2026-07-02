@@ -223,7 +223,7 @@ export default function AdminSettingsPage() {
           <h1 className="text-3xl font-bold tracking-tight">Platform Settings</h1>
         </div>
 
-        {/* ── Operations Card ──────────────────────────────── */}
+                {/* ── Operations Card ──────────────────────────────── */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -239,6 +239,7 @@ export default function AdminSettingsPage() {
               <p className="text-xs text-gray-400">Update, enrich, and generate predictions</p>
             </div>
           </div>
+
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <Button onClick={handleUpdateMatches} disabled={updating} variant="outline" className="text-sm h-12">
               <RefreshCw className="h-4 w-4 mr-2" />
@@ -264,26 +265,27 @@ export default function AdminSettingsPage() {
             </Button>
             <Button onClick={handleGenerateAll} disabled={generating} className="text-sm h-12 bg-gold-400 text-black hover:bg-gold-500">
               <Zap className="h-4 w-4 mr-2" />
-              {generating ? "Generating..." : "Generate All Predictions"}
+              {generating ? "Generating..." : "Generate All"}
             </Button>
             <Button onClick={handlePostTelegram} disabled={postingTelegram} variant="outline" className="text-sm h-12">
               <MessageCircle className="h-4 w-4 mr-2" />
               {postingTelegram ? "Posting..." : "Post to Telegram"}
             </Button>
+            <Button
+              onClick={() => setShowForm(!showForm)}
+              variant="outline"
+              className="text-sm h-12"
+            >
+              {showForm ? "Cancel" : "+ Add New Prediction"}
+            </Button>
           </div>
-                  {/* Add Prediction */}
-        <div className="mb-4">
-          <Button
-            onClick={() => setShowForm(!showForm)}
-            className="bg-gold-400 text-black text-sm"
-          >
-            {showForm ? "Cancel" : "+ Add New Prediction"}
-          </Button>
+
+          {/* Form slides open inside the same card */}
           {showForm && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
-              className="rounded-2xl bg-[#0D0D0D] border border-white/5 p-6 mt-4"
+              className="mt-4"
             >
               <form onSubmit={handleAddPick} className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <input placeholder="Match Name" value={newPick.match_name} onChange={e => setNewPick({...newPick, match_name: e.target.value})} className="bg-white/5 border border-white/10 rounded-lg p-2 text-white" required />
@@ -291,14 +293,16 @@ export default function AdminSettingsPage() {
                 <input placeholder="Team B" value={newPick.team_b} onChange={e => setNewPick({...newPick, team_b: e.target.value})} className="bg-white/5 border border-white/10 rounded-lg p-2 text-white" required />
                 <input placeholder="Time (e.g. 17:30)" value={newPick.time} onChange={e => setNewPick({...newPick, time: e.target.value})} className="bg-white/5 border border-white/10 rounded-lg p-2 text-white" required />
                 <input type="number" placeholder="Confidence %" value={newPick.confidence} onChange={e => setNewPick({...newPick, confidence: Number(e.target.value)})} className="bg-white/5 border border-white/10 rounded-lg p-2 text-white" required />
-                <select value={newPick.sport} onChange={e => setNewPick({...newPick, sport: e.target.value})} className="bg-white/5 border border-white/10 rounded-lg p-2 text-white">
-                  <option>Football</option><option>Basketball</option><option>Tennis</option><option>Baseball</option>
+                <select value={newPick.sport} onChange={e => setNewPick({...newPick, sport: e.target.value})} className="bg-[#0D0D0D] text-white border border-white/10 rounded-lg p-2">
+                  <option className="bg-[#0D0D0D] text-white">Football</option>
+                  <option className="bg-[#0D0D0D] text-white">Basketball</option>
+                  <option className="bg-[#0D0D0D] text-white">Tennis</option>
+                  <option className="bg-[#0D0D0D] text-white">Baseball</option>
                 </select>
                 <Button type="submit" className="bg-gold-400 text-black col-span-full">Save Prediction</Button>
               </form>
             </motion.div>
           )}
-        </div>
         </motion.section>
 
         {/* ── Telegram Configuration ───────────────────────── */}
