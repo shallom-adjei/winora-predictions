@@ -576,6 +576,28 @@ const handleGenerateAll = async () => {
           <Button onClick={() => setShowForm(!showForm)} className="bg-gold-400 text-black">
             {showForm ? "Cancel" : "Add New Prediction"}
           </Button>
+          <Button
+  onClick={async () => {
+    try {
+      const res = await fetch("/api/telegram/post", {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`Posted to Telegram (${data.picks} picks)`);
+      } else {
+        toast.error(data.error || "Failed to post");
+      }
+    } catch {
+      toast.error("Network error");
+    }
+  }}
+  variant="outline"
+  className="text-sm"
+>
+  Post to Telegram
+</Button>
         </div>
 
         {showForm && (
