@@ -217,7 +217,7 @@ export default function AdminSettingsPage() {
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <Button onClick={handleUpdateMatches} disabled={updating} variant="outline" className="text-sm h-12">
               <RefreshCw className="h-4 w-4 mr-2" />
-              {updating ? "Updating..." : "Update Matches & Stats"}
+              {updating ? "Updating..." : "Update Matches"}
             </Button>
             <Button onClick={handleEnrich} disabled={enriching} variant="outline" className="text-sm h-12">
               <Database className="h-4 w-4 mr-2" />
