@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import {createClient} from "@supabase/supabase-js";
 
 export async function POST(req: NextRequest) {
   // ── Auth ──────────────────────────────────────────────
@@ -7,13 +8,30 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const token = process.env.TELEGRAM_BOT_TOKEN;
-  const channel = process.env.TELEGRAM_CHANNEL_USERNAME; // e.g. "@WinoraTips"
+  let token = process.env.TELEGRAM_BOT_TOKEN;
+  let channel = process.env.TELEGRAM_CHANNEL_USERNAME;
+
+  // Fallback to stored settings
   if (!token || !channel) {
-    return NextResponse.json(
-      { error: "Telegram not configured" },
-      { status: 500 }
-    );
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (supabaseUrl && serviceKey) {
+      const supabaseAdmin = createClient(supabaseUrl, serviceKey);
+      const { data: settings } = await supabaseAdmin
+        .from("platform_settings")
+        .select("key, value")
+        .in("key", ["telegram_bot_token", "telegram_channel_username"]);
+      if (settings) {
+        for (const s of settings) {
+          if (s.key === "telegram_bot_token") token = s.value;
+          if (s.key === "telegram_channel_username") channel = s.value;
+        }
+      }
+    }
+  }
+
+  if (!token || !channel) {
+    return NextResponse.json({ error: "Telegram not configured" }, { status: 500 });
   }
 
   // ── Fetch upcoming predictions with edges ─────────────
