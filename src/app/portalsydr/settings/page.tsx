@@ -50,6 +50,27 @@ export default function AdminSettingsPage() {
     is_premium: false,
   });
 
+const [promptTemplate, setPromptTemplate] = useState("");
+const [selectedSport, setSelectedSport] = useState("Football");
+const [savingPrompt, setSavingPrompt] = useState(false);
+
+
+  const loadPromptTemplate = async (sport: string) => {
+    const key = `prompt_template_${sport.toLowerCase()}`;
+    try {
+      const res = await fetch(`/api/admin/settings?key=${key}`, { credentials: "include" });
+      const data = await res.json();
+      if (data.settings?.[key]) {
+        setPromptTemplate(data.settings[key]);
+      } else {
+        // Use a default per sport (we'll define a simple fallback)
+        setPromptTemplate(getDefaultPrompt(sport));
+      }
+    } catch {
+      setPromptTemplate(getDefaultPrompt(sport));
+    }
+  };
+
     const handleAddPick = async (e: React.FormEvent) => {
     e.preventDefault();
     // Use the anon client for direct insert
@@ -75,6 +96,28 @@ export default function AdminSettingsPage() {
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    loadPromptTemplate(selectedSport);
+  }, [selectedSport]);
+
+    const savePromptTemplate = async () => {
+    setSavingPrompt(true);
+    const key = `prompt_template_${selectedSport.toLowerCase()}`;
+    try {
+      await fetch("/api/admin/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key, value: promptTemplate }),
+        credentials: "include",
+      });
+      toast.success("Prompt template saved");
+    } catch {
+      toast.error("Failed to save");
+    } finally {
+      setSavingPrompt(false);
+    }
+  };
 
   // Save Telegram
   const saveTelegram = async () => {
@@ -210,6 +253,21 @@ export default function AdminSettingsPage() {
     finally { setPostingTelegram(false); }
   };
 
+  function getDefaultPrompt(sport: string): string {
+  switch (sport) {
+    case "Football":
+      return `You are a football data analyst… [your current football prompt]`;
+    case "Tennis":
+      return `You are a tennis data analyst… [tennis prompt]`;
+    case "Basketball":
+      return `You are a basketball data analyst… [basketball prompt]`;
+    case "Baseball":
+      return `You are a baseball data analyst… [baseball prompt]`;
+    default:
+      return "";
+  }
+}
+
   return (
     <div className="min-h-screen bg-[#050505] text-white p-6">
       <div className="max-w-6xl mx-auto space-y-8">
@@ -303,6 +361,52 @@ export default function AdminSettingsPage() {
               </form>
             </motion.div>
           )}
+        </motion.section>
+
+                {/* ── Prompt Customization ──────────────────────── */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.13 }}
+          className="rounded-2xl bg-[#0D0D0D] border border-white/5 p-6"
+        >
+          <div className="flex items-center gap-3 mb-6">
+            <div className="h-10 w-10 rounded-full bg-purple-500/10 flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold">AI Prompt Templates</h2>
+              <p className="text-xs text-gray-400">Customize the prompt per sport – used in Manual Stats</p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center gap-4">
+              <label className="text-xs text-gray-400">Sport:</label>
+              <select
+                value={selectedSport}
+                onChange={(e) => setSelectedSport(e.target.value)}
+                className="bg-[#0D0D0D] text-white border border-white/10 rounded-lg p-2"
+              >
+                <option className="bg-[#0D0D0D] text-white">Football</option>
+                <option className="bg-[#0D0D0D] text-white">Tennis</option>
+                <option className="bg-[#0D0D0D] text-white">Basketball</option>
+                <option className="bg-[#0D0D0D] text-white">Baseball</option>
+              </select>
+            </div>
+            <textarea
+              value={promptTemplate}
+              onChange={(e) => setPromptTemplate(e.target.value)}
+              rows={20}
+              className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white text-sm font-mono"
+              placeholder="Paste your prompt template here…"
+            />
+            <Button onClick={savePromptTemplate} disabled={savingPrompt} className="bg-gold-400 text-black text-sm gap-2">
+              {savingPrompt ? "Saving..." : "Save Template"}
+            </Button>
+          </div>
         </motion.section>
 
         {/* ── Telegram Configuration ───────────────────────── */}

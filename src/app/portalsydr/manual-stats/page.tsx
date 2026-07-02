@@ -143,11 +143,29 @@ const fetchMatches = useCallback(async () => {
   }, [allMatches, hideWithStats]);
 
   // Regular function – fine to stay here
-  const copyPrompt = (teamA: string, teamB: string, id: string) => {
-    navigator.clipboard.writeText(PROMPT_TEMPLATE(teamA, teamB));
+  const copyPrompt = async (teamA: string, teamB: string, sport: string, id: string) => {
+    const template = await fetchPromptTemplate(sport, teamA, teamB);
+    navigator.clipboard.writeText(template);
     setCopiedId(id);
     toast.success("Prompt copied! Paste it into your AI tool.");
     setTimeout(() => setCopiedId(null), 3000);
+  };
+
+  const fetchPromptTemplate = async (sport: string, teamA: string, teamB: string): Promise<string> => {
+    const key = `prompt_template_${sport.toLowerCase()}`;
+    const todayStr = new Date().toISOString().split("T")[0];
+    try {
+      const res = await fetch("/api/admin/settings", { credentials: "include" });
+      const data = await res.json();
+      if (data.settings?.[key]) {
+        return data.settings[key]
+          .replace(/\$\{teamA\}/g, teamA)
+          .replace(/\$\{teamB\}/g, teamB)
+          .replace(/\$\{todayStr\}/g, todayStr);
+      }
+    } catch {}
+    // Fallback to the original hardcoded template
+    return PROMPT_TEMPLATE(teamA, teamB);
   };
 
   // ---------- NORMAL RENDER ----------
@@ -205,7 +223,7 @@ const fetchMatches = useCallback(async () => {
                     variant="outline"
                     size="sm"
                     className="gap-2"
-                    onClick={() => copyPrompt(match.team_a, match.team_b, match.id)}
+                                        onClick={() => copyPrompt(match.team_a, match.team_b, match.sport, match.id)}
                   >
                     {copiedId === match.id ? (
                       <>
