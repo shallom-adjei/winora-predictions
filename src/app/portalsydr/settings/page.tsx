@@ -37,6 +37,31 @@ export default function AdminSettingsPage() {
   const [enriching, setEnriching] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [postingTelegram, setPostingTelegram] = useState(false);
+    // Add prediction
+  const [showForm, setShowForm] = useState(false);
+  const [newPick, setNewPick] = useState({
+    sport: "Football",
+    match_name: "",
+    team_a: "",
+    team_b: "",
+    time: "",
+    prediction: "",
+    confidence: 70,
+    is_premium: false,
+  });
+
+    const handleAddPick = async (e: React.FormEvent) => {
+    e.preventDefault();
+    // Use the anon client for direct insert
+    const { supabase } = await import("@/lib/supabase");
+    const { error } = await supabase.from("predictions").insert([newPick]);
+    if (error) { toast.error("Failed to add prediction"); return; }
+    toast.success("Prediction added");
+    setNewPick({
+      sport: "Football", match_name: "", team_a: "", team_b: "", time: "", prediction: "", confidence: 70, is_premium: false,
+    });
+    setShowForm(false);
+  };
 
   // Load settings
   useEffect(() => {
@@ -246,6 +271,34 @@ export default function AdminSettingsPage() {
               {postingTelegram ? "Posting..." : "Post to Telegram"}
             </Button>
           </div>
+                  {/* Add Prediction */}
+        <div className="mb-4">
+          <Button
+            onClick={() => setShowForm(!showForm)}
+            className="bg-gold-400 text-black text-sm"
+          >
+            {showForm ? "Cancel" : "+ Add New Prediction"}
+          </Button>
+          {showForm && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              className="rounded-2xl bg-[#0D0D0D] border border-white/5 p-6 mt-4"
+            >
+              <form onSubmit={handleAddPick} className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <input placeholder="Match Name" value={newPick.match_name} onChange={e => setNewPick({...newPick, match_name: e.target.value})} className="bg-white/5 border border-white/10 rounded-lg p-2 text-white" required />
+                <input placeholder="Team A" value={newPick.team_a} onChange={e => setNewPick({...newPick, team_a: e.target.value})} className="bg-white/5 border border-white/10 rounded-lg p-2 text-white" required />
+                <input placeholder="Team B" value={newPick.team_b} onChange={e => setNewPick({...newPick, team_b: e.target.value})} className="bg-white/5 border border-white/10 rounded-lg p-2 text-white" required />
+                <input placeholder="Time (e.g. 17:30)" value={newPick.time} onChange={e => setNewPick({...newPick, time: e.target.value})} className="bg-white/5 border border-white/10 rounded-lg p-2 text-white" required />
+                <input type="number" placeholder="Confidence %" value={newPick.confidence} onChange={e => setNewPick({...newPick, confidence: Number(e.target.value)})} className="bg-white/5 border border-white/10 rounded-lg p-2 text-white" required />
+                <select value={newPick.sport} onChange={e => setNewPick({...newPick, sport: e.target.value})} className="bg-white/5 border border-white/10 rounded-lg p-2 text-white">
+                  <option>Football</option><option>Basketball</option><option>Tennis</option><option>Baseball</option>
+                </select>
+                <Button type="submit" className="bg-gold-400 text-black col-span-full">Save Prediction</Button>
+              </form>
+            </motion.div>
+          )}
+        </div>
         </motion.section>
 
         {/* ── Telegram Configuration ───────────────────────── */}
@@ -286,11 +339,12 @@ export default function AdminSettingsPage() {
                   className="w-full bg-white/5 border border-white/10 rounded-lg p-2.5 text-white text-sm pr-10"
                 />
                 <button
-                  onClick={() => setShowToken(!showToken)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
-                >
-                  {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
+  onClick={() => setShowToken(!showToken)}
+  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+  title={showToken ? "Hide token" : "Show token"}
+>
+  {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+</button>
               </div>
             </div>
             <div>

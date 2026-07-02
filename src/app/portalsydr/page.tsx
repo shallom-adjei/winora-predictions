@@ -553,53 +553,6 @@ const handleGenerateAll = async () => {
           <div />
         </div>
 
-        {/* Buttons */}
-        <div className="flex justify-end gap-2">
-          <Button onClick={handleUpdateMatches} disabled={updating} variant="outline" className="text-sm">
-            {updating ? "Updating..." : "Update Matches & Stats"}
-          </Button>
-          <Button onClick={handleEnrich} disabled={enriching} variant="outline" className="text-sm">
-            {enriching ? "Enriching..." : "Enrich Stats"}
-          </Button>
-          <Button onClick={async () => {
-  try {
-    const res = await fetch("/api/update-crests", { method: "POST" });
-    const data = await res.json();
-    toast.success(data.message || "Crests updated");
-  } catch { toast.error("Crest update failed"); }
-}} variant="outline" className="text-sm">
-  Update Crests
-</Button>
-          <Button onClick={handleGenerateAll} disabled={generatingId !== null} className="text-sm">
-            {generatingId ? "Generating..." : "Generate All Predictions"}
-          </Button>
-          <Button onClick={() => setShowForm(!showForm)} className="bg-gold-400 text-black">
-            {showForm ? "Cancel" : "Add New Prediction"}
-          </Button>
-          <Button
-  onClick={async () => {
-    try {
-      const res = await fetch("/api/telegram/post", {
-        method: "POST",
-        credentials: "include",
-      });
-      const data = await res.json();
-      if (data.success) {
-        toast.success(`Posted to Telegram (${data.picks} picks)`);
-      } else {
-        toast.error(data.error || "Failed to post");
-      }
-    } catch {
-      toast.error("Network error");
-    }
-  }}
-  variant="outline"
-  className="text-sm"
->
-  Post to Telegram
-</Button>
-        </div>
-
         {showForm && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="rounded-[20px] bg-[#0D0D0D] border border-white/5 p-6 mb-6">
             <form onSubmit={handleAddPick} className="grid grid-cols-2 md:grid-cols-4 gap-4">
