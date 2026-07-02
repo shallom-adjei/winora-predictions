@@ -553,7 +553,7 @@ fetch("/api/get-predictions?t=" + Date.now(), { cache: "no-store" })
               <div className="flex items-center gap-4">
                 {/* Telegram */}
                 <a
-                  href="https://https://t.me/WinoraTips"
+                  href="https://t.me/WinoraTips"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-gray-500 hover:text-[#26A5E4] transition-colors"
