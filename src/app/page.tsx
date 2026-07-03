@@ -566,7 +566,7 @@ fetch("/api/get-predictions?t=" + Date.now(), { cache: "no-store" })
 
                 {/* Instagram */}
                 <a
-                  href="https://instagram.com/YourInstagram"
+                  href="https://instagram.com/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-gray-500 hover:text-[#E4405F] transition-colors"
@@ -579,7 +579,7 @@ fetch("/api/get-predictions?t=" + Date.now(), { cache: "no-store" })
 
                 {/* Twitter/X */}
                 <a
-                  href="https://twitter.com/YourTwitter"
+                  href="https://twitter.com/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-gray-500 hover:text-[#1DA1F2] transition-colors"
@@ -592,7 +592,7 @@ fetch("/api/get-predictions?t=" + Date.now(), { cache: "no-store" })
 
                 {/* YouTube */}
                 <a
-                  href="https://youtube.com/@YourYouTube"
+                  href="https://youtube.com/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-gray-500 hover:text-[#FF0000] transition-colors"
