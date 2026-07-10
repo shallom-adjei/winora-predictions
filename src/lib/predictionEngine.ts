@@ -179,6 +179,21 @@ export function computePrediction(match: any): PredictionScores {
     expectedAway = Math.max(expectedAway, 0.3);
   }
 
+  // ---------- Form-momentum boost ----------
+  const homeFormPoints = Number(match.form_points_a) || 0;
+  const awayFormPoints = Number(match.form_points_b) || 0;
+  const formGap = homeFormPoints - awayFormPoints;
+
+  if (formGap >= 5) {
+    // Home team in much better recent form – boost their xG by 8%
+    expectedHome *= 1.08;
+    expectedAway *= 0.92;
+  } else if (formGap <= -5) {
+    // Away team in much better recent form
+    expectedHome *= 0.92;
+    expectedAway *= 1.08;
+  }
+
   // ---------- 10. Poisson simulation (unchanged) ----------
   const maxGoals = 6;
   const probHomeGoals = Array.from({ length: maxGoals + 1 }, (_, k) =>
