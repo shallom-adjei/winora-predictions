@@ -107,6 +107,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
+        // Skip FIFA rank validation if the match is a club game (uses opponentLeaguePosition)
+    if (match.opponentLeaguePosition !== undefined) continue;
+
     if (
       match.opponentFifaRank === null ||
       match.opponentFifaRank === undefined ||

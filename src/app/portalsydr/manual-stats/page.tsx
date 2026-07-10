@@ -143,28 +143,41 @@ const fetchMatches = useCallback(async () => {
   }, [allMatches, hideWithStats]);
 
   // Regular function – fine to stay here
-  const copyPrompt = async (teamA: string, teamB: string, sport: string, id: string) => {
-    const template = await fetchPromptTemplate(sport, teamA, teamB);
+  const copyPrompt = async (teamA: string, teamB: string, sport: string, competition: string, id: string) => {
+    const template = await fetchPromptTemplate(sport, teamA, teamB, competition);
     navigator.clipboard.writeText(template);
     setCopiedId(id);
     toast.success("Prompt copied! Paste it into your AI tool.");
     setTimeout(() => setCopiedId(null), 3000);
   };
 
-  const fetchPromptTemplate = async (sport: string, teamA: string, teamB: string): Promise<string> => {
-    const key = `prompt_template_${sport.toLowerCase()}`;
+  const isClubCompetition = (sport: string, competition: string): boolean => {
+    if (sport !== "Football") return false;
+    const clubKeywords = [
+      "série", "premier", "league", "bundesliga", "la liga", "serie a",
+      "ligue", "eredivisie", "championship", "sudamericana", "libertadores",
+      "copa do brasil", "fa cup", "dfb pokal"
+    ];
+    return clubKeywords.some(keyword =>
+      competition?.toLowerCase().includes(keyword)
+    );
+  };
+
+  const fetchPromptTemplate = async (sport: string, teamA: string, teamB: string, competition: string): Promise<string> => {
     const todayStr = new Date().toISOString().split("T")[0];
+    const baseKey = isClubCompetition(sport, competition)
+      ? "prompt_template_club_football"
+      : `prompt_template_${sport.toLowerCase()}`;
     try {
       const res = await fetch("/api/admin/settings", { credentials: "include" });
       const data = await res.json();
-      if (data.settings?.[key]) {
-        return data.settings[key]
+      if (data.settings?.[baseKey]) {
+        return data.settings[baseKey]
           .replace(/\$\{teamA\}/g, teamA)
           .replace(/\$\{teamB\}/g, teamB)
           .replace(/\$\{todayStr\}/g, todayStr);
       }
     } catch {}
-    // Fallback to the original hardcoded template
     return PROMPT_TEMPLATE(teamA, teamB);
   };
 
@@ -223,7 +236,7 @@ const fetchMatches = useCallback(async () => {
                     variant="outline"
                     size="sm"
                     className="gap-2"
-                                        onClick={() => copyPrompt(match.team_a, match.team_b, match.sport, match.id)}
+                    onClick={() => copyPrompt(match.team_a, match.team_b, match.sport, match.league || match.sport, match.id)}
                   >
                     {copiedId === match.id ? (
                       <>
