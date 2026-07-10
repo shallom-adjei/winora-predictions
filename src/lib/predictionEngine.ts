@@ -134,8 +134,10 @@ export function computePrediction(match: any): PredictionScores {
     expectedHome = dcHome * dcWeight + formHome * formWeight + priorHome * priorWeight;
     expectedAway = dcAway * dcWeight + formAway * formWeight + priorAway * priorWeight;
   } else if (weightA > 0 || weightB > 0) {
-    // Form and prior with prior boost
-    const formWeight = Math.min(weightA, weightB) * (1 - priorBoost);
+    // Form and prior with prior boost – but when Elo gap is tiny, trust form more
+    const eloIsUnreliable = eloGap < 30;
+    const effectivePriorBoost = eloIsUnreliable ? 0 : priorBoost;
+    const formWeight = Math.min(weightA, weightB) * (1 - effectivePriorBoost);
     const priorWeight = 1 - formWeight;
     expectedHome = formHome * formWeight + priorHome * priorWeight;
     expectedAway = formAway * formWeight + priorAway * priorWeight;
