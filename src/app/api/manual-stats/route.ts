@@ -76,7 +76,7 @@ function isClubCompetition(competition: string | undefined): boolean {
   const clubKeywords = [
     "série", "premier", "league", "bundesliga", "la liga", "serie a",
     "ligue", "eredivisie", "championship", "sudamericana", "libertadores",
-    "copa do brasil", "fa cup", "dfb pokal", "brasileirão"
+    "copa do brasil", "fa cup", "dfb pokal", "brasileirão", "club"
   ];
   return clubKeywords.some(keyword =>
     competition.toLowerCase().includes(keyword)
