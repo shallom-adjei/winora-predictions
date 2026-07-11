@@ -71,6 +71,18 @@ function calculateStatsFromMatches(matches: any[]) {
   };
 }
 
+function isClubCompetition(competition: string | undefined): boolean {
+  if (!competition) return false;
+  const clubKeywords = [
+    "série", "premier", "league", "bundesliga", "la liga", "serie a",
+    "ligue", "eredivisie", "championship", "sudamericana", "libertadores",
+    "copa do brasil", "fa cup", "dfb pokal", "brasileirão"
+  ];
+  return clubKeywords.some(keyword =>
+    competition.toLowerCase().includes(keyword)
+  );
+}
+
 // ----- Main endpoint -----
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
@@ -100,11 +112,10 @@ export async function POST(req: NextRequest) {
       match.date >= worldCupStart &&
       match.date <= worldCupEnd &&
       match.competition &&
-      !match.competition.toLowerCase().includes("world cup")
+      !match.competition.toLowerCase().includes("world cup") &&
+      !isClubCompetition(match.competition)
     ) {
-      warnings.push(
-        `Match on ${match.date} vs ${match.opponent} is labelled "${match.competition}" but falls during World Cup window.`
-      );
+      warnings.push(`Match on ${match.date} vs ${match.opponent} is labelled "${match.competition}" but falls during World Cup window.`);
     }
 
         // Skip FIFA rank validation if the match is a club game (uses opponentLeaguePosition)
