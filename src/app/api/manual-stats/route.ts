@@ -118,20 +118,20 @@ export async function POST(req: NextRequest) {
       warnings.push(`Match on ${match.date} vs ${match.opponent} is labelled "${match.competition}" but falls during World Cup window.`);
     }
 
-        // Skip FIFA rank validation if the match is a club game (uses opponentLeaguePosition)
-    if (match.opponentLeaguePosition !== undefined) continue;
-
-    if (
-      match.opponentFifaRank === null ||
-      match.opponentFifaRank === undefined ||
-      match.opponentFifaRank === 0 ||
-      match.opponentFifaRank > 210
-    ) {
-      warnings.push(
-        `Missing or invalid opponentFifaRank for match vs ${match.opponent} on ${match.date}.`
-      );
+    // Opponent ranking check – skip for club matches
+    if (!isClubCompetition(match.competition) && match.opponentLeaguePosition === undefined) {
+      if (
+        match.opponentFifaRank === null ||
+        match.opponentFifaRank === undefined ||
+        match.opponentFifaRank === 0 ||
+        match.opponentFifaRank > 210
+      ) {
+        warnings.push(
+          `Missing or invalid opponentFifaRank for match vs ${match.opponent} on ${match.date}.`
+        );
+      }
     }
-  }
+  } // ← closes the for loop
 
   matchesA = (matchesA || []).filter((m: any) => m.date < todayStr);
   matchesB = (matchesB || []).filter((m: any) => m.date < todayStr);
