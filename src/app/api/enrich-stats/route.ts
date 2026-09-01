@@ -274,10 +274,8 @@ export async function POST(req: NextRequest) {
       await supabase.from("predictions").update(update).eq("id", match.id);
       enriched++;
       await new Promise(r => setTimeout(r, 6000));
-    } catch (err) {
+    }  catch (err) {
       console.error("Enrichment error for", match.match_name, err);
-      // Still mark as processed to avoid endless loop
-      await supabase.from("predictions").update({ form_points_a: 0, form_points_b: 0 }).eq("id", match.id);
     }
   }
 
