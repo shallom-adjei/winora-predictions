@@ -58,7 +58,9 @@ async function getStatsFromTheSportsDB(teamName: string) {
       normalised.split(" ")[0],
       cleaned.replace(/^(the|los|le|el|il|la|cf|sc|fc|afc|ss|rc|ac|ca)\s+/i, ""),
     ];
-    const uniqueQueries = [...new Set(searchQueries.map(q => q.trim()))];
+        const uniqueQueries = searchQueries
+      .map(q => q.trim())
+      .filter((q, i, arr) => q.length > 0 && arr.indexOf(q) === i);
 
     let team: any = null;
     for (const query of uniqueQueries) {
