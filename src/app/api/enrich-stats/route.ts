@@ -16,6 +16,25 @@ function normaliseTeamName(name: string): string {
   return map[name] || name;
 }
 
+function cleanTeamName(name: string): string {
+  const cleaned = name
+    .replace(/\bFC\b/gi, "")
+    .replace(/\bAFC\b/gi, "")
+    .replace(/\bCF\b/gi, "")
+    .replace(/\bSC\b/gi, "")
+    .replace(/\bAC\b/gi, "")
+    .replace(/\bAS\b/gi, "")
+    .replace(/\bCD\b/gi, "")
+    .replace(/\bCA\b/gi, "")
+    .replace(/\bRC\b/gi, "")
+    .replace(/\bSS\b/gi, "")
+    .replace(/\bUS\b/gi, "")
+    .replace(/\bDFB\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return cleaned;
+}
+
 // Helper to compute the current season string for TheSportsDB
 function currentSeason(): string {
   const now = new Date();
@@ -28,24 +47,38 @@ function currentSeason(): string {
 
 async function getStatsFromTheSportsDB(teamName: string) {
   try {
-    const normalised = normaliseTeamName(teamName);
-    let res = await fetch(
-      `https://www.thesportsdb.com/api/v1/json/3/searchteams.php?t=${encodeURIComponent(normalised)}`
-    );
-    if (!res.ok) return null;
-    let data = await res.json();
-    let team = data.teams?.[0];
+        const normalised = normaliseTeamName(teamName);
+    const cleaned = cleanTeamName(normalised);
 
-    if (!team) {
-      const firstWord = normalised.split(" ")[0];
-      res = await fetch(
-        `https://www.thesportsdb.com/api/v1/json/3/searchteams.php?t=${encodeURIComponent(firstWord)}`
+    // Try different search queries: original, cleaned, first word, and common variations
+    const searchQueries = [
+      normalised,
+      cleaned,
+      cleaned.split(" ")[0],
+      normalised.split(" ")[0],
+      cleaned.replace(/^(the|los|le|el|il|la|cf|sc|fc|afc|ss|rc|ac|ca)\s+/i, ""),
+    ];
+    const uniqueQueries = [...new Set(searchQueries.map(q => q.trim()))];
+
+    let team: any = null;
+    for (const query of uniqueQueries) {
+      if (!query) continue;
+      const res = await fetch(
+        `https://www.thesportsdb.com/api/v1/json/3/searchteams.php?t=${encodeURIComponent(query)}`
       );
-      if (!res.ok) return null;
-      data = await res.json();
-      team = data.teams?.find((t: any) =>
-        t.strTeam.toLowerCase().includes(normalised.toLowerCase())
-      );
+      if (!res.ok) continue;
+      const data = await res.json();
+      const candidates = data.teams || [];
+      if (candidates.length > 0) {
+        // Score candidates by similarity to original name
+        const originalLower = normalised.toLowerCase();
+        team = candidates.find((t: any) =>
+          t.strTeam.toLowerCase() === originalLower ||
+          t.strTeam.toLowerCase().includes(originalLower.split(" ")[0]) ||
+          cleanTeamName(t.strTeam).toLowerCase() === cleaned.toLowerCase()
+        ) || candidates[0];
+        break;
+      }
     }
 
     if (!team?.idTeam) return null;
