@@ -16,8 +16,12 @@ function normaliseTeamName(name: string): string {
   return map[name] || name;
 }
 
+function removeDiacritics(str: string): string {
+  return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
 function cleanTeamName(name: string): string {
-  const cleaned = name
+  return removeDiacritics(name)
     .replace(/\bFC\b/gi, "")
     .replace(/\bAFC\b/gi, "")
     .replace(/\bCF\b/gi, "")
@@ -29,10 +33,21 @@ function cleanTeamName(name: string): string {
     .replace(/\bRC\b/gi, "")
     .replace(/\bSS\b/gi, "")
     .replace(/\bUS\b/gi, "")
-    .replace(/\bDFB\b/gi, "")
+    .replace(/\bClub\b/gi, "")
+    .replace(/\bDe\b/gi, "")
+    .replace(/\bDel\b/gi, "")
+    .replace(/\bLa\b/gi, "")
+    .replace(/\bEl\b/gi, "")
+    .replace(/\bLos\b/gi, "")
+    .replace(/\bLe\b/gi, "")
+    .replace(/\bIl\b/gi, "")
+    .replace(/\bDella\b/gi, "")
+    .replace(/\bDas\b/gi, "")
+    .replace(/\bDos\b/gi, "")
+    .replace(/\bDa\b/gi, "")
+    .replace(/\bDo\b/gi, "")
     .replace(/\s+/g, " ")
     .trim();
-  return cleaned;
 }
 
 // Helper to compute the current season string for TheSportsDB
@@ -47,39 +62,38 @@ function currentSeason(): string {
 
 async function getStatsFromTheSportsDB(teamName: string) {
   try {
-        const normalised = normaliseTeamName(teamName);
+          const normalised = normaliseTeamName(teamName);
     const cleaned = cleanTeamName(normalised);
 
-    // Try different search queries: original, cleaned, first word, and common variations
-    const searchQueries = [
-      normalised,
+    // Build several possible queries, from most complete to most generic
+    const queries = [
       cleaned,
-      cleaned.split(" ")[0],
-      normalised.split(" ")[0],
+      normalised,
+      cleaned.split(" ").slice(0, 2).join(" "),          // first two words
+      cleaned.split(" ")[0],                              // just city/first name
       cleaned.replace(/^(the|los|le|el|il|la|cf|sc|fc|afc|ss|rc|ac|ca)\s+/i, ""),
     ];
-        const uniqueQueries = searchQueries
+
+    const uniqueQueries = queries
       .map(q => q.trim())
       .filter((q, i, arr) => q.length > 0 && arr.indexOf(q) === i);
 
     let team: any = null;
-    for (const query of uniqueQueries) {
-      if (!query) continue;
-      const res = await fetch(
-        `https://www.thesportsdb.com/api/v1/json/3/searchteams.php?t=${encodeURIComponent(query)}`
-      );
-      if (!res.ok) continue;
-      const data = await res.json();
-      const candidates = data.teams || [];
-      if (candidates.length > 0) {
-        // Score candidates by similarity to original name
-        const originalLower = normalised.toLowerCase();
-        team = candidates.find((t: any) =>
-          t.strTeam.toLowerCase() === originalLower ||
-          t.strTeam.toLowerCase().includes(originalLower.split(" ")[0]) ||
-          cleanTeamName(t.strTeam).toLowerCase() === cleaned.toLowerCase()
-        ) || candidates[0];
-        break;
+
+    for (const q of uniqueQueries) {
+      try {
+        const res = await fetch(
+          `https://www.thesportsdb.com/api/v1/json/3/searchteams.php?t=${encodeURIComponent(q)}`
+        );
+        if (!res.ok) continue;
+        const data = await res.json();
+        const candidates = data.teams || [];
+        if (candidates.length > 0) {
+          team = candidates[0];
+          break;
+        }
+      } catch {
+        // ignore and try next query
       }
     }
 
