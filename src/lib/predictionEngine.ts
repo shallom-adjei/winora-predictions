@@ -72,6 +72,9 @@ export function computePrediction(match: any): PredictionScores {
   const eloDiff = eloA - eloB;
 
   const homeAdvantage  = getHomeAdvantage(match.league, match.competition_id);
+  const matchesUsedTotal =
+    (Number(match.matches_used_a) || 0) + (Number(match.matches_used_b) || 0);
+  const effectiveHomeAdvantage = matchesUsedTotal <= 4 ? 1.05 : homeAdvantage;
   const leagueAvgGoals = getLeagueAvgGoals(match.league, match.competition_id);
 
   // Elo-based expected goal ratio (how much stronger the home team is)
@@ -81,7 +84,7 @@ export function computePrediction(match: any): PredictionScores {
   // Prior expected goals – normalised so total equals leagueAvgGoals
   const homeShare = 1 / (1 + Math.pow(10, -eloDiff / 400)); // identical to eloFactorA
   const totalPrior = leagueAvgGoals;
-  const priorHome = totalPrior * homeShare * (homeAdvantage / (homeAdvantage + (2 - homeAdvantage)) * 2);
+  const priorHome = totalPrior * homeShare * (effectiveHomeAdvantage / (effectiveHomeAdvantage + (2 - effectiveHomeAdvantage)) * 2);
   const priorAway = totalPrior - priorHome;
 
   // ---------- 2. Actual stats (if available) ----------
@@ -97,8 +100,8 @@ export function computePrediction(match: any): PredictionScores {
   const weightB = Math.min(1, matchesUsedB / 10);
 
   // Form-based expected goals
-  let formHome = (homeScored * 0.6 + awayConceded * 0.4) * homeAdvantage;
-  let formAway = (awayScored * 0.6 + homeConceded * 0.4) * (2 - homeAdvantage);
+  let formHome = (homeScored * 0.6 + awayConceded * 0.4) * effectiveHomeAdvantage;
+  let formAway = (awayScored * 0.6 + homeConceded * 0.4) * (2 - effectiveHomeAdvantage);
 
   // ---------- 3. Dixon‑Coles parameters (if available) ----------
   const rawAttA = Number(match.att_a);
@@ -114,8 +117,8 @@ export function computePrediction(match: any): PredictionScores {
     const defA = clamp(rawDefA);
     const attB = clamp(rawAttB);
     const defB = clamp(rawDefB);
-    dcHome = attA * defB * leagueAvgGoals * homeAdvantage;
-    dcAway = attB * defA * leagueAvgGoals * (2 - homeAdvantage);
+       dcHome = attA * defB * leagueAvgGoals * effectiveHomeAdvantage;
+    dcAway = attB * defA * leagueAvgGoals * (2 - effectiveHomeAdvantage);
   }
 
   // ---------- 4. Combine sources with Bayesian blending ----------
@@ -230,6 +233,13 @@ export function computePrediction(match: any): PredictionScores {
   under25 = cap(Math.round(under25 * 100));
   btts = cap(Math.round(rawBtts * 100));
   const bttsNo = cap(Math.round((1 - rawBtts) * 100));
+
+    const totalProb = homeWin + draw + awayWin;
+  if (totalProb <= 0) {
+    homeWin = 34;
+    draw = 33;
+    awayWin = 33;
+  }
 
   return {
     "Home Win": homeWin,
