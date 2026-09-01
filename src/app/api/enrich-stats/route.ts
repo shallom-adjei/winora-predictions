@@ -16,6 +16,16 @@ function normaliseTeamName(name: string): string {
   return map[name] || name;
 }
 
+// Helper to compute the current season string for TheSportsDB
+function currentSeason(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1; // 1‑12
+  // Most European seasons start in July/August
+  const startYear = month >= 7 ? year : year - 1;
+  return `${startYear}-${startYear + 1}`;
+}
+
 async function getStatsFromTheSportsDB(teamName: string) {
   try {
     const normalised = normaliseTeamName(teamName);
@@ -40,15 +50,47 @@ async function getStatsFromTheSportsDB(teamName: string) {
 
     if (!team?.idTeam) return null;
 
-    const eventsRes = await fetch(
+    // 1) Get last 5 events
+    const lastRes = await fetch(
       `https://www.thesportsdb.com/api/v1/json/3/eventslast.php?id=${team.idTeam}`
     );
-    if (!eventsRes.ok) return null;
-    const eventsData = await eventsRes.json();
-    const results = eventsData.results || [];
-    if (results.length === 0) return null;
+    let allResults: any[] = [];
+    if (lastRes.ok) {
+      const lastData = await lastRes.json();
+      allResults = lastData.results || [];
+    }
 
-    const recent = results.slice(0, 10);
+    // 2) If we don't have 10 finished matches yet, fetch the current season
+    if (allResults.length < 10) {
+      const season = currentSeason();
+      const seasonRes = await fetch(
+        `https://www.thesportsdb.com/api/v1/json/3/eventsseason.php?id=${team.idTeam}&s=${season}`
+      );
+      if (seasonRes.ok) {
+        const seasonData = await seasonRes.json();
+        const seasonEvents = seasonData.events || [];
+        // Merge and deduplicate by idEvent
+        const seen = new Set(allResults.map((e: any) => e.idEvent));
+        for (const event of seasonEvents) {
+          if (!seen.has(event.idEvent)) {
+            allResults.push(event);
+            seen.add(event.idEvent);
+          }
+        }
+      }
+    }
+
+    // Keep only finished matches with valid scores, sort by date descending, and take first 10
+    const finished = allResults
+      .filter((e: any) => {
+        const homeScore = parseInt(e.intHomeScore);
+        const awayScore = parseInt(e.intAwayScore);
+        return !isNaN(homeScore) && !isNaN(awayScore) && e.dateEvent;
+      })
+      .sort((a: any, b: any) => b.dateEvent.localeCompare(a.dateEvent));
+
+    const recent = finished.slice(0, 10);
+    if (recent.length === 0) return null;
 
     // Build raw match data for Dixon‑Coles
     const rawMatches = recent.map((match: any) => {
@@ -59,13 +101,13 @@ async function getStatsFromTheSportsDB(teamName: string) {
       const goalsAgainst = isHome
         ? parseInt(match.intAwayScore) || 0
         : parseInt(match.intHomeScore) || 0;
-       return { goalsFor, goalsAgainst, home: isHome };
+      return { goalsFor, goalsAgainst, home: isHome };
     });
 
     return {
       stats: calculateStats(recent, team.idTeam),
       matchCount: recent.length,
-      rawMatches,  // <-- now we can compute Dixon‑Coles
+      rawMatches,
     };
   } catch {
     return null;
