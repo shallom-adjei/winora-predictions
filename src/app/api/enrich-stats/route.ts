@@ -50,13 +50,14 @@ function cleanTeamName(name: string): string {
     .trim();
 }
 
-// Helper to compute the current season string for TheSportsDB
-function currentSeason(): string {
+
+function seasonString(offset: number = 0): string {
   const now = new Date();
   const year = now.getFullYear();
-  const month = now.getMonth() + 1; // 1‑12
-  // Most European seasons start in July/August
-  const startYear = month >= 7 ? year : year - 1;
+  const month = now.getMonth() + 1; // 1 = Jan, 12 = Dec
+  // Most European club seasons start in July/August
+  const baseStartYear = month >= 7 ? year : year - 1;
+  const startYear = baseStartYear + offset;
   return `${startYear}-${startYear + 1}`;
 }
 
@@ -134,24 +135,35 @@ async function getStatsFromTheSportsDB(teamName: string, leagueHint?: string) {
       allResults = lastData.results || [];
     }
 
-    // 2) If we don't have 10 finished matches yet, fetch the current season
-    if (allResults.length < 10) {
-      const season = currentSeason();
-      const seasonRes = await fetch(
-        `https://www.thesportsdb.com/api/v1/json/3/eventsseason.php?id=${team.idTeam}&s=${season}`
-      );
-      if (seasonRes.ok) {
+    // 2) Fetch additional matches from current + previous seasons
+    const seasonsToTry = [0, -1, -2]; 
+
+    for (const offset of seasonsToTry) {
+      if (allResults.length >= 15) break;
+
+      const season = seasonString(offset);
+      try {
+        const seasonRes = await fetch(
+          `https://www.thesportsdb.com/api/v1/json/3/eventsseason.php?id=${team.idTeam}&s=${season}`
+        );
+        if (!seasonRes.ok) continue;
+
         const seasonData = await seasonRes.json();
         const seasonEvents = seasonData.events || [];
-        // Merge and deduplicate by idEvent
         const seen = new Set(allResults.map((e: any) => e.idEvent));
+
         for (const event of seasonEvents) {
-          if (!seen.has(event.idEvent)) {
+          if (event.idEvent && !seen.has(event.idEvent)) {
             allResults.push(event);
             seen.add(event.idEvent);
           }
         }
+      } catch (err) {
+        console.log(`[enrich] season fetch failed for "${teamName}" (${season})`, err);
       }
+
+      // Small delay between season fetches to respect rate limits
+      await new Promise(r => setTimeout(r, 500));
     }
 
     // Keep only finished matches with valid scores, sort by date descending, and take first 10
