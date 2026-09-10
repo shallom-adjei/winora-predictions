@@ -251,6 +251,8 @@ export async function POST(req: NextRequest) {
     .from("predictions")
     .select("*")
     .is("form_points_a", null)
+    .lt("enrichment_attempts", 3)
+    .order("enrichment_attempts", { ascending: true })
     .limit(10);
 
   if (!matches || matches.length === 0) {
@@ -313,6 +315,7 @@ export async function POST(req: NextRequest) {
       }
 
       await supabase.from("predictions").update(update).eq("id", match.id);
+            update.enrichment_attempts = (match.enrichment_attempts || 0) + 1;
       enriched++;
       await new Promise(r => setTimeout(r, 6000));
     }  catch (err) {
