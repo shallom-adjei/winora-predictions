@@ -250,7 +250,7 @@ export async function POST(req: NextRequest) {
   const { data: matches } = await supabase
     .from("predictions")
     .select("*")
-    .is("form_points_a", null)
+    .or("form_points_a.is.null,form_points_b.is.null")
     .lt("enrichment_attempts", 3)
     .order("enrichment_attempts", { ascending: true })
     .limit(10);
