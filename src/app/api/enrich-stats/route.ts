@@ -60,7 +60,7 @@ function currentSeason(): string {
   return `${startYear}-${startYear + 1}`;
 }
 
-async function getStatsFromTheSportsDB(teamName: string) {
+async function getStatsFromTheSportsDB(teamName: string, leagueHint?: string) {
   try {
           const normalised = normaliseTeamName(teamName);
     const cleaned = cleanTeamName(normalised);
@@ -85,19 +85,44 @@ async function getStatsFromTheSportsDB(teamName: string) {
         const res = await fetch(
           `https://www.thesportsdb.com/api/v1/json/3/searchteams.php?t=${encodeURIComponent(q)}`
         );
-        if (!res.ok) continue;
-        const data = await res.json();
-        const candidates = data.teams || [];
-        if (candidates.length > 0) {
-          team = candidates[0];
-          break;
+        if (!res.ok) {
+          console.log(`[enrich] search failed ${res.status} for "${q}"`);
+          continue;
         }
-      } catch {
-        // ignore and try next query
+        const data = await res.json();
+        const candidates: any[] = data.teams || [];
+        if (candidates.length === 0) continue;
+
+        // Try to match by league hint (e.g. "Premier League", "La Liga")
+        if (leagueHint) {
+          const hint = leagueHint.toLowerCase();
+          const matched = candidates.find((t) =>
+            t.strLeague?.toLowerCase().includes(hint) ||
+            hint.includes(t.strLeague?.toLowerCase() || "____")
+          );
+          if (matched) {
+            team = matched;
+            break;
+          }
+        }
+
+        // Otherwise prefer English/Soccer teams with a valid idTeam
+        const soccerTeam = candidates.find(
+          (t) => t.strSport === "Soccer" && t.idTeam
+        );
+        team = soccerTeam || candidates[0];
+        break;
+      } catch (err) {
+        console.log(`[enrich] search error for "${q}"`, err);
       }
     }
 
-    if (!team?.idTeam) return null;
+       if (!team?.idTeam) {
+      console.log(
+        `[enrich] no team match for "${teamName}" (league: ${leagueHint || "n/a"})`
+      );
+      return null;
+    }
 
     // 1) Get last 5 events
     const lastRes = await fetch(
@@ -139,7 +164,12 @@ async function getStatsFromTheSportsDB(teamName: string) {
       .sort((a: any, b: any) => b.dateEvent.localeCompare(a.dateEvent));
 
     const recent = finished.slice(0, 10);
-    if (recent.length === 0) return null;
+       if (recent.length === 0) {
+      console.log(
+        `[enrich] no finished matches for "${teamName}" (team ${team.idTeam})`
+      );
+      return null;
+    }
 
     // Build raw match data for Dixon‑Coles
     const rawMatches = recent.map((match: any) => {
@@ -233,8 +263,9 @@ export async function POST(req: NextRequest) {
     try {
       const update: any = {};
 
-      // Team A
-      const tsdbA = await getStatsFromTheSportsDB(match.team_a);
+          // Team A
+      const leagueHint = match.league || undefined;
+      const tsdbA = await getStatsFromTheSportsDB(match.team_a, leagueHint);
       if (tsdbA) {
         update.form_points_a = tsdbA.stats.form_points;
         update.home_goals_scored = tsdbA.stats.home_goals_scored;
@@ -244,13 +275,11 @@ export async function POST(req: NextRequest) {
         update.over25_last5_pct_a = tsdbA.stats.over25_last5_pct;
         update.btts_last5_pct_a = tsdbA.stats.btts_last5_pct;
         update.matches_used_a = tsdbA.matchCount;
-      } else {
-        update.form_points_a = 0;
-        update.matches_used_a = 0;
+            } else {
       }
 
-      // Team B
-      const tsdbB = await getStatsFromTheSportsDB(match.team_b);
+            // Team B
+      const tsdbB = await getStatsFromTheSportsDB(match.team_b, leagueHint);
       if (tsdbB) {
         update.form_points_b = tsdbB.stats.form_points;
         update.away_goals_scored = tsdbB.stats.away_goals_scored;
@@ -260,9 +289,7 @@ export async function POST(req: NextRequest) {
         update.over25_last5_pct_b = tsdbB.stats.over25_last5_pct;
         update.btts_last5_pct_b = tsdbB.stats.btts_last5_pct;
         update.matches_used_b = tsdbB.matchCount;
-      } else {
-        update.form_points_b = 0;
-        update.matches_used_b = 0;
+           } else {
       }
 
       // ----- Compute Dixon‑Coles if we have raw match data for both teams -----
