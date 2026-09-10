@@ -73,17 +73,25 @@ export function computePrediction(match: any): PredictionScores {
     return Math.max(1400, Math.min(2000, 2000 - (pos - 1) * 32));
   };
 
+  const formToElo = (formPoints: number): number => {
+    return 1500 + (formPoints - 15) * 20;
+  };
+
   const eloA = match.elo_a != null
     ? Number(match.elo_a)
     : (match.league_position_a != null
         ? leaguePositionToElo(Number(match.league_position_a))
-        : 1500);
+        : (match.form_points_a != null
+            ? formToElo(Number(match.form_points_a))
+            : 1500));
 
   const eloB = match.elo_b != null
     ? Number(match.elo_b)
     : (match.league_position_b != null
         ? leaguePositionToElo(Number(match.league_position_b))
-        : 1500);
+        : (match.form_points_b != null
+            ? formToElo(Number(match.form_points_b))
+            : 1500));
 
   const eloDiff = eloA - eloB;
 
