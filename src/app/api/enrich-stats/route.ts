@@ -173,7 +173,7 @@ async function getStatsFromTheSportsDB(teamName: string, leagueHint?: string) {
 
     // Build raw match data for Dixon‑Coles
     const rawMatches = recent.map((match: any) => {
-      const isHome = match.idHomeTeam === team.idTeam;
+     const isHome = String(match.idHomeTeam) === String(team.idTeam);
       const goalsFor = isHome
         ? parseInt(match.intHomeScore) || 0
         : parseInt(match.intAwayScore) || 0;
@@ -201,7 +201,7 @@ function calculateStats(results: any[], teamId: string) {
   let over25Count = 0, bttsCount = 0;
 
   for (const match of results) {
-    const isHome = match.idHomeTeam === teamId;
+  const isHome = String(match.idHomeTeam) === String(teamId);
     const homeScore = parseInt(match.intHomeScore) || 0;
     const awayScore = parseInt(match.intAwayScore) || 0;
 
