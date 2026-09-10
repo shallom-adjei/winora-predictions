@@ -228,35 +228,50 @@ if (homeFormPoints != null && awayFormPoints != null) {
     }
   }
 
-  const cap = (v: number) => Math.min(v, 95);
-  const rawBtts = btts;
-  homeWin = cap(Math.round(homeWin * 100));
-  draw = cap(Math.round(draw * 100));
-  awayWin = cap(Math.round(awayWin * 100));
-  over15 = cap(Math.round(over15 * 100));
-  over25 = cap(Math.round(over25 * 100));
-  under25 = cap(Math.round(under25 * 100));
-  btts = cap(Math.round(rawBtts * 100));
-  const bttsNo = cap(Math.round((1 - rawBtts) * 100));
-
-    const totalProb = homeWin + draw + awayWin;
-  if (totalProb <= 0) {
+  // ---------- Normalise raw probabilities ----------
+  // The Poisson+DC loop can leave 1X2 slightly off 100%. Normalise before rounding.
+  const raw1x2Total = homeWin + draw + awayWin;
+  if (raw1x2Total <= 0) {
+    // Safety net: even split if something went wrong
     homeWin = 34;
     draw = 33;
     awayWin = 33;
+  } else {
+    homeWin = (homeWin / raw1x2Total) * 100;
+    draw    = (draw    / raw1x2Total) * 100;
+    awayWin = (awayWin / raw1x2Total) * 100;
   }
 
+  // BTTS pair normalisation (they should already sum to 100, but be safe)
+  const rawBttsTotal = btts + (1 - btts);
+  if (rawBttsTotal <= 0) btts = 0.5;
+
+  // Now round once, cap, and compute double chances from the raw unrounded values
+  const cap = (v: number) => Math.min(v, 95);
+
+  const raw1X = homeWin + draw;
+  const rawX2 = awayWin + draw;
+
+  const homeWinRounded = cap(Math.round(homeWin));
+  const drawRounded    = cap(Math.round(draw));
+  const awayWinRounded = cap(Math.round(awayWin));
+  const over15Rounded  = cap(Math.round(over15 * 100));
+  const over25Rounded  = cap(Math.round(over25 * 100));
+  const under25Rounded = cap(Math.round(under25 * 100));
+  const bttsRounded    = cap(Math.round(btts * 100));
+  const bttsNoRounded  = cap(Math.round((1 - btts) * 100));
+
   return {
-    "Home Win": homeWin,
-    "Draw": draw,
-    "Away Win": awayWin,
-    "1X": cap(Math.round(homeWin + draw)),
-    "X2": cap(Math.round(awayWin + draw)),
-    "Over 1.5 Goals": over15,
-    "Over 2.5 Goals": over25,
-    "Under 2.5 Goals": under25,
-    "Both Teams to Score": btts,
-    "BTTS No": bttsNo,
+    "Home Win": homeWinRounded,
+    "Draw": drawRounded,
+    "Away Win": awayWinRounded,
+    "1X": cap(Math.round(raw1X)),
+    "X2": cap(Math.round(rawX2)),
+    "Over 1.5 Goals": over15Rounded,
+    "Over 2.5 Goals": over25Rounded,
+    "Under 2.5 Goals": under25Rounded,
+    "Both Teams to Score": bttsRounded,
+    "BTTS No": bttsNoRounded,
     expectedHomeGoals: Math.round(expectedHome),
     expectedAwayGoals: Math.round(expectedAway),
     rawExpectedHome: expectedHome,
