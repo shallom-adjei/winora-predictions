@@ -253,8 +253,8 @@ export async function POST(req: NextRequest) {
       const tsdbB = await getStatsFromTheSportsDB(match.team_b);
       if (tsdbB) {
         update.form_points_b = tsdbB.stats.form_points;
-        update.away_goals_scored = tsdbB.stats.home_goals_scored;
-        update.away_goals_conceded = tsdbB.stats.home_goals_conceded;
+        update.away_goals_scored = tsdbB.stats.away_goals_scored;
+        update.away_goals_conceded = tsdbB.stats.away_goals_conceded;
         update.clean_sheets_last5_b = tsdbB.stats.clean_sheets_last5;
         update.failed_to_score_last5_b = tsdbB.stats.failed_to_score_last5;
         update.over25_last5_pct_b = tsdbB.stats.over25_last5_pct;
