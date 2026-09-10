@@ -41,7 +41,7 @@ function getHomeAdvantage(league: string | null, competitionId: number | null): 
 }
 
 function getLeagueAvgGoals(league: string | null, competitionId: number | null): number {
-  if (competitionId === 2000) return 2.60;
+  if (competitionId === 2000) return 2.70;
   if (!league) return LEAGUE_AVG_GOALS["default"];
   return LEAGUE_AVG_GOALS[league] ?? LEAGUE_AVG_GOALS["default"];
 }
@@ -100,8 +100,8 @@ export function computePrediction(match: any): PredictionScores {
   const weightB = Math.min(1, matchesUsedB / 10);
 
   // Form-based expected goals
-  let formHome = (homeScored * 0.6 + awayConceded * 0.4) * effectiveHomeAdvantage;
-  let formAway = (awayScored * 0.6 + homeConceded * 0.4) * (2 - effectiveHomeAdvantage);
+let formHome = homeScored * 0.6 + awayConceded * 0.4;
+let formAway = awayScored * 0.6 + homeConceded * 0.4;
 
   // ---------- 3. Dixon‑Coles parameters (if available) ----------
   const rawAttA = Number(match.att_a);
@@ -109,16 +109,22 @@ export function computePrediction(match: any): PredictionScores {
   const rawAttB = Number(match.att_b);
   const rawDefB = Number(match.def_b);
 
+  const rawAttHomeA = Number(match.att_home_a);
+  const rawDefHomeA = Number(match.def_home_a);
+  const rawAttAwayB = Number(match.att_away_b);
+  const rawDefAwayB = Number(match.def_away_b);
+
   let dcHome: number | null = null;
   let dcAway: number | null = null;
 
-  if (rawAttA && rawDefA && rawAttB && rawDefB) {
-    const attA = clamp(rawAttA);
-    const defA = clamp(rawDefA);
-    const attB = clamp(rawAttB);
-    const defB = clamp(rawDefB);
-       dcHome = attA * defB * leagueAvgGoals * effectiveHomeAdvantage;
-    dcAway = attB * defA * leagueAvgGoals * (2 - effectiveHomeAdvantage);
+  if (rawAttHomeA && rawDefHomeA && rawAttAwayB && rawDefAwayB) {
+    // venue-specific DC (preferred)
+    dcHome = clamp(rawAttHomeA) * clamp(rawDefAwayB) * leagueAvgGoals;
+    dcAway = clamp(rawAttAwayB) * clamp(rawDefHomeA) * leagueAvgGoals;
+  } else if (rawAttA && rawDefA && rawAttB && rawDefB) {
+    // overall DC fallback
+    dcHome = clamp(rawAttA) * clamp(rawDefB) * leagueAvgGoals * effectiveHomeAdvantage;
+    dcAway = clamp(rawAttB) * clamp(rawDefA) * leagueAvgGoals * (2 - effectiveHomeAdvantage);
   }
 
   // ---------- 4. Combine sources with Bayesian blending ----------
@@ -182,20 +188,19 @@ export function computePrediction(match: any): PredictionScores {
     expectedAway = Math.max(expectedAway, 0.3);
   }
 
-  // ---------- Form-momentum boost ----------
-  const homeFormPoints = Number(match.form_points_a) || 0;
-  const awayFormPoints = Number(match.form_points_b) || 0;
-  const formGap = homeFormPoints - awayFormPoints;
+const homeFormPoints = match.form_points_a != null ? Number(match.form_points_a) : null;
+const awayFormPoints = match.form_points_b != null ? Number(match.form_points_b) : null;
 
+if (homeFormPoints != null && awayFormPoints != null) {
+  const formGap = homeFormPoints - awayFormPoints;
   if (formGap >= 5) {
-    // Home team in much better recent form – boost their xG by 8%
     expectedHome *= 1.08;
     expectedAway *= 0.92;
   } else if (formGap <= -5) {
-    // Away team in much better recent form
     expectedHome *= 0.92;
     expectedAway *= 1.08;
   }
+}
 
   // ---------- 10. Poisson simulation (unchanged) ----------
   const maxGoals = 6;
@@ -312,28 +317,7 @@ export function selectConsistentScore(
   
   candidates.sort((a, b) => b.prob - a.prob);
 
-  // Take the top 3 (or fewer) most probable scores
-  const top = candidates.slice(0, 3);
-
-  // Weighted random selection – use a simple deterministic seed from the raw xG values
-  // so the same match always produces the same result.
-  const seed = Math.round((rawExpHome + rawExpAway) * 1000);
-  const pseudoRandom = ((seed * 9301 + 49297) % 233280) / 233280;
-
-  // Build cumulative weights
-  const totalProb = top.reduce((sum, s) => sum + s.prob, 0);
-  let cumulative = 0;
-  const threshold = pseudoRandom * totalProb;
-
-  for (const s of top) {
-    cumulative += s.prob;
-    if (threshold <= cumulative) {
-      return `${s.i}-${s.j}`;
-    }
-  }
-
-  // Fallback (should never reach here)
-  return `${top[0].i}-${top[0].j}`;
+return `${candidates[0].i}-${candidates[0].j}`;
 }
 
 export function calculateConfidence(
