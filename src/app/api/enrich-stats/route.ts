@@ -277,7 +277,6 @@ export async function POST(req: NextRequest) {
         update.over25_last5_pct_a = tsdbA.stats.over25_last5_pct;
         update.btts_last5_pct_a = tsdbA.stats.btts_last5_pct;
         update.matches_used_a = tsdbA.matchCount;
-            } else {
       }
 
             // Team B
@@ -291,7 +290,6 @@ export async function POST(req: NextRequest) {
         update.over25_last5_pct_b = tsdbB.stats.over25_last5_pct;
         update.btts_last5_pct_b = tsdbB.stats.btts_last5_pct;
         update.matches_used_b = tsdbB.matchCount;
-           } else {
       }
 
       // ----- Compute Dixon‑Coles if we have raw match data for both teams -----
@@ -314,8 +312,8 @@ export async function POST(req: NextRequest) {
         update.def_away_b = dcHA.defAwayB;
       }
 
+      update.enrichment_attempts = (match.enrichment_attempts || 0) + 1;
       await supabase.from("predictions").update(update).eq("id", match.id);
-            update.enrichment_attempts = (match.enrichment_attempts || 0) + 1;
       enriched++;
       await new Promise(r => setTimeout(r, 6000));
     }  catch (err) {
