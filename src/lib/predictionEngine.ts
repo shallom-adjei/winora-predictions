@@ -66,9 +66,25 @@ export interface PredictionScores {
 export function computePrediction(match: any): PredictionScores {
   const clamp = (v: number) => Math.min(2.5, Math.max(0.3, v));
 
-  // ---------- 1. Team strength from Elo ----------
-  const eloA = Number(match.elo_a) || 1500;
-  const eloB = Number(match.elo_b) || 1500;
+  // ---------- 1. Team strength from Elo (or league position fallback) ----------
+  const leaguePositionToElo = (pos: number): number => {
+    // 1st place → 2000 Elo, 20th place → 1400 Elo
+    // Clamped to a realistic range for club football
+    return Math.max(1400, Math.min(2000, 2000 - (pos - 1) * 32));
+  };
+
+  const eloA = match.elo_a != null
+    ? Number(match.elo_a)
+    : (match.league_position_a != null
+        ? leaguePositionToElo(Number(match.league_position_a))
+        : 1500);
+
+  const eloB = match.elo_b != null
+    ? Number(match.elo_b)
+    : (match.league_position_b != null
+        ? leaguePositionToElo(Number(match.league_position_b))
+        : 1500);
+
   const eloDiff = eloA - eloB;
 
   const homeAdvantage  = getHomeAdvantage(match.league, match.competition_id);
