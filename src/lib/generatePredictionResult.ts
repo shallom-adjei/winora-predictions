@@ -42,40 +42,76 @@ export interface PredictionResult {
   probAway: number;
 }
 
-// ── Core shared logic ─────────────────────────────────────────
 export async function generatePredictionResult(match: any): Promise<PredictionResult> {
-  // ── Elo lookup from team_ratings (ClubElo integration) ──
-  // If the match doesn't already have Elo values, look them up from our
-  // resolved team_ratings table. The table is populated by /api/refresh-elo,
-  // which fuzzy-matches every team name in our DB against ClubElo.
-  if (match.elo_a == null || match.elo_b == null) {
-    const { supabase } = await import("@/lib/supabase");
+  const { supabase } = await import("@/lib/supabase");
 
+  // 1. Elo lookup (existing)
+  if (match.elo_a == null || match.elo_b == null) {
     const [resA, resB] = await Promise.all([
       match.elo_a == null
-        ? supabase
-            .from("team_ratings")
-            .select("elo")
-            .eq("team_name", match.team_a)
-            .maybeSingle()
+        ? supabase.from("team_ratings").select("elo").eq("team_name", match.team_a).maybeSingle()
         : Promise.resolve({ data: null }),
       match.elo_b == null
-        ? supabase
-            .from("team_ratings")
-            .select("elo")
-            .eq("team_name", match.team_b)
+        ? supabase.from("team_ratings").select("elo").eq("team_name", match.team_b).maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
+    match.elo_a = match.elo_a ?? resA?.data?.elo ?? null;
+    match.elo_b = match.elo_b ?? resB?.data?.elo ?? null;
+  }
+
+  // 2. Standings lookup (new)
+  if (
+    match.league_position_a == null ||
+    match.league_position_b == null
+  ) {
+    const [stA, stB] = await Promise.all([
+      match.league_position_a == null && match.team_id_a && match.competition_id
+        ? supabase.from("team_standings").select("position")
+            .eq("team_id", match.team_id_a)
+            .eq("competition_id", match.competition_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+      match.league_position_b == null && match.team_id_b && match.competition_id
+        ? supabase.from("team_standings").select("position")
+            .eq("team_id", match.team_id_b)
+            .eq("competition_id", match.competition_id)
             .maybeSingle()
         : Promise.resolve({ data: null }),
     ]);
-
-    match.elo_a = match.elo_a ?? resA?.data?.elo ?? null;
-    match.elo_b = match.elo_b ?? resB?.data?.elo ?? null;
+    match.league_position_a = match.league_position_a ?? stA?.data?.position ?? null;
+    match.league_position_b = match.league_position_b ?? stB?.data?.position ?? null;
   }
 
   const dataQuality = calculateDataQuality(match);
   const scores      = computePrediction(match);
 
-  // Main pick: highest-probability 1X2 outcome
+  // 3. Odds blending (new)
+  const { data: market } = await supabase
+    .from("match_odds")
+    .select("prob_home, prob_draw, prob_away")
+    .eq("prediction_id", match.id)
+    .maybeSingle();
+
+  if (market && market.prob_home != null) {
+    const MW = 0.20; // 20% market weight
+    const marketH = Number(market.prob_home) * 100;
+    const marketD = Number(market.prob_draw) * 100;
+    const marketA = Number(market.prob_away) * 100;
+
+    const blendedH = scores["Home Win"] * (1 - MW) + marketH * MW;
+    const blendedD = scores["Draw"]     * (1 - MW) + marketD * MW;
+    const blendedA = scores["Away Win"] * (1 - MW) + marketA * MW;
+
+    // Re-normalise to exactly 100
+    const total = blendedH + blendedD + blendedA;
+    scores["Home Win"] = Math.round((blendedH / total) * 100);
+    scores["Draw"]     = Math.round((blendedD / total) * 100);
+    scores["Away Win"] = Math.round((blendedA / total) * 100);
+    scores["1X"]       = Math.min(95, scores["Home Win"] + scores["Draw"]);
+    scores["X2"]       = Math.min(95, scores["Away Win"] + scores["Draw"]);
+  }
+
+  // Everything from here down is unchanged
   const mainPick = (
     ["Home Win", "Draw", "Away Win"] as (keyof PredictionScores)[]
   ).reduce(
@@ -83,10 +119,8 @@ export async function generatePredictionResult(match: any): Promise<PredictionRe
     "Draw" as keyof PredictionScores
   );
 
-  // Model-driven consistent scoreline
   const preferOver25  = scores["Over 2.5 Goals"] > 50;
   const preferBttsYes = scores["Both Teams to Score"] > 50;
-
   const expectedScore = selectConsistentScore(
     scores.rawExpectedHome,
     scores.rawExpectedAway,
@@ -94,40 +128,29 @@ export async function generatePredictionResult(match: any): Promise<PredictionRe
     preferOver25,
     preferBttsYes
   );
-
-  // Market picks derived from the scoreline
   const [predHome, predAway] = expectedScore.split("-").map(Number);
   const goalsPick = predHome + predAway > 2.5 ? "Over 2.5 Goals" : "Under 2.5 Goals";
   const bttsPick  = predHome > 0 && predAway > 0 ? "Both Teams to Score" : "BTTS No";
-
-  // Safe (double-chance) pick
   const safePick = (["1X", "X2"] as (keyof PredictionScores)[]).reduce(
     (prev, curr) => (scores[curr] as number) > (scores[prev] as number) ? curr : prev
   );
-
-  // Confidence
   const totalMatchesUsed = Math.max(
     Number(match.matches_used_a) || 0,
     Number(match.matches_used_b) || 0
   );
   const confidence = calculateConfidence(scores, mainPick, dataQuality, totalMatchesUsed);
-
-  // Risk: edge between main pick and second-best 1X2
-  const mainScore   = scores[mainPick] as number;
+  const mainScore = scores[mainPick] as number;
   const secondScore = Math.max(
     ...(["Home Win", "Draw", "Away Win"] as (keyof PredictionScores)[])
       .filter(m => m !== mainPick)
-      .map(m  => scores[m] as number)
+      .map(m => scores[m] as number)
   );
   const edge = mainScore - secondScore;
   const risk: "Low" | "Medium" | "High" =
     edge > 15 && dataQuality > 70 ? "Low"
-    : edge > 8                    ? "Medium"
-    :                               "High";
-
+    : edge > 8 ? "Medium"
+    : "High";
   const stake = confidence >= 72 ? "2/5" : confidence >= 62 ? "1.5/5" : "1/5";
-
-  // Analysis text
   const analysis = generateAnalysis(
     match, mainPick, scores, confidence, risk, stake, expectedScore,
     goalsPick, bttsPick

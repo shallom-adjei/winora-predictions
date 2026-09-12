@@ -341,6 +341,43 @@ const [savingPrompt, setSavingPrompt] = useState(false);
   <Play className="h-4 w-4 mr-2" />
   Refresh Club Elo
 </Button>
+<Button
+  onClick={async () => {
+    try {
+      const res = await fetch("/api/refresh-standings", { credentials: "include" });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`Standings: ${data.teams_updated} teams updated`);
+      } else {
+        toast.error(data.error || "Standings refresh failed");
+      }
+    } catch { toast.error("Network error"); }
+  }}
+  variant="outline"
+  className="text-sm h-12"
+>
+  <Play className="h-4 w-4 mr-2" />
+  Refresh Standings
+</Button>
+
+<Button
+  onClick={async () => {
+    try {
+      const res = await fetch("/api/refresh-odds", { credentials: "include" });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`Odds: ${data.updated} matches updated`);
+      } else {
+        toast.error(data.error || "Odds refresh failed");
+      }
+    } catch { toast.error("Network error"); }
+  }}
+  variant="outline"
+  className="text-sm h-12"
+>
+  <Play className="h-4 w-4 mr-2" />
+  Refresh Bookmaker Odds
+</Button>
             <Button onClick={handleGenerateAll} disabled={generating} className="text-sm h-12 bg-gold-400 text-black hover:bg-gold-500">
               <Zap className="h-4 w-4 mr-2" />
               {generating ? "Generating..." : "Generate All"}
