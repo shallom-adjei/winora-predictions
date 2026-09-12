@@ -15,12 +15,13 @@ const ELO_CSV_URL =
 
 async function fetchEloCsv(): Promise<ClubEloRow[]> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30000);
+  const timeout = setTimeout(() => controller.abort(), 45000);
 
   try {
     const res = await fetch(ELO_CSV_URL, {
       cache: "no-store",
       signal: controller.signal,
+      headers: { "User-Agent": "Winora/1.0" },
     });
     if (!res.ok) throw new Error(`Elo CSV HTTP ${res.status}`);
 
@@ -28,28 +29,38 @@ async function fetchEloCsv(): Promise<ClubEloRow[]> {
     const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
     if (lines.length < 2) throw new Error("Elo CSV is empty");
 
-    // Parse header to find column indexes
-    const header = lines[0].split(",").map((h) => h.trim().toLowerCase());
-    const dateIdx = header.indexOf("date");
-    const clubIdx = header.indexOf("club");
-    const countryIdx = header.indexOf("country");
-    const eloIdx = header.indexOf("elo");
+    // Strip surrounding quotes + whitespace from a CSV field
+    const clean = (s: string) => s.trim().replace(/^"+|"+$/g, "");
+
+    // Detect header vs header-less file
+    const firstParts = lines[0].split(",").map(clean);
+    const header = firstParts.map((h) => h.toLowerCase());
+
+    let clubIdx = header.indexOf("club");
+    let eloIdx = header.indexOf("elo");
+    let countryIdx = header.indexOf("country");
+    let dateIdx = header.indexOf("date");
+    let startRow = 1;
 
     if (clubIdx === -1 || eloIdx === -1) {
-      throw new Error(`Unexpected CSV header: ${lines[0]}`);
+      // No header — assume: date, club, country, elo
+      clubIdx = 1;
+      countryIdx = 2;
+      eloIdx = 3;
+      dateIdx = 0;
+      startRow = 0;
     }
 
-    // The CSV contains historical snapshots. Keep only the LATEST row per club.
     const latest = new Map<string, { date: string; country: string; elo: number }>();
 
-    for (let i = 1; i < lines.length; i++) {
-      const parts = lines[i].split(",");
+    for (let i = startRow; i < lines.length; i++) {
+      const parts = lines[i].split(",").map(clean);
       if (parts.length <= Math.max(clubIdx, eloIdx)) continue;
 
-      const club = parts[clubIdx]?.trim();
+      const club = parts[clubIdx];
       const elo = parseFloat(parts[eloIdx]);
-      const date = dateIdx >= 0 ? parts[dateIdx]?.trim() : "";
-      const country = countryIdx >= 0 ? parts[countryIdx]?.trim() : "";
+      const date = parts[dateIdx] || "";
+      const country = parts[countryIdx] || "";
 
       if (!club || isNaN(elo)) continue;
 
@@ -60,9 +71,13 @@ async function fetchEloCsv(): Promise<ClubEloRow[]> {
     }
 
     const rows: ClubEloRow[] = [];
-    for (const [club, { country, elo }] of latest.entries()) {
-      rows.push({ name: club, country, elo: Math.round(elo) });
-    }
+    latest.forEach((value, club) => {
+      rows.push({
+        name: club,
+        country: value.country,
+        elo: Math.round(value.elo),
+      });
+    });
     return rows;
   } finally {
     clearTimeout(timeout);
@@ -82,7 +97,7 @@ export async function GET() {
     const { data: upcoming, error: predErr } = await supabase
       .from("predictions")
       .select("team_a, team_b")
-      .neq("match_status", "FINISHED");
+      .or("match_status.neq.FINISHED,match_status.is.null");
 
     if (predErr) throw predErr;
 
