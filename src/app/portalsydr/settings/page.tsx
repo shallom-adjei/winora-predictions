@@ -37,7 +37,9 @@ export default function AdminSettingsPage() {
   const [enriching, setEnriching] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [postingTelegram, setPostingTelegram] = useState(false);
-    // Add prediction
+    const [refreshingElo, setRefreshingElo] = useState(false);
+  const [refreshingStandings, setRefreshingStandings] = useState(false);
+  const [refreshingOdds, setRefreshingOdds] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [newPick, setNewPick] = useState({
     sport: "Football",
@@ -321,47 +323,62 @@ const [savingPrompt, setSavingPrompt] = useState(false);
               <Play className="h-4 w-4 mr-2" />
               Update Crests
             </Button>
-            <Button
+           <Button
   onClick={async () => {
+    setRefreshingElo(true);
     try {
       const res = await fetch("/api/refresh-elo", { credentials: "include" });
       const data = await res.json();
       if (data.success) {
-        toast.success(`Loaded ${data.clubelo_total} clubs · Resolved ${data.resolved} teams · ${data.unresolved_count} unresolved`);
+        toast.success(
+          `ClubElo: ${data.clubelo_total} clubs loaded · ${data.resolved} teams resolved · ${data.unresolved_count ?? 0} unresolved`
+        );
       } else {
         toast.error(data.error || "Elo refresh failed");
       }
     } catch {
       toast.error("Network error");
+    } finally {
+      setRefreshingElo(false);
     }
   }}
+  disabled={refreshingElo}
   variant="outline"
   className="text-sm h-12"
 >
   <Play className="h-4 w-4 mr-2" />
-  Refresh Club Elo
+  {refreshingElo ? "Refreshing…" : "Refresh Club Elo"}
 </Button>
 <Button
   onClick={async () => {
+    setRefreshingStandings(true);
     try {
       const res = await fetch("/api/refresh-standings", { credentials: "include" });
       const data = await res.json();
       if (data.success) {
-        toast.success(`Standings: ${data.teams_updated} teams updated`);
+        toast.success(
+          `Standings: ${data.competitions} competitions · ${data.teams_updated} teams updated`
+        );
       } else {
         toast.error(data.error || "Standings refresh failed");
       }
-    } catch { toast.error("Network error"); }
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setRefreshingStandings(false);
+    }
   }}
+  disabled={refreshingStandings}
   variant="outline"
   className="text-sm h-12"
 >
   <Play className="h-4 w-4 mr-2" />
-  Refresh Standings
+  {refreshingStandings ? "Refreshing…" : "Refresh Standings"}
 </Button>
 
 <Button
   onClick={async () => {
+    setRefreshingOdds(true);
     try {
       const res = await fetch("/api/refresh-odds", { credentials: "include" });
       const data = await res.json();
@@ -370,13 +387,18 @@ const [savingPrompt, setSavingPrompt] = useState(false);
       } else {
         toast.error(data.error || "Odds refresh failed");
       }
-    } catch { toast.error("Network error"); }
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setRefreshingOdds(false);
+    }
   }}
+  disabled={refreshingOdds}
   variant="outline"
   className="text-sm h-12"
 >
   <Play className="h-4 w-4 mr-2" />
-  Refresh Bookmaker Odds
+  {refreshingOdds ? "Refreshing…" : "Refresh Bookmaker Odds"}
 </Button>
             <Button onClick={handleGenerateAll} disabled={generating} className="text-sm h-12 bg-gold-400 text-black hover:bg-gold-500">
               <Zap className="h-4 w-4 mr-2" />

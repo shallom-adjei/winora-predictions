@@ -11,7 +11,7 @@ interface ClubEloRow {
 }
 
 async function fetchClubElo(date: string): Promise<ClubEloRow[]> {
-  const res = await fetch(`http://api.clubelo.com/${date}`, { cache: "no-store" });
+  const res = await fetch(`https://api.clubelo.com/${date}`, { cache: "no-store" });
   if (!res.ok) throw new Error(`ClubElo HTTP ${res.status}`);
 
   const text = await res.text();
