@@ -97,15 +97,11 @@ function tokenContainmentScore(shorter: string, longer: string): number {
   const sTokens = shorter.split(" ");
   const lTokens = longer.split(" ");
 
-  // Multi-token short: contiguous window in longer
   if (sTokens.length > 1) {
     for (let i = 0; i <= lTokens.length - sTokens.length; i++) {
       let ok = true;
       for (let j = 0; j < sTokens.length; j++) {
-        if (lTokens[i + j] !== sTokens[j]) {
-          ok = false;
-          break;
-        }
+        if (lTokens[i + j] !== sTokens[j]) { ok = false; break; }
       }
       if (ok) {
         const posBonus = i === 0 ? 0.1 : 0;
@@ -115,7 +111,6 @@ function tokenContainmentScore(shorter: string, longer: string): number {
     return 0;
   }
 
-  // Single-token short — must match a whole token OR be a prefix of one
   const st = sTokens[0];
 
   const idx = lTokens.indexOf(st);
@@ -129,6 +124,18 @@ function tokenContainmentScore(shorter: string, longer: string): number {
       if (lTokens[i].startsWith(st)) {
         const posBonus = i === 0 ? 0.1 : 0;
         return Math.min(0.95, 0.6 + (st.length / lTokens[i].length) * 0.15 + posBonus);
+      }
+    }
+  }
+
+  // NEW: near-token match (1 char diff) for tokens ≥ 6 chars.
+  // Handles spelling variants like "Espanol" ↔ "Espanyol".
+  if (st.length >= 6) {
+    for (let i = 0; i < lTokens.length; i++) {
+      const lt = lTokens[i];
+      if (Math.abs(lt.length - st.length) <= 1 && levenshtein(st, lt) <= 1) {
+        const posBonus = i === 0 ? 0.1 : 0;
+        return Math.min(0.9, 0.7 + (st.length / lt.length) * 0.1 + posBonus);
       }
     }
   }
