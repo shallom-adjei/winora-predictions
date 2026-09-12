@@ -54,37 +54,86 @@ export function similarity(a: string, b: string): number {
   if (!na || !nb) return 0;
   if (na === nb) return 1;
 
-  const shorter = na.length <= nb.length ? na : nb;
-  const longer = na.length <= nb.length ? nb : na;
+  const [shorter, longer] = na.length <= nb.length ? [na, nb] : [nb, na];
 
-  if (longer.includes(shorter) && shorter.length >= 4) {
-    const pos = longer.indexOf(shorter);
-    const ratio = shorter.length / longer.length;
-    const posBonus = pos === 0 ? 0.15 : pos <= 5 ? 0.05 : 0;
-    return Math.min(0.9, 0.6 + ratio * 0.25 + posBonus);
+  // 1. Token-boundary containment (strongest signal)
+  const containScore = tokenContainmentScore(shorter, longer);
+  if (containScore > 0) return containScore;
+
+  // 2. No containment — blend the softer metrics
+  const ta = na.split(" ");
+  const tb = nb.split(" ");
+  const [sTokens, lTokens] = ta.length <= tb.length ? [ta, tb] : [tb, ta];
+
+  // Token-prefix: "man" matches "manchester", "inter" matches "internazionale"
+  let matched = 0;
+  for (const token of sTokens) {
+    if (
+      lTokens.some(
+        (lt) =>
+          lt === token || (token.length >= 3 && lt.startsWith(token))
+      )
+    ) {
+      matched++;
+    }
   }
+  const tokenPrefix = sTokens.length > 0 ? matched / sTokens.length : 0;
 
-  // Token overlap (Jaccard)
-  const setA = new Set(na.split(" "));
-  const setB = new Set(nb.split(" "));
+  // Jaccard
+  const setA = new Set(ta);
+  const setB = new Set(tb);
   const intersection = Array.from(setA).filter((t) => setB.has(t)).length;
   const union = new Set([...Array.from(setA), ...Array.from(setB)]).size;
   const jaccard = union > 0 ? intersection / union : 0;
 
-  // Levenshtein similarity on the joined string
+  // Levenshtein
   const maxLen = Math.max(na.length, nb.length);
   const lev = 1 - levenshtein(na, nb) / maxLen;
 
-  // Shared-prefix bonus
-  const minPfx = Math.min(na.length, nb.length);
-  let pfx = 0;
-  for (let i = 0; i < minPfx; i++) {
-    if (na[i] === nb[i]) pfx++;
-    else break;
-  }
-  const pfxBonus = pfx >= 4 ? Math.min(0.2, pfx * 0.04) : 0;
+  return Math.min(1, tokenPrefix * 0.5 + jaccard * 0.2 + lev * 0.3);
+}
 
-  return Math.min(1, jaccard * 0.5 + lev * 0.5 + pfxBonus);
+function tokenContainmentScore(shorter: string, longer: string): number {
+  const sTokens = shorter.split(" ");
+  const lTokens = longer.split(" ");
+
+  // Multi-token short: contiguous window in longer
+  if (sTokens.length > 1) {
+    for (let i = 0; i <= lTokens.length - sTokens.length; i++) {
+      let ok = true;
+      for (let j = 0; j < sTokens.length; j++) {
+        if (lTokens[i + j] !== sTokens[j]) {
+          ok = false;
+          break;
+        }
+      }
+      if (ok) {
+        const posBonus = i === 0 ? 0.1 : 0;
+        return Math.min(0.95, 0.7 + (shorter.length / longer.length) * 0.15 + posBonus);
+      }
+    }
+    return 0;
+  }
+
+  // Single-token short — must match a whole token OR be a prefix of one
+  const st = sTokens[0];
+
+  const idx = lTokens.indexOf(st);
+  if (idx >= 0) {
+    const posBonus = idx === 0 ? 0.1 : idx === 1 ? 0.05 : 0;
+    return Math.min(0.95, 0.65 + (st.length / longer.length) * 0.15 + posBonus);
+  }
+
+  if (st.length >= 3) {
+    for (let i = 0; i < lTokens.length; i++) {
+      if (lTokens[i].startsWith(st)) {
+        const posBonus = i === 0 ? 0.1 : 0;
+        return Math.min(0.95, 0.6 + (st.length / lTokens[i].length) * 0.15 + posBonus);
+      }
+    }
+  }
+
+  return 0;
 }
 
 // Pick the best candidate from a list of {name, ...} objects
