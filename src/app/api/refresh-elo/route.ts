@@ -107,7 +107,7 @@ async function fetchEloCsv(): Promise<ClubEloRow[]> {
 }
 
 export async function GET() {
-  const { supabase } = await import("@/lib/supabase");
+  const { supabaseAdmin } = await import("@/lib/supabaseAdmin");
 
   try {
     const clubelo = await fetchEloCsv();
@@ -116,7 +116,7 @@ export async function GET() {
     }
 
     // Load all distinct team names in upcoming matches
-    const { data: upcoming, error: predErr } = await supabase
+    const { data: upcoming, error: predErr } = await supabaseAdmin
       .from("predictions")
       .select("team_a, team_b")
       .or("match_status.neq.FINISHED,match_status.is.null");
@@ -163,7 +163,7 @@ export async function GET() {
     let upserted = 0;
     for (let i = 0; i < resolved.length; i += 500) {
       const batch = resolved.slice(i, i + 500);
-      const { error } = await supabase
+      const { error } = await supabaseAdmin
         .from("team_ratings")
         .upsert(batch, { onConflict: "team_name" });
       if (error) console.error("[refresh-elo] upsert error", error);

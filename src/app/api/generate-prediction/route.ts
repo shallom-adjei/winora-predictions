@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { generatePredictionResult } from "@/lib/generatePredictionResult";
 
 export async function POST(req: NextRequest) {
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     analysis, scores, dataQuality,
   } = result;
 
-  await supabase.from("prediction_logs").insert({
+ await supabaseAdmin.from("prediction_logs").insert({
     prediction_id:  match.id,
     prob_home_win:  scores["Home Win"],
     prob_draw:      scores["Draw"],
