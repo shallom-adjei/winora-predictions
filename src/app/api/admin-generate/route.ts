@@ -6,7 +6,9 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   let body: { matchId?: unknown };
-  try { body = await request.json(); } catch {
+  try {
+    body = await request.json();
+  } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
@@ -16,9 +18,12 @@ export async function POST(request: Request) {
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey  = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!supabaseUrl || !serviceKey) {
-    return NextResponse.json({ error: "Supabase environment variables not configured" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Supabase environment variables not configured" },
+      { status: 500 }
+    );
   }
   const supabase = createClient(supabaseUrl, serviceKey);
 
@@ -29,19 +34,15 @@ export async function POST(request: Request) {
     .single();
 
   if (fetchError || !match) {
-    return NextResponse.json({ error: fetchError?.message || "Match not found" }, { status: 404 });
+    return NextResponse.json(
+      { error: fetchError?.message || "Match not found" },
+      { status: 404 }
+    );
   }
 
-  if (match.elo_a == null || match.elo_b == null) {
-    const [eloResA, eloResB] = await Promise.all([
-      supabase.from("team_elos").select("elo_rating").eq("team_name", match.team_a).maybeSingle(),
-      supabase.from("team_elos").select("elo_rating").eq("team_name", match.team_b).maybeSingle(),
-    ]);
-    match.elo_a = match.elo_a ?? eloResA?.data?.elo_rating ?? 1500;
-    match.elo_b = match.elo_b ?? eloResB?.data?.elo_rating ?? 1500;
-  }
+  // Elo lookup is handled inside generatePredictionResult (from team_ratings).
+  const result = await generatePredictionResult(match);
 
-  const result = generatePredictionResult(match);
   const {
     mainPick, safePick, goalsPick, bttsPick,
     expectedScore, confidence, risk, stake,
@@ -89,7 +90,7 @@ export async function POST(request: Request) {
   });
 
   return NextResponse.json({
-    prediction:    mainPick,
+    prediction: mainPick,
     confidence,
     analysis,
     expectedScore,
@@ -97,11 +98,11 @@ export async function POST(request: Request) {
     safePick,
     goalsPick,
     bttsPick,
-    riskLevel:     risk,
+    riskLevel: risk,
     stake,
-    probHome:      scores["Home Win"],
-    probDraw:      scores["Draw"],
-    probAway:      scores["Away Win"],
-    mainEdge:      result.mainEdge,
+    probHome: scores["Home Win"],
+    probDraw: scores["Draw"],
+    probAway: scores["Away Win"],
+    mainEdge: result.mainEdge,
   });
 }
