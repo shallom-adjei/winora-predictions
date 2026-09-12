@@ -55,8 +55,8 @@ export function similarity(a: string, b: string): number {
   // Token overlap (Jaccard)
   const setA = new Set(na.split(" "));
   const setB = new Set(nb.split(" "));
-  const intersection = [...setA].filter((t) => setB.has(t)).length;
-  const union = new Set([...setA, ...setB]).size;
+  const intersection = Array.from(setA).filter((t) => setB.has(t)).length;
+  const union = new Set([...Array.from(setA), ...Array.from(setB)]).size;
   const jaccard = union > 0 ? intersection / union : 0;
 
   // Levenshtein similarity on the joined string

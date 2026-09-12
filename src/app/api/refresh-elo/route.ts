@@ -54,7 +54,7 @@ export async function GET() {
       if (row.team_a) teamSet.add(row.team_a);
       if (row.team_b) teamSet.add(row.team_b);
     }
-    const teams = [...teamSet];
+       const teams = Array.from(teamSet);
 
     if (teams.length === 0) {
       return NextResponse.json({
