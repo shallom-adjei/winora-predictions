@@ -48,11 +48,6 @@ function levenshtein(a: string, b: string): number {
   return prev[b.length];
 }
 
-// Cross-source tolerant scoring:
-//  - full containment ("bayern" inside "bayern munich") → 0.85
-//  - token overlap (Jaccard)
-//  - Levenshtein similarity on the joined string
-//  - shared-prefix bonus ("wolverhampton" vs "wolves")
 export function similarity(a: string, b: string): number {
   const na = normalize(a);
   const nb = normalize(b);
@@ -62,8 +57,12 @@ export function similarity(a: string, b: string): number {
   const shorter = na.length <= nb.length ? na : nb;
   const longer = na.length <= nb.length ? nb : na;
 
-  // Full containment — catches ClubElo short names vs fixture full names
-  if (longer.includes(shorter) && shorter.length >= 4) return 0.85;
+  if (longer.includes(shorter) && shorter.length >= 4) {
+    const pos = longer.indexOf(shorter);
+    const ratio = shorter.length / longer.length;
+    const posBonus = pos === 0 ? 0.15 : pos <= 5 ? 0.05 : 0;
+    return Math.min(0.9, 0.6 + ratio * 0.25 + posBonus);
+  }
 
   // Token overlap (Jaccard)
   const setA = new Set(na.split(" "));
