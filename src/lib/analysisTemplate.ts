@@ -264,14 +264,45 @@ export function generateAnalysis(
   else if (riskLower === "medium") conclusion = pick(conclusionsMed);
   else conclusion = pick(conclusionsHigh);
 
-  // ----- FALLBACK (no stats) -----
-  if (!hasStats) {
-    const fallbacks = [
-      `${home} and ${away} meet with limited recent data available, so our engine relies on squad strength projections. The expected score of ${expectedScore} points toward ${prediction} at a ${confidence}% confidence level. Risk is assessed as ${riskLower} — recommended stake: ${stake}.`,
-      `With sparse form data for this fixture, we default to underlying performance metrics. The algorithm projects a ${expectedScore} finish and identifies ${prediction} as the optimal play (${confidence}% confidence, ${riskLower} risk). Stake: ${stake}.`,
-    ];
-    return pick(fallbacks);
+  // ----- FALLBACK (no form stats) -----
+if (!hasStats) {
+  const eloA = match.elo_a != null ? Number(match.elo_a) : null;
+  const eloB = match.elo_b != null ? Number(match.elo_b) : null;
+  const hasElo = eloA != null && eloB != null;
+
+  if (hasElo) {
+    const gap = Math.abs(eloA - eloB);
+    const stronger = eloA > eloB ? home : away;
+    const weaker = eloA > eloB ? away : home;
+    const strongerElo = Math.max(eloA, eloB);
+    const weakerElo = Math.min(eloA, eloB);
+
+    if (gap >= 150) {
+      return pick([
+        `Elo ratings heavily favour ${stronger} (${strongerElo} vs ${weakerElo}, a ${gap}-point gap). ${prediction} at ${confidence}% confidence reflects that gulf in class. Projected score: ${expectedScore}. Stake: ${stake}.`,
+        `The Elo gap is decisive here — ${stronger} sit ${gap} points above ${weaker} (${strongerElo} vs ${weakerElo}). Our model sees ${prediction} as the value play with ${confidence}% confidence. Predicted: ${expectedScore}. Stake: ${stake}.`,
+      ]);
+    }
+
+    if (gap >= 60) {
+      return pick([
+        `${stronger} hold a ${gap}-point Elo edge (${strongerElo} vs ${weakerElo}), enough to tilt this fixture. We side with ${prediction} at ${confidence}% confidence. Projected score: ${expectedScore}. Stake: ${stake}.`,
+        `Elo gives ${stronger} the clear edge (${strongerElo} to ${weakerElo}). ${prediction} is our call at ${confidence}% confidence — expected score ${expectedScore}, stake ${stake}.`,
+      ]);
+    }
+
+    return pick([
+      `${home} and ${away} are separated by just ${gap} Elo points (${eloA} vs ${eloB}), so ${homeCtx("this neutral-venue clash", "home advantage")} becomes the deciding factor. We lean ${prediction} at ${confidence}% confidence. Projected: ${expectedScore}. Stake: ${stake}.`,
+      `A near-even Elo matchup (${eloA} vs ${eloB}, gap of ${gap}) puts the spotlight on ${homeCtx("venue conditions", "home advantage")}. Our pick: ${prediction} (${confidence}% confidence). Expected score ${expectedScore}. Stake: ${stake}.`,
+    ]);
   }
+
+  // No form, no Elo — honest, no fake jargon
+  return pick([
+    `Neither side has sufficient form or Elo data in our system, so this pick is driven purely by ${homeCtx("tournament context", "home advantage")} and league averages. ${prediction} at ${confidence}% confidence is a low-signal projection — treat it cautiously. Predicted: ${expectedScore}. Stake: ${stake}.`,
+    `Insufficient data on both teams (no form, no Elo). The model falls back to ${homeCtx("venue-neutral priors", "home-advantage priors")} and league scoring averages. ${prediction} at ${confidence}% confidence is a weak signal — stake accordingly. Projected score: ${expectedScore}. Stake: ${stake}.`,
+  ]);
+}
 
   // ----- Remove contradictory observations (Over 2.5 vs "low-scoring") -----
   if (isOverPick) {

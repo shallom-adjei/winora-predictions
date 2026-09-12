@@ -13,7 +13,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Request body must include a `match` object" }, { status: 400 });
   }
 
-   const result = await generatePredictionResult(match);
+  let result;
+  try {
+    result = await generatePredictionResult(match);
+  } catch (err: any) {
+    if (err?.message === "INSUFFICIENT_DATA") {
+      return NextResponse.json({
+        skipped: true,
+        reason: "No Elo, form, or league position data available for this match",
+      });
+    }
+    throw err;
+  }
   const {
     mainPick, safePick, goalsPick, bttsPick,
     expectedScore, confidence, risk, stake,

@@ -41,7 +41,19 @@ export async function POST(request: Request) {
   }
 
   // Elo lookup is handled inside generatePredictionResult (from team_ratings).
-  const result = await generatePredictionResult(match);
+  let result;
+  try {
+    result = await generatePredictionResult(match);
+  } catch (err: any) {
+    if (err?.message === "INSUFFICIENT_DATA") {
+      return NextResponse.json({
+        skipped: true,
+        reason: "No Elo, form, or league position data available for this match",
+        matchId,
+      });
+    }
+    throw err;
+  }
 
   const {
     mainPick, safePick, goalsPick, bttsPick,

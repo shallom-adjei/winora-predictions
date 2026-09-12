@@ -43,7 +43,7 @@ export interface PredictionResult {
 }
 
 export async function generatePredictionResult(match: any): Promise<PredictionResult> {
-  const { supabase } = await import("@/lib/supabase");
+ const { supabaseAdmin: supabase } = await import("@/lib/supabaseAdmin");
 
   // 1. Elo lookup (existing)
   if (match.elo_a == null || match.elo_b == null) {
@@ -111,13 +111,28 @@ export async function generatePredictionResult(match: any): Promise<PredictionRe
     scores["X2"]       = Math.min(95, scores["Away Win"] + scores["Draw"]);
   }
 
-  // Everything from here down is unchanged
-  const mainPick = (
-    ["Home Win", "Draw", "Away Win"] as (keyof PredictionScores)[]
-  ).reduce(
-    (best, curr) => (scores[curr] as number) > (scores[best] as number) ? curr : best,
-    "Draw" as keyof PredictionScores
-  );
+ const sorted1x2 = (
+  ["Home Win", "Draw", "Away Win"] as (keyof PredictionScores)[]
+)
+  .map((p) => ({ pick: p, prob: scores[p] as number }))
+  .sort((a, b) => b.prob - a.prob);
+
+const topPick = sorted1x2[0].pick;
+const topProb = sorted1x2[0].prob;
+const secondProb = sorted1x2[1].prob;
+const probabilityEdge = topProb - secondProb;
+
+const hasElo      = match.elo_a != null && match.elo_b != null;
+const hasForm     = match.form_points_a != null && match.form_points_b != null;
+const hasLeaguePos = match.league_position_a != null && match.league_position_b != null;
+const hasAnySignal = hasElo || hasForm || hasLeaguePos;
+
+// Skip: no signal at all AND weak probability edge → don't force a pick
+if (!hasAnySignal && probabilityEdge < 10) {
+  throw new Error("INSUFFICIENT_DATA");
+}
+
+const mainPick = topPick;
 
   const preferOver25  = scores["Over 2.5 Goals"] > 50;
   const preferBttsYes = scores["Both Teams to Score"] > 50;
