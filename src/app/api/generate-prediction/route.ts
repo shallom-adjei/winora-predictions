@@ -13,17 +13,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Request body must include a `match` object" }, { status: 400 });
   }
 
-  // Fetch Elo if missing
-  if (match.elo_a == null || match.elo_b == null) {
-    const [eloResA, eloResB] = await Promise.all([
-      supabase.from("team_elos").select("elo_rating").eq("team_name", match.team_a).maybeSingle(),
-      supabase.from("team_elos").select("elo_rating").eq("team_name", match.team_b).maybeSingle(),
-    ]);
-    match.elo_a = match.elo_a ?? eloResA?.data?.elo_rating ?? 1500;
-    match.elo_b = match.elo_b ?? eloResB?.data?.elo_rating ?? 1500;
-  }
-
-  const result = generatePredictionResult(match);
+   const result = await generatePredictionResult(match);
   const {
     mainPick, safePick, goalsPick, bttsPick,
     expectedScore, confidence, risk, stake,
