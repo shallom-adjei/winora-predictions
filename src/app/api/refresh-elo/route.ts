@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { bestMatch } from "@/lib/teamResolver";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -10,38 +9,76 @@ interface ClubEloRow {
   elo: number;
 }
 
-async function fetchClubElo(date: string): Promise<ClubEloRow[]> {
-  const res = await fetch(`https://api.clubelo.com/${date}`, { cache: "no-store" });
-  if (!res.ok) throw new Error(`ClubElo HTTP ${res.status}`);
+// Static mirror of the full ClubElo dataset. More reliable than api.clubelo.com.
+const ELO_CSV_URL =
+  "https://huggingface.co/datasets/xgabora/club-football-match-data/resolve/main/EloRatings.csv";
 
-  const text = await res.text();
-  const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+async function fetchEloCsv(): Promise<ClubEloRow[]> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
 
-  const rows: ClubEloRow[] = [];
-  // header: Rank,Club,Country,Level,Elo,From,To
-  for (let i = 1; i < lines.length; i++) {
-    const p = lines[i].split(",");
-    if (p.length < 5) continue;
-    const name = p[1]?.trim();
-    const country = p[2]?.trim() || "";
-    const elo = parseInt(p[4]);
-    if (!name || isNaN(elo)) continue;
-    rows.push({ name, country, elo });
+  try {
+    const res = await fetch(ELO_CSV_URL, {
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    if (!res.ok) throw new Error(`Elo CSV HTTP ${res.status}`);
+
+    const text = await res.text();
+    const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+    if (lines.length < 2) throw new Error("Elo CSV is empty");
+
+    // Parse header to find column indexes
+    const header = lines[0].split(",").map((h) => h.trim().toLowerCase());
+    const dateIdx = header.indexOf("date");
+    const clubIdx = header.indexOf("club");
+    const countryIdx = header.indexOf("country");
+    const eloIdx = header.indexOf("elo");
+
+    if (clubIdx === -1 || eloIdx === -1) {
+      throw new Error(`Unexpected CSV header: ${lines[0]}`);
+    }
+
+    // The CSV contains historical snapshots. Keep only the LATEST row per club.
+    const latest = new Map<string, { date: string; country: string; elo: number }>();
+
+    for (let i = 1; i < lines.length; i++) {
+      const parts = lines[i].split(",");
+      if (parts.length <= Math.max(clubIdx, eloIdx)) continue;
+
+      const club = parts[clubIdx]?.trim();
+      const elo = parseFloat(parts[eloIdx]);
+      const date = dateIdx >= 0 ? parts[dateIdx]?.trim() : "";
+      const country = countryIdx >= 0 ? parts[countryIdx]?.trim() : "";
+
+      if (!club || isNaN(elo)) continue;
+
+      const existing = latest.get(club);
+      if (!existing || date > existing.date) {
+        latest.set(club, { date, country, elo });
+      }
+    }
+
+    const rows: ClubEloRow[] = [];
+    for (const [club, { country, elo }] of latest.entries()) {
+      rows.push({ name: club, country, elo: Math.round(elo) });
+    }
+    return rows;
+  } finally {
+    clearTimeout(timeout);
   }
-  return rows;
 }
 
 export async function GET() {
   const { supabase } = await import("@/lib/supabase");
-  const today = new Date().toISOString().split("T")[0];
 
   try {
-    const clubelo = await fetchClubElo(today);
+    const clubelo = await fetchEloCsv();
     if (clubelo.length === 0) {
-      return NextResponse.json({ error: "ClubElo returned no data" }, { status: 502 });
+      return NextResponse.json({ error: "Elo CSV returned no data" }, { status: 502 });
     }
 
-    // All distinct team names that appear in upcoming predictions
+    // Load all distinct team names in upcoming matches
     const { data: upcoming, error: predErr } = await supabase
       .from("predictions")
       .select("team_a, team_b")
@@ -54,7 +91,7 @@ export async function GET() {
       if (row.team_a) teamSet.add(row.team_a);
       if (row.team_b) teamSet.add(row.team_b);
     }
-       const teams = Array.from(teamSet);
+    const teams = Array.from(teamSet);
 
     if (teams.length === 0) {
       return NextResponse.json({
@@ -63,8 +100,9 @@ export async function GET() {
       });
     }
 
-    // Candidates for the matcher (only need {name, ...})
-    const candidates = clubelo;
+    // Resolve each team via the fuzzy matcher
+    const { bestMatch } = await import("@/lib/teamResolver");
+    const candidates = clubelo.map((c) => ({ name: c.name, country: c.country, elo: c.elo }));
 
     const resolved: any[] = [];
     const unresolved: string[] = [];
@@ -85,7 +123,6 @@ export async function GET() {
       });
     }
 
-    // Upsert resolved rows in batches
     let upserted = 0;
     for (let i = 0; i < resolved.length; i += 500) {
       const batch = resolved.slice(i, i + 500);
