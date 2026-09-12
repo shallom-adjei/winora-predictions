@@ -321,6 +321,26 @@ const [savingPrompt, setSavingPrompt] = useState(false);
               <Play className="h-4 w-4 mr-2" />
               Update Crests
             </Button>
+            <Button
+  onClick={async () => {
+    try {
+      const res = await fetch("/api/refresh-elo", { credentials: "include" });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`Loaded ${data.clubelo_total} clubs · Resolved ${data.resolved} teams · ${data.unresolved_count} unresolved`);
+      } else {
+        toast.error(data.error || "Elo refresh failed");
+      }
+    } catch {
+      toast.error("Network error");
+    }
+  }}
+  variant="outline"
+  className="text-sm h-12"
+>
+  <Play className="h-4 w-4 mr-2" />
+  Refresh Club Elo
+</Button>
             <Button onClick={handleGenerateAll} disabled={generating} className="text-sm h-12 bg-gold-400 text-black hover:bg-gold-500">
               <Zap className="h-4 w-4 mr-2" />
               {generating ? "Generating..." : "Generate All"}
