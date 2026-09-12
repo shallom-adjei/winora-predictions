@@ -145,7 +145,7 @@ export async function GET() {
     const unresolved: string[] = [];
 
     for (const team of teams) {
-      const match = bestMatch(team, candidates, 0.72);
+      const match = bestMatch(team, candidates, 0.55);
       if (!match) {
         unresolved.push(team);
         continue;

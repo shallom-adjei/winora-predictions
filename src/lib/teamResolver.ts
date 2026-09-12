@@ -5,6 +5,9 @@ const NOISE_WORDS = new Set([
   "club","de","del","la","el","los","le","il","the","of","do","da","dos",
   "futbol","football","calcio","1.","2.","1899","1901","1907","1909","1963",
   "07","65","05","04","98","92","79","73","61","52","49","35","29","25","23",
+  // Single letters — remnants of C.F., S.S.C., A.S., etc.
+  "a","b","c","d","e","f","g","h","i","j","k","l","m",
+  "n","o","p","q","r","s","t","u","v","w","x","y","z",
 ]);
 
 function normalize(name: string): string {
@@ -45,12 +48,22 @@ function levenshtein(a: string, b: string): number {
   return prev[b.length];
 }
 
-// Combined score: token overlap + Levenshtein on the normalized string
+// Cross-source tolerant scoring:
+//  - full containment ("bayern" inside "bayern munich") → 0.85
+//  - token overlap (Jaccard)
+//  - Levenshtein similarity on the joined string
+//  - shared-prefix bonus ("wolverhampton" vs "wolves")
 export function similarity(a: string, b: string): number {
   const na = normalize(a);
   const nb = normalize(b);
   if (!na || !nb) return 0;
   if (na === nb) return 1;
+
+  const shorter = na.length <= nb.length ? na : nb;
+  const longer = na.length <= nb.length ? nb : na;
+
+  // Full containment — catches ClubElo short names vs fixture full names
+  if (longer.includes(shorter) && shorter.length >= 4) return 0.85;
 
   // Token overlap (Jaccard)
   const setA = new Set(na.split(" "));
@@ -63,15 +76,23 @@ export function similarity(a: string, b: string): number {
   const maxLen = Math.max(na.length, nb.length);
   const lev = 1 - levenshtein(na, nb) / maxLen;
 
-  // Weighted blend
-  return jaccard * 0.55 + lev * 0.45;
+  // Shared-prefix bonus
+  const minPfx = Math.min(na.length, nb.length);
+  let pfx = 0;
+  for (let i = 0; i < minPfx; i++) {
+    if (na[i] === nb[i]) pfx++;
+    else break;
+  }
+  const pfxBonus = pfx >= 4 ? Math.min(0.2, pfx * 0.04) : 0;
+
+  return Math.min(1, jaccard * 0.5 + lev * 0.5 + pfxBonus);
 }
 
 // Pick the best candidate from a list of {name, ...} objects
 export function bestMatch<T extends { name: string }>(
   target: string,
   candidates: T[],
-  minScore = 0.72
+  minScore = 0.55
 ): { candidate: T; score: number } | null {
   let best: T | null = null;
   let bestScore = 0;
