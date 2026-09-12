@@ -43,7 +43,35 @@ export interface PredictionResult {
 }
 
 // ── Core shared logic ─────────────────────────────────────────
-export function generatePredictionResult(match: any): PredictionResult {
+export async function generatePredictionResult(match: any): Promise<PredictionResult> {
+  // ── Elo lookup from team_ratings (ClubElo integration) ──
+  // If the match doesn't already have Elo values, look them up from our
+  // resolved team_ratings table. The table is populated by /api/refresh-elo,
+  // which fuzzy-matches every team name in our DB against ClubElo.
+  if (match.elo_a == null || match.elo_b == null) {
+    const { supabase } = await import("@/lib/supabase");
+
+    const [resA, resB] = await Promise.all([
+      match.elo_a == null
+        ? supabase
+            .from("team_ratings")
+            .select("elo")
+            .eq("team_name", match.team_a)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+      match.elo_b == null
+        ? supabase
+            .from("team_ratings")
+            .select("elo")
+            .eq("team_name", match.team_b)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
+
+    match.elo_a = match.elo_a ?? resA?.data?.elo ?? null;
+    match.elo_b = match.elo_b ?? resB?.data?.elo ?? null;
+  }
+
   const dataQuality = calculateDataQuality(match);
   const scores      = computePrediction(match);
 
