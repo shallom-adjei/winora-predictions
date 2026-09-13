@@ -116,10 +116,9 @@ function tokenContainmentScore(shorter: string, longer: string): number {
 
   const st = sTokens[0];
 
-  // 1. Exact token match
   const idx = lTokens.indexOf(st);
   if (idx >= 0) {
-    const posBonus = idx === 0 ? 0.1 : idx === 1 ? 0.05 : 0;
+    const posBonus = idx === 0 ? 0.15 : idx === 1 ? -0.10 : -0.15;
     return Math.min(0.95, 0.65 + (st.length / longer.length) * 0.15 + posBonus);
   }
 
