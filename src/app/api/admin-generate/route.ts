@@ -40,6 +40,14 @@ export async function POST(request: Request) {
     );
   }
 
+    if (match.match_status === "LIVE" || match.match_status === "FINISHED") {
+    return NextResponse.json({
+      skipped: true,
+      reason: `Match is ${match.match_status} — prediction frozen`,
+      matchId,
+    });
+  }
+
   // Elo lookup is handled inside generatePredictionResult (from team_ratings).
   let result;
   try {

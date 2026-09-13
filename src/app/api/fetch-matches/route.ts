@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Only fetch fixtures from leagues ClubElo actually covers.
-// Prevents Brazilian, Copa Libertadores, and other no-data leagues from entering the DB.
 const ALLOWED_LEAGUES = new Set([
   "Premier League",
   "Championship",
-  "La Liga",
+  "Primera Division",
   "Bundesliga",
   "Serie A",
   "Ligue 1",

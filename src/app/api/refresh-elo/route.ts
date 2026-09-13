@@ -4,10 +4,14 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 export const dynamic = "force-dynamic";
 
 const LEAGUE_COUNTRY: Record<string, string[]> = {
-  "Premier League": ["ENG"], "Championship": ["ENG"],
-  "La Liga": ["ESP"], "Bundesliga": ["GER"],
-  "Serie A": ["ITA"], "Ligue 1": ["FRA"],
-  "Eredivisie": ["NED"], "Primeira Liga": ["POR"],
+  "Premier League": ["ENG"],
+  "Championship": ["ENG"],
+  "Primera Division": ["ESP"],
+  "Bundesliga": ["GER"],
+  "Serie A": ["ITA"],
+  "Ligue 1": ["FRA"],
+  "Eredivisie": ["NED"],
+  "Primeira Liga": ["POR"],
   "Scottish Premiership": ["SCO"],
   "UEFA Champions League": ["ENG","ESP","GER","ITA","FRA","NED","POR","SCO"],
   "UEFA Europa League": ["ENG","ESP","GER","ITA","FRA","NED","POR","SCO"],
