@@ -66,18 +66,20 @@ export function similarity(a: string, b: string): number {
   const [sTokens, lTokens] = ta.length <= tb.length ? [ta, tb] : [tb, ta];
 
   // Token-prefix: "man" matches "manchester", "inter" matches "internazionale"
-  let matched = 0;
-  for (const token of sTokens) {
-    if (
-      lTokens.some(
-        (lt) =>
-          lt === token || (token.length >= 3 && lt.startsWith(token))
-      )
-    ) {
-      matched++;
-    }
+let matched = 0;
+for (const token of sTokens) {
+  if (
+    lTokens.some(
+      (lt) =>
+        lt === token ||
+        (token.length >= 3 && lt.startsWith(token)) ||
+        (lt.length >= 3 && token.startsWith(lt))   // ← added
+    )
+  ) {
+    matched++;
   }
-  const tokenPrefix = sTokens.length > 0 ? matched / sTokens.length : 0;
+}
+const tokenPrefix = sTokens.length > 0 ? matched / sTokens.length : 0;
 
   // Jaccard
   const setA = new Set(ta);
@@ -119,17 +121,29 @@ function tokenContainmentScore(shorter: string, longer: string): number {
     return Math.min(0.95, 0.65 + (st.length / longer.length) * 0.15 + posBonus);
   }
 
-  if (st.length >= 3) {
-    for (let i = 0; i < lTokens.length; i++) {
-      if (lTokens[i].startsWith(st)) {
-        const posBonus = i === 0 ? 0.1 : 0;
-        return Math.min(0.95, 0.6 + (st.length / lTokens[i].length) * 0.15 + posBonus);
-      }
+ if (st.length >= 3) {
+  for (let i = 0; i < lTokens.length; i++) {
+    const lt = lTokens[i];
+    if (lt.startsWith(st)) {
+      const posBonus = i === 0 ? 0.1 : 0;
+      return Math.min(0.95, 0.6 + (st.length / lt.length) * 0.15 + posBonus);
+    }
+    // Reverse: shorter ClubElo token is a prefix of the fixture token
+    if (lt.length >= 3 && st.startsWith(lt)) {
+      const posBonus = i === 0 ? 0.1 : 0;
+      return Math.min(0.9, 0.6 + (lt.length / st.length) * 0.15 + posBonus);
+    }
+    // Common-prefix fallback: "wolves" ↔ "wolverhampton" share "wolv" (4 chars)
+    let pfx = 0;
+    const lim = Math.min(st.length, lt.length);
+    while (pfx < lim && st[pfx] === lt[pfx]) pfx++;
+    if (pfx >= 4 && lim <= 10) {
+      const posBonus = i === 0 ? 0.1 : 0;
+      return Math.min(0.85, 0.55 + (pfx / Math.max(st.length, lt.length)) * 0.2 + posBonus);
     }
   }
+}
 
-  // NEW: near-token match (1 char diff) for tokens ≥ 6 chars.
-  // Handles spelling variants like "Espanol" ↔ "Espanyol".
   if (st.length >= 6) {
     for (let i = 0; i < lTokens.length; i++) {
       const lt = lTokens[i];

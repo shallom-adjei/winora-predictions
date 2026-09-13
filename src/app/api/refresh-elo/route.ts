@@ -16,6 +16,21 @@ const ELO_CSV_URLS = [
   "https://raw.githubusercontent.com/xgabora/Club-Football-Match-Data/main/data/EloRatings.csv",
 ];
 
+// Map our leagues to ClubElo's 3-letter country codes.
+const LEAGUE_COUNTRY: Record<string, string[]> = {
+  "Premier League": ["ENG"],
+  "Championship": ["ENG"],
+  "La Liga": ["ESP"],
+  "Bundesliga": ["GER"],
+  "Serie A": ["ITA"],
+  "Ligue 1": ["FRA"],
+  "Eredivisie": ["NED"],
+  "Primeira Liga": ["POR"],
+  "Scottish Premiership": ["SCO"],
+  "UEFA Champions League": ["ENG","ESP","GER","ITA","FRA","NED","POR","SCO"],
+  "UEFA Europa League": ["ENG","ESP","GER","ITA","FRA","NED","POR","SCO"],
+};
+
 async function fetchEloCsv(): Promise<ClubEloRow[]> {
   let lastError: Error | null = null;
 
@@ -118,7 +133,7 @@ export async function GET() {
     // Load all distinct team names in upcoming matches
     const { data: upcoming, error: predErr } = await supabaseAdmin
       .from("predictions")
-      .select("team_a, team_b")
+      .select("team_a, team_b, league")
       .or("match_status.neq.FINISHED,match_status.is.null");
 
     if (predErr) throw predErr;
@@ -144,21 +159,26 @@ export async function GET() {
     const resolved: any[] = [];
     const unresolved: string[] = [];
 
-    for (const team of teams) {
-      const match = bestMatch(team, candidates, 0.55);
-      if (!match) {
-        unresolved.push(team);
-        continue;
-      }
-      resolved.push({
-        team_name: team,
-        clubelo_name: match.candidate.name,
-        elo: match.candidate.elo,
-        country: match.candidate.country || null,
-        match_score: Number(match.score.toFixed(3)),
-        updated_at: new Date().toISOString(),
-      });
-    }
+  // Build a team→league map from the fixtures
+const teamLeague = new Map<string, string>();
+for (const row of upcoming ?? []) {
+  if (row.team_a && row.league) teamLeague.set(row.team_a, row.league);
+  if (row.team_b && row.league) teamLeague.set(row.team_b, row.league);
+}
+
+for (const team of teams) {
+  const league = teamLeague.get(team);
+  const allowed = league ? LEAGUE_COUNTRY[league] : null;
+
+  // If we know the league, only consider ClubElo clubs from the matching country.
+  // Exception: European competitions allow any European country.
+  const pool = allowed
+    ? candidates.filter((c) => allowed.includes(c.country))
+    : candidates;
+
+  const match = bestMatch(team, pool, 0.55);
+  // ...rest unchanged
+}
 
     let upserted = 0;
     for (let i = 0; i < resolved.length; i += 500) {
