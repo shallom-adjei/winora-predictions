@@ -111,28 +111,38 @@ export async function generatePredictionResult(match: any): Promise<PredictionRe
     scores["X2"]       = Math.min(95, scores["Away Win"] + scores["Draw"]);
   }
 
- const sorted1x2 = (
+const sorted1x2 = (
   ["Home Win", "Draw", "Away Win"] as (keyof PredictionScores)[]
 )
   .map((p) => ({ pick: p, prob: scores[p] as number }))
   .sort((a, b) => b.prob - a.prob);
 
-const topPick = sorted1x2[0].pick;
-const topProb = sorted1x2[0].prob;
-const secondProb = sorted1x2[1].prob;
-const probabilityEdge = topProb - secondProb;
+const probHome = scores["Home Win"];
+const probDraw = scores["Draw"];
+const probAway = scores["Away Win"];
+const topSideProb = Math.max(probHome, probAway);
+const topSidePick: "Home Win" | "Away Win" = probHome >= probAway ? "Home Win" : "Away Win";
 
-const hasElo      = match.elo_a != null && match.elo_b != null;
-const hasForm     = match.form_points_a != null && match.form_points_b != null;
+
+const drawIsCompetitive =
+  probDraw >= topSideProb - 6 &&   // within 6 points
+  topSideProb <= 45 &&             // match is close
+  probDraw >= 28;                  // Draw itself is credible
+
+const mainPick: keyof PredictionScores = drawIsCompetitive ? "Draw" : topSidePick;
+// ──────────────────────────────────────────────────────────
+
+const probabilityEdge = sorted1x2[0].prob - sorted1x2[1].prob;
+
+const hasElo       = match.elo_a != null && match.elo_b != null;
+const hasForm      = match.form_points_a != null && match.form_points_b != null;
 const hasLeaguePos = match.league_position_a != null && match.league_position_b != null;
 const hasAnySignal = hasElo || hasForm || hasLeaguePos;
 
-// Skip: no signal at all AND weak probability edge → don't force a pick
 if (!hasAnySignal && probabilityEdge < 10) {
   throw new Error("INSUFFICIENT_DATA");
 }
 
-const mainPick = topPick;
 
   const preferOver25  = scores["Over 2.5 Goals"] > 50;
   const preferBttsYes = scores["Both Teams to Score"] > 50;
