@@ -99,6 +99,7 @@ function tokenContainmentScore(shorter: string, longer: string): number {
   const sTokens = shorter.split(" ");
   const lTokens = longer.split(" ");
 
+  // Multi-token short: contiguous window inside longer
   if (sTokens.length > 1) {
     for (let i = 0; i <= lTokens.length - sTokens.length; i++) {
       let ok = true;
@@ -115,41 +116,47 @@ function tokenContainmentScore(shorter: string, longer: string): number {
 
   const st = sTokens[0];
 
+  // 1. Exact token match
   const idx = lTokens.indexOf(st);
   if (idx >= 0) {
     const posBonus = idx === 0 ? 0.1 : idx === 1 ? 0.05 : 0;
     return Math.min(0.95, 0.65 + (st.length / longer.length) * 0.15 + posBonus);
   }
 
- if (st.length >= 3) {
-  for (let i = 0; i < lTokens.length; i++) {
-    const lt = lTokens[i];
-    if (lt.startsWith(st)) {
-      const posBonus = i === 0 ? 0.1 : 0;
-      return Math.min(0.95, 0.6 + (st.length / lt.length) * 0.15 + posBonus);
-    }
-    // Reverse: shorter ClubElo token is a prefix of the fixture token
-    if (lt.length >= 3 && st.startsWith(lt)) {
-      const posBonus = i === 0 ? 0.1 : 0;
-      return Math.min(0.9, 0.6 + (lt.length / st.length) * 0.15 + posBonus);
-    }
-    // Common-prefix fallback: "wolves" ↔ "wolverhampton" share "wolv" (4 chars)
-    let pfx = 0;
-    const lim = Math.min(st.length, lt.length);
-    while (pfx < lim && st[pfx] === lt[pfx]) pfx++;
-    if (pfx >= 4 && lim <= 10) {
-      const posBonus = i === 0 ? 0.1 : 0;
-      return Math.min(0.85, 0.55 + (pfx / Math.max(st.length, lt.length)) * 0.2 + posBonus);
-    }
-  }
-}
-
-  if (st.length >= 6) {
+  if (st.length >= 3) {
     for (let i = 0; i < lTokens.length; i++) {
       const lt = lTokens[i];
-      if (Math.abs(lt.length - st.length) <= 1 && levenshtein(st, lt) <= 1) {
+
+      // Reserve-team penalty: candidates ending in a single letter (B, II, U21, etc.)
+      // are penalised so the senior team wins when scores tie.
+      const reservePenalty = lTokens.length > sTokens.length &&
+        (lTokens[lTokens.length - 1].length === 1 || lTokens[lTokens.length - 1] === "ii")
+        ? 0.05 : 0;
+
+      // 2. Forward prefix: fixture token starts with ClubElo token, or vice versa
+      if (lt.startsWith(st) || (lt.length >= 3 && st.startsWith(lt))) {
         const posBonus = i === 0 ? 0.1 : 0;
-        return Math.min(0.9, 0.7 + (st.length / lt.length) * 0.1 + posBonus);
+        return Math.min(0.95, 0.6 + (Math.min(st.length, lt.length) / Math.max(st.length, lt.length)) * 0.15 + posBonus - reservePenalty);
+      }
+
+      // 3. Near-token (1-char edit) — catches Espanol ↔ Espanyol, Ath Bilbao ↔ Ath Bilbao
+      if (
+        Math.abs(lt.length - st.length) <= 1 &&
+        st.length >= 5 &&
+        lt.length >= 5 &&
+        levenshtein(st, lt) <= 1
+      ) {
+        const posBonus = i === 0 ? 0.1 : 0;
+        return Math.min(0.9, 0.7 + (st.length / lt.length) * 0.1 + posBonus - reservePenalty);
+      }
+
+      // 4. Common-prefix fallback for short tokens — catches Wolves ↔ Wolverhampton
+      let pfx = 0;
+      const lim = Math.min(st.length, lt.length);
+      while (pfx < lim && st[pfx] === lt[pfx]) pfx++;
+      if (pfx >= 4 && lim <= 10) {
+        const posBonus = i === 0 ? 0.1 : 0;
+        return Math.min(0.85, 0.55 + (pfx / Math.max(st.length, lt.length)) * 0.2 + posBonus - reservePenalty);
       }
     }
   }
