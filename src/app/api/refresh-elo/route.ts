@@ -2,11 +2,6 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60; // Hobby cap — fits in 60s
-
-const ELO_CSV_URLS = [
-  "https://cdn.jsdelivr.net/gh/xgabora/Club-Football-Match-Data@main/data/EloRatings.csv",
-];
 
 const LEAGUE_COUNTRY: Record<string, string[]> = {
   "Premier League": ["ENG"], "Championship": ["ENG"],
@@ -18,54 +13,25 @@ const LEAGUE_COUNTRY: Record<string, string[]> = {
   "UEFA Europa League": ["ENG","ESP","GER","ITA","FRA","NED","POR","SCO"],
 };
 
-async function fetchAndParseEloCsv() {
-  for (const url of ELO_CSV_URLS) {
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 50000);
-      const res = await fetch(url, {
-        cache: "no-store",
-        signal: controller.signal,
-        headers: { "User-Agent": "Winora/1.0" },
-      });
-      clearTimeout(timeout);
-      if (!res.ok) continue;
-
-      const text = await res.text();
-      const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
-      const clean = (s: string) => s.trim().replace(/^"+|"+$/g, "");
-
-      const latest = new Map<string, { country: string; elo: number; date: string }>();
-      for (let i = 0; i < lines.length; i++) {
-        const parts = lines[i].split(",").map(clean);
-        if (parts.length < 4) continue;
-        const [date, club, country, eloStr] = parts;
-        const elo = parseFloat(eloStr);
-        if (!club || isNaN(elo) || !country) continue;
-        const existing = latest.get(club);
-        if (!existing || date > existing.date) {
-          latest.set(club, { country, elo, date });
-        }
-      }
-
-      return Array.from(latest.entries()).map(([name, v]) => ({
-        name, country: v.country, elo: Math.round(v.elo),
-      }));
-    } catch { continue; }
-  }
-  throw new Error("All CSV sources failed");
+export async function GET() {
+  return POST();
 }
 
-export async function POST(req: Request) {
-  // Auth: Vercel cron or manual with CRON_SECRET
-  const auth = req.headers.get("authorization");
-  const secret = process.env.CRON_SECRET;
-  if (secret && auth !== `Bearer ${secret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export async function POST() {
   try {
-    const clubelo = await fetchAndParseEloCsv();
+    const { data: cached, error: cacheErr } = await supabaseAdmin
+      .from("clubelo_cache")
+      .select("club_name, country, elo");
+
+    if (cacheErr) throw cacheErr;
+    if (!cached || cached.length === 0) {
+      return NextResponse.json({
+        error: "ClubElo cache is empty. Cron must run first.",
+        hint: "Call POST /api/cron-refresh-clubelo once, or wait for the daily cron.",
+      }, { status: 400 });
+    }
+
+    const clubelo = cached.map((r) => ({ name: r.club_name, country: r.country, elo: r.elo }));
 
     const { data: upcoming, error: predErr } = await supabaseAdmin
       .from("predictions")
@@ -101,25 +67,24 @@ export async function POST(req: Request) {
       });
     }
 
+    let upserted = 0;
     for (let i = 0; i < resolved.length; i += 500) {
-      const batch = resolved.slice(i, i + 500);
       const { error } = await supabaseAdmin
         .from("team_ratings")
-        .upsert(batch, { onConflict: "team_name" });
+        .upsert(resolved.slice(i, i + 500), { onConflict: "team_name" });
       if (error) throw error;
+      upserted += Math.min(500, resolved.length - i);
     }
 
     return NextResponse.json({
       success: true,
-      resolved: resolved.length,
+      clubelo_cached: clubelo.length,
+      teams_in_our_db: teams.length,
+      resolved: upserted,
       unresolved_count: unresolved.length,
+      unresolved_sample: unresolved.slice(0, 20),
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
-}
-
-// GET for browser / Vercel cron (no auth check when no secret set)
-export async function GET(req: Request) {
-  return POST(req);
 }

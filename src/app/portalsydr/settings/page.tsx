@@ -86,6 +86,54 @@ const [savingPrompt, setSavingPrompt] = useState(false);
     setShowForm(false);
   };
 
+  const [showAdvanced, setShowAdvanced] = useState(false);
+const [runningDaily, setRunningDaily] = useState(false);
+const [dailyStep, setDailyStep] = useState("");
+
+const runDailyRefresh = async () => {
+  setRunningDaily(true);
+  try {
+    setDailyStep("Fetching fixtures…");
+    const fetchRes = await fetch("/api/fetch-matches", { method: "POST", credentials: "include" });
+    const fetchData = await fetchRes.json();
+
+    setDailyStep("Refreshing Club Elo…");
+    const eloRes = await fetch("/api/refresh-elo", { method: "POST", credentials: "include" });
+    const eloData = await eloRes.json();
+
+    if (!eloData.success) {
+      toast.error(`Elo refresh failed: ${eloData.error || "unknown"}`);
+      return;
+    }
+
+    setDailyStep("Generating predictions…");
+    const dataRes = await fetch("/api/admin-data?t=" + Date.now(), { cache: "no-store" });
+    const d = await dataRes.json();
+    const matches = d.upcoming || [];
+
+    let generated = 0;
+    for (const match of matches) {
+      const genRes = await fetch("/api/admin-generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ matchId: match.id }),
+        credentials: "include",
+      });
+      const genData = await genRes.json();
+      if (!genData.skipped && genData.prediction) generated++;
+    }
+
+    toast.success(
+      `Done — ${fetchData.inserted ?? 0} new fixtures · ${eloData.resolved ?? 0} Elo matched · ${generated} predictions`
+    );
+  } catch (err: any) {
+    toast.error(err.message || "Daily refresh failed");
+  } finally {
+    setRunningDaily(false);
+    setDailyStep("");
+  }
+};
+
   // Load settings
   useEffect(() => {
     fetch("/api/admin/settings", { credentials: "include" })
@@ -300,122 +348,175 @@ const [savingPrompt, setSavingPrompt] = useState(false);
             </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            <Button onClick={handleUpdateMatches} disabled={updating} variant="outline" className="text-sm h-12">
-              <RefreshCw className="h-4 w-4 mr-2" />
-              {updating ? "Updating..." : "Update Matches"}
-            </Button>
-            <Button onClick={handleEnrich} disabled={enriching} variant="outline" className="text-sm h-12">
-              <Database className="h-4 w-4 mr-2" />
-              {enriching ? "Enriching..." : "Enrich Stats"}
-            </Button>
-            <Button
-              onClick={async () => {
-                try {
-                  const res = await fetch("/api/update-crests", { method: "POST", credentials: "include" });
-                  const data = await res.json();
-                  toast.success(data.message || "Crests updated");
-                } catch { toast.error("Crest update failed"); }
-              }}
-              variant="outline"
-              className="text-sm h-12"
-            >
-              <Play className="h-4 w-4 mr-2" />
-              Update Crests
-            </Button>
-           <Button
-  onClick={async () => {
-    setRefreshingElo(true);
-    try {
-      const res = await fetch("/api/refresh-elo", { credentials: "include" });
-      const data = await res.json();
-      if (data.success) {
-        toast.success(
-          `ClubElo: ${data.clubelo_total} clubs loaded · ${data.resolved} teams resolved · ${data.unresolved_count ?? 0} unresolved`
-        );
-      } else {
-        toast.error(data.error || "Elo refresh failed");
-      }
-    } catch {
-      toast.error("Network error");
-    } finally {
-      setRefreshingElo(false);
-    }
-  }}
-  disabled={refreshingElo}
-  variant="outline"
-  className="text-sm h-12"
->
-  <Play className="h-4 w-4 mr-2" />
-  {refreshingElo ? "Refreshing…" : "Refresh Club Elo"}
-</Button>
-<Button
-  onClick={async () => {
-    setRefreshingStandings(true);
-    try {
-      const res = await fetch("/api/refresh-standings", { credentials: "include" });
-      const data = await res.json();
-      if (data.success) {
-        toast.success(
-          `Standings: ${data.competitions} competitions · ${data.teams_updated} teams updated`
-        );
-      } else {
-        toast.error(data.error || "Standings refresh failed");
-      }
-    } catch {
-      toast.error("Network error");
-    } finally {
-      setRefreshingStandings(false);
-    }
-  }}
-  disabled={refreshingStandings}
-  variant="outline"
-  className="text-sm h-12"
->
-  <Play className="h-4 w-4 mr-2" />
-  {refreshingStandings ? "Refreshing…" : "Refresh Standings"}
-</Button>
+          {/* ── Primary actions ───────────────────────────── */}
+<div className="flex flex-wrap gap-3">
+  <Button
+    onClick={runDailyRefresh}
+    disabled={runningDaily}
+    className="text-sm h-12 bg-gold-400 text-black hover:bg-gold-500 min-w-[220px]"
+  >
+    <Zap className="h-4 w-4 mr-2" />
+    {runningDaily ? (dailyStep || "Running…") : "▶ Run Daily Refresh"}
+  </Button>
+  <Button
+    onClick={() => setShowAdvanced(!showAdvanced)}
+    variant="outline"
+    className="text-sm h-12"
+  >
+    {showAdvanced ? "Hide Advanced" : "Advanced"}
+  </Button>
+</div>
 
-<Button
-  onClick={async () => {
-    setRefreshingOdds(true);
-    try {
-      const res = await fetch("/api/refresh-odds", { credentials: "include" });
-      const data = await res.json();
-      if (data.success) {
-        toast.success(`Odds: ${data.updated} matches updated`);
-      } else {
-        toast.error(data.error || "Odds refresh failed");
-      }
-    } catch {
-      toast.error("Network error");
-    } finally {
-      setRefreshingOdds(false);
-    }
-  }}
-  disabled={refreshingOdds}
-  variant="outline"
-  className="text-sm h-12"
->
-  <Play className="h-4 w-4 mr-2" />
-  {refreshingOdds ? "Refreshing…" : "Refresh Bookmaker Odds"}
-</Button>
-            <Button onClick={handleGenerateAll} disabled={generating} className="text-sm h-12 bg-gold-400 text-black hover:bg-gold-500">
-              <Zap className="h-4 w-4 mr-2" />
-              {generating ? "Generating..." : "Generate All"}
-            </Button>
-            <Button onClick={handlePostTelegram} disabled={postingTelegram} variant="outline" className="text-sm h-12">
-              <MessageCircle className="h-4 w-4 mr-2" />
-              {postingTelegram ? "Posting..." : "Post to Telegram"}
-            </Button>
-            <Button
-              onClick={() => setShowForm(!showForm)}
-              variant="outline"
-              className="text-sm h-12"
-            >
-              {showForm ? "Cancel" : "+ Add New Prediction"}
-            </Button>
-          </div>
+{/* ── Advanced actions (collapsed) ──────────────── */}
+{showAdvanced && (
+  <motion.div
+    initial={{ opacity: 0, height: 0 }}
+    animate={{ opacity: 1, height: "auto" }}
+    className="mt-5 pt-5 border-t border-white/5"
+  >
+    <p className="text-xs text-gray-500 mb-3">Individual tools — for debugging or one-off runs.</p>
+    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+
+      <Button onClick={handleUpdateMatches} disabled={updating} variant="outline" className="text-sm h-12">
+        <RefreshCw className="h-4 w-4 mr-2" />
+        {updating ? "Updating…" : "Fetch Matches Only"}
+      </Button>
+
+      <Button
+        onClick={async () => {
+          setRefreshingElo(true);
+          try {
+            const res = await fetch("/api/refresh-elo", { method: "POST", credentials: "include" });
+            const data = await res.json();
+            if (data.success) {
+              toast.success(`Elo: ${data.resolved ?? 0} resolved · ${data.unresolved_count ?? 0} unresolved`);
+            } else {
+              toast.error(data.error || "Elo refresh failed");
+            }
+          } catch { toast.error("Network error"); }
+          finally { setRefreshingElo(false); }
+        }}
+        disabled={refreshingElo}
+        variant="outline"
+        className="text-sm h-12"
+      >
+        <Play className="h-4 w-4 mr-2" />
+        {refreshingElo ? "Refreshing…" : "Refresh Elo Only"}
+      </Button>
+
+      <Button
+        onClick={async () => {
+          setGenerating(true);
+          try {
+            const res = await fetch("/api/admin-data?t=" + Date.now(), { cache: "no-store" });
+            const d = await res.json();
+            const matches = d.upcoming || [];
+            if (!matches.length) { toast.success("No matches."); return; }
+            toast.loading(`Generating for ${matches.length} matches…`);
+            for (const match of matches) {
+              await fetch("/api/admin-generate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ matchId: match.id }),
+                credentials: "include",
+              });
+            }
+            toast.success("Predictions generated");
+          } catch { toast.error("Failed"); }
+          finally { setGenerating(false); }
+        }}
+        disabled={generating}
+        variant="outline"
+        className="text-sm h-12"
+      >
+        <Zap className="h-4 w-4 mr-2" />
+        {generating ? "Generating…" : "Generate Only"}
+      </Button>
+
+      <Button onClick={handleEnrich} disabled={enriching} variant="outline" className="text-sm h-12">
+        <Database className="h-4 w-4 mr-2" />
+        {enriching ? "Enriching…" : "Enrich Stats"}
+      </Button>
+
+      <Button
+        onClick={async () => {
+          setRefreshingStandings(true);
+          try {
+            const res = await fetch("/api/refresh-standings", { credentials: "include" });
+            const data = await res.json();
+            toast.success(data.success ? `Standings: ${data.teams_updated} teams` : data.error);
+          } catch { toast.error("Network error"); }
+          finally { setRefreshingStandings(false); }
+        }}
+        disabled={refreshingStandings}
+        variant="outline"
+        className="text-sm h-12"
+      >
+        <Play className="h-4 w-4 mr-2" />
+        {refreshingStandings ? "Refreshing…" : "Refresh Standings"}
+      </Button>
+
+      <Button
+        onClick={async () => {
+          setRefreshingOdds(true);
+          try {
+            const res = await fetch("/api/refresh-odds", { credentials: "include" });
+            const data = await res.json();
+            toast.success(data.success ? `Odds: ${data.updated} matches` : data.error);
+          } catch { toast.error("Network error"); }
+          finally { setRefreshingOdds(false); }
+        }}
+        disabled={refreshingOdds}
+        variant="outline"
+        className="text-sm h-12"
+      >
+        <Play className="h-4 w-4 mr-2" />
+        {refreshingOdds ? "Refreshing…" : "Refresh Odds"}
+      </Button>
+
+      <Button
+        onClick={async () => {
+          try {
+            const res = await fetch("/api/update-crests", { method: "POST", credentials: "include" });
+            const data = await res.json();
+            toast.success(data.message || "Crests updated");
+          } catch { toast.error("Crest update failed"); }
+        }}
+        variant="outline"
+        className="text-sm h-12"
+      >
+        <Play className="h-4 w-4 mr-2" />
+        Update Crests
+      </Button>
+
+      <Button onClick={handlePostTelegram} disabled={postingTelegram} variant="outline" className="text-sm h-12">
+        <MessageCircle className="h-4 w-4 mr-2" />
+        {postingTelegram ? "Posting…" : "Post to Telegram"}
+      </Button>
+
+      <Button onClick={() => setShowForm(!showForm)} variant="outline" className="text-sm h-12">
+        {showForm ? "Cancel" : "+ Add Manual Pick"}
+      </Button>
+
+    </div>
+
+    {showForm && (
+      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-4">
+        <form onSubmit={handleAddPick} className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <input placeholder="Match Name" value={newPick.match_name} onChange={e => setNewPick({...newPick, match_name: e.target.value})} className="bg-white/5 border border-white/10 rounded-lg p-2 text-white" required />
+          <input placeholder="Team A" value={newPick.team_a} onChange={e => setNewPick({...newPick, team_a: e.target.value})} className="bg-white/5 border border-white/10 rounded-lg p-2 text-white" required />
+          <input placeholder="Team B" value={newPick.team_b} onChange={e => setNewPick({...newPick, team_b: e.target.value})} className="bg-white/5 border border-white/10 rounded-lg p-2 text-white" required />
+          <input placeholder="Time (17:30)" value={newPick.time} onChange={e => setNewPick({...newPick, time: e.target.value})} className="bg-white/5 border border-white/10 rounded-lg p-2 text-white" required />
+          <input type="number" placeholder="Confidence" value={newPick.confidence} onChange={e => setNewPick({...newPick, confidence: Number(e.target.value)})} className="bg-white/5 border border-white/10 rounded-lg p-2 text-white" required />
+          <select value={newPick.sport} onChange={e => setNewPick({...newPick, sport: e.target.value})} className="bg-[#0D0D0D] text-white border border-white/10 rounded-lg p-2">
+            <option>Football</option><option>Basketball</option><option>Tennis</option><option>Baseball</option>
+          </select>
+          <Button type="submit" className="bg-gold-400 text-black col-span-full">Save Prediction</Button>
+        </form>
+      </motion.div>
+    )}
+  </motion.div>
+)}
 
           {/* Form slides open inside the same card */}
           {showForm && (
