@@ -1,7 +1,6 @@
 // Pure name-matching utilities. No external deps, no side effects.
 const ABBREVIATIONS: Record<string, string> = {
   atletico: "ath",
-  athletic: "ath",
   manchester: "man",
   sporting: "sp",
 };
