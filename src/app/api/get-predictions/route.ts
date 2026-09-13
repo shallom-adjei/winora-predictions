@@ -8,7 +8,7 @@ export async function GET() {
   const { data, error } = await supabase
     .from("predictions")
     .select("*")
-    .neq("match_status", "FINISHED")
+    .or("match_status.neq.FINISHED,match_status.is.null")
     .order("kickoff_time", { ascending: true })
     .limit(50);
 

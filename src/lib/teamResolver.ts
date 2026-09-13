@@ -1,5 +1,10 @@
 // Pure name-matching utilities. No external deps, no side effects.
-
+const ABBREVIATIONS: Record<string, string> = {
+  atletico: "ath",
+  athletic: "ath",
+  manchester: "man",
+  sporting: "sp",
+};
 const NOISE_WORDS = new Set([
   "fc","afc","sc","ac","cf","cd","as","rc","ss","us","sv","vfb","vfl","tsg",
   "club","de","del","la","el","los","le","il","the","of","do","da","dos",
@@ -16,7 +21,8 @@ function normalize(name: string): string {
     .replace(/[\u0300-\u036f]/g, "")     // strip diacritics
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, " ")         // keep letters, digits, spaces
-    .split(/\s+/)
+        .split(/\s+/)
+    .map((w) => ABBREVIATIONS[w] || w)
     .filter((w) => w.length > 0 && !NOISE_WORDS.has(w))
     .join(" ")
     .trim();
